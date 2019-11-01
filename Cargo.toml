@@ -19,3 +19,5 @@ panic = "abort"
 [features]
 default = []
 rls = []
+raspi3 = []
+raspi4 = []

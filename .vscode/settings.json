@@ -1,4 +1,4 @@
 {
     "rust.all_features": false,
-    "rust.features": ["rls"],
+    "rust.features": ["rls", "raspi3"],
 }
