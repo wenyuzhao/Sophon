@@ -1,0 +1,21 @@
+[package]
+name = "proton"
+version = "0.1.0"
+authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lazy_static = { version="1.4.0", features = ["spin_no_std"] }
+spin = "0.5.2"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[features]
+default = []
+rls = []
