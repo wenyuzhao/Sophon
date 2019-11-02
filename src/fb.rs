@@ -55,33 +55,32 @@ impl FrameBuffer {
     pub fn init(&mut self) {
         let mut mail = Mail::new(Channel::PropertyARM2VC);
         
-        mail.add(/*0*/ Request::SetPhysicalResolution { width: 1024, height: 768 })
-            .add(/*1*/ Request::SetVirtualResolution { width: 1024, height: 768 })
-            .add(/*2*/ Request::SetVirtualOffset { x: 0, y: 0 })
-            .add(/*3*/ Request::SetDepth(32))
-            .add(/*4*/ Request::SetPixelOrder(PixelOrder::RGB))
-            .add(/*5*/ Request::SetAlphaMode(AlphaMode::Reversed))
-            .add(/*6*/ Request::AllocateBuffer { alignment: 4096 })
-            .add(/*7*/ Request::GetPitch);
+        mail.add(/*0*/ Request::GetPhysicalResolution)
+            .add(/*1*/ Request::SetVirtualOffset { x: 0, y: 0 })
+            .add(/*2*/ Request::SetDepth(32))
+            .add(/*3*/ Request::SetPixelOrder(PixelOrder::RGB))
+            .add(/*4*/ Request::SetAlphaMode(AlphaMode::Reversed))
+            .add(/*5*/ Request::AllocateBuffer { alignment: 4096 })
+            .add(/*6*/ Request::GetPitch);
        
         if let Ok(responese) = mail.send() {
-            debug_assert!(responese[3] == Response::SetDepth(32));
-            debug_assert!(responese[4] == Response::SetPixelOrder(PixelOrder::RGB));
-            debug_assert!(responese[5] == Response::SetAlphaMode(AlphaMode::Reversed));
+            debug_assert!(responese[2] == Response::SetDepth(32));
+            debug_assert!(responese[3] == Response::SetPixelOrder(PixelOrder::RGB));
+            debug_assert!(responese[4] == Response::SetAlphaMode(AlphaMode::Reversed));
             match responese[0] {
-                Response::SetPhysicalResolution { width, height } => {
+                Response::GetPhysicalResolution { width, height } => {
                     self.width = width as _;
                     self.height = height as _;
                 },
                 _ => unreachable!(),
             }
-            match responese[6] {
+            match responese[5] {
                 Response::AllocateBuffer { base_address, .. } => {
                     self.fb = base_address as _;
                 },
                 _ => unreachable!(),
             }
-            match responese[7] {
+            match responese[6] {
                 Response::GetPitch(pitch) => {
                     self.pitch = pitch as _;
                 },

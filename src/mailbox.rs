@@ -45,14 +45,14 @@ impl MailBoxBuffer {
     pub fn send(&mut self, ch: u8) -> Result<(), MailBoxError> {
         let message = ((self as *const _ as usize) & !0xF) as u32 | (ch & 0xF) as u32;
         while MailBoxStatus::get() == MailBoxStatus::Full {
-            unsafe { asm!("nop"); }
+            unsafe { asm!("nop"::::"volatile"); }
         }
         unsafe {
             *Self::MAILBOX_WRITE = message;
         }
         loop {
             while MailBoxStatus::get() == MailBoxStatus::Empty {
-                unsafe { asm!("nop"); }
+                unsafe { asm!("nop"::::"volatile"); }
             }
             if unsafe { volatile_load(Self::MAILBOX_READ) } == message {
                 return match self.0[1] {
@@ -91,22 +91,46 @@ pub enum AlphaMode {
 }
 
 #[allow(unused)]
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Clock {
+    _Reserved = 0x000000000,
+    EMMC = 0x000000001,
+    UART = 0x000000002,
+    ARM = 0x000000003,
+    CORE = 0x000000004,
+    V3D = 0x000000005,
+    H264 = 0x000000006,
+    ISP = 0x000000007,
+    SDRAM = 0x000000008,
+    PIXEL = 0x000000009,
+    PWM = 0x00000000a,
+    EMMC2 = 0x00000000c,
+}
+
+#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Request {
-    AllocateBuffer { /** Alignment in bytes */ alignment: u32 }, // 40001,
+    SetPowerState { device: u32, state: u32 }, // 0x28001
+    SetClockRate { clock: Clock, rate: u32, skip_setting_turbo: bool }, // 0x38002
+    AllocateBuffer { /** Alignment in bytes */ alignment: u32 }, // 0x40001,
+    GetPhysicalResolution,
     GetPitch, // 0x40008
     SetPhysicalResolution { width: u32, height: u32 }, // 0x48003
     SetVirtualResolution { width: u32, height: u32 }, // 0x48004
     SetDepth(u32), // 0x48005
     SetPixelOrder(PixelOrder), // 0x48006
     SetAlphaMode(AlphaMode), // 0x48007
-    SetVirtualOffset { x: u32, y: u32 }, // 48009
+    SetVirtualOffset { x: u32, y: u32 }, // 0x48009
 }
 
 impl Request {
     fn write(&self, buf: &mut [u32; BUFFER_ENTRIES], c: usize) -> usize {
         let new_cursor = match self {
+            Self::SetPowerState {..} => c + 5,
+            Self::SetClockRate {..} => c + 6,
             Self::AllocateBuffer {..} => c + 5,
+            Self::GetPhysicalResolution => c + 5,
             Self::GetPitch => c + 4,
             Self::SetPhysicalResolution {..} => c + 5,
             Self::SetVirtualResolution {..} => c + 5,
@@ -123,7 +147,10 @@ impl Request {
             }};
         }
         match self {
+            Self::SetPowerState { device, state } => write_buf![0x28001, 8, 8, *device, *state],
+            Self::SetClockRate { clock, rate, skip_setting_turbo } => write_buf![0x38002, 12, 12, *clock as _, *rate, *skip_setting_turbo as _],
             Self::AllocateBuffer { alignment } => write_buf![0x40001, 8, 8, *alignment, 0],
+            Self::GetPhysicalResolution => write_buf![0x40003, 8, 8, 0, 0],
             Self::GetPitch => write_buf![0x40008, 4, 4, 0],
             Self::SetPhysicalResolution { width, height } => write_buf![0x48003, 8, 8, *width, *height],
             Self::SetVirtualResolution { width, height } => write_buf![0x48004, 8, 8, *width, *height],
@@ -140,22 +167,37 @@ impl Request {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Response {
     Nil,
-    AllocateBuffer { base_address: *mut (), size: u32 }, // 40001,
+    SetPowerState { device: u32, state: u32 }, // 0x28001
+    SetClockRate { clock: Clock, rate: u32 }, // 0x38002
+    AllocateBuffer { base_address: *mut (), size: u32 }, // 0x40001,
+    GetPhysicalResolution { width: u32, height: u32 },
     GetPitch(u32), // 0x40008
     SetPhysicalResolution { width: u32, height: u32 }, // 0x48003
     SetVirtualResolution { width: u32, height: u32 }, // 0x48004
     SetDepth(u32), // 0x48005
     SetPixelOrder(PixelOrder), // 0x48006
     SetAlphaMode(AlphaMode), // 0x48007
-    SetVirtualOffset { x: u32, y: u32 }, // 48009
+    SetVirtualOffset { x: u32, y: u32 }, // 0x48009
 }
 
 impl Response {
     fn read(buf: &[u32; BUFFER_ENTRIES], cursor: usize) -> (usize, Self) {
         match buf[cursor] {
+            0x28001 => (cursor + 5, Self::SetPowerState {
+                device: buf[cursor + 3],
+                state: buf[cursor + 4],
+            }),
+            0x38002 => (cursor + 6, Self::SetClockRate {
+                clock: unsafe { ::core::mem::transmute(buf[cursor + 3]) },
+                rate: buf[cursor + 4],
+            }),
             0x40001 => (cursor + 5, Self::AllocateBuffer {
                 base_address: buf[cursor + 3] as usize as *mut (),
                 size: buf[cursor + 4],
+            }),
+            0x40003 => (cursor + 5, Self::GetPhysicalResolution {
+                width: buf[cursor + 3],
+                height: buf[cursor + 4],
             }),
             0x40008 => (cursor + 4, Self::GetPitch(buf[cursor + 3] as _)),
             0x48003 => (cursor + 5, Self::SetPhysicalResolution {

@@ -3,12 +3,12 @@ use core::fmt::Write;
 use spin::Mutex;
 use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
-use crate::gpio::PERIPHERAL_BASE;
+use crate::gpio::*;
 
 
 #[doc(hidden)]
 pub fn _println(args: fmt::Arguments) {
-    let mut write = UART_WRITER.lock();
+    let mut write = UART.lock();
     write.write_fmt(args).unwrap();
 }
 
@@ -19,22 +19,20 @@ macro_rules! debug {
     });
 }
 
-lazy_static! {
-    static ref UART_WRITER: Mutex<UART> = Mutex::new(UART);
-}
+pub static UART: Mutex<UART0> = Mutex::new(UART0);
 
-struct UART;
+pub struct UART0;
 
 #[allow(unused)]
-impl UART {
-    const UART_DR: usize = PERIPHERAL_BASE + 0x201000;
-    const UART_FR: usize = PERIPHERAL_BASE + 0x201018;
+impl UART0 {
+    const UART_DR: *mut u32 = (PERIPHERAL_BASE + 0x201000) as _;
+    const UART_FR: *mut u32 = (PERIPHERAL_BASE + 0x201018) as _;
 
-    fn mmio_write(&self, reg: usize, val: u32) {
+    fn mmio_write(&self, reg: *mut u32, val: u32) {
         unsafe { volatile_store(reg as *mut u32, val) }
     }
     
-    fn mmio_read(&self, reg: usize) -> u32 {
+    fn mmio_read(&self, reg: *mut u32) -> u32 {
         unsafe { volatile_load(reg as *const u32) }
     }
     
@@ -55,15 +53,9 @@ impl UART {
         while self.receive_fifo_empty() {}
         self.mmio_read(Self::UART_DR) as u8
     }
-
-    fn delay(&self, i: usize) {
-        for _ in 0..i {
-            unsafe { asm!("nop"); }
-        }
-    }
 }
 
-impl Write for UART {
+impl Write for UART0 {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         for b in s.bytes() {
             self.putc(b)
@@ -72,3 +64,34 @@ impl Write for UART {
     }
 }
 
+
+
+#[allow(unused)]
+pub struct GPIO18;
+
+#[allow(unused)]
+impl GPIO18 {
+    const GPFSEL1: *mut u32 = (GPIO_BASE + 0x4) as _;
+    const GPSET0: *mut u32 = (GPIO_BASE + 0x1c) as _;
+    const GPCLR0: *mut u32 = (GPIO_BASE + 0x28) as _;
+
+    pub fn init() {
+        // 1. Set GPIO Pin 18 is an output 
+        unsafe {
+            let mut v = volatile_load(Self::GPFSEL1);
+            v &= !(0b111 << 24);
+            v |= 0b001 << 24;
+            volatile_store(Self::GPFSEL1, v);
+        }
+    }
+
+    pub fn set(v: bool) {
+        unsafe {
+            if v {
+                volatile_store(Self::GPSET0, 1 << 18);
+            } else {
+                volatile_store(Self::GPCLR0, 1 << 18);
+            }
+        }
+    }
+}
