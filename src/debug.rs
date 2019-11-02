@@ -3,6 +3,7 @@ use core::fmt::Write;
 use spin::Mutex;
 use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
+use crate::gpio::PERIPHERAL_BASE;
 
 
 #[doc(hidden)]
@@ -14,27 +15,26 @@ pub fn _println(args: fmt::Arguments) {
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => ({
-        $crate::uart_debug::_println(format_args_nl!($($arg)*))
+        $crate::debug::_println(format_args_nl!($($arg)*))
     });
 }
 
 lazy_static! {
-    pub static ref UART_WRITER: Mutex<UART> = Mutex::new(UART);
+    static ref UART_WRITER: Mutex<UART> = Mutex::new(UART);
 }
 
+struct UART;
 
-
-pub struct UART;
-
+#[allow(unused)]
 impl UART {
-    const UART_DR: u32 = 0x3F201000;
-    const UART_FR: u32 = 0x3F201018;
+    const UART_DR: usize = PERIPHERAL_BASE + 0x201000;
+    const UART_FR: usize = PERIPHERAL_BASE + 0x201018;
 
-    fn mmio_write(&self, reg: u32, val: u32) {
+    fn mmio_write(&self, reg: usize, val: u32) {
         unsafe { volatile_store(reg as *mut u32, val) }
     }
     
-    fn mmio_read(&self, reg: u32) -> u32 {
+    fn mmio_read(&self, reg: usize) -> u32 {
         unsafe { volatile_load(reg as *const u32) }
     }
     
@@ -55,6 +55,12 @@ impl UART {
         while self.receive_fifo_empty() {}
         self.mmio_read(Self::UART_DR) as u8
     }
+
+    fn delay(&self, i: usize) {
+        for _ in 0..i {
+            unsafe { asm!("nop"); }
+        }
+    }
 }
 
 impl Write for UART {
@@ -65,3 +71,4 @@ impl Write for UART {
         Ok(())
     }
 }
+
