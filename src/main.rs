@@ -7,14 +7,15 @@
 #![no_std]
 #![no_main]
 
-#[macro_use]
 extern crate lazy_static;
 extern crate spin;
+#[allow(unused)]
 mod gpio;
 #[macro_use]
 mod debug;
 mod mailbox;
 mod fb;
+mod random;
 
 
 global_asm!(include_str!("./boot.S"));
@@ -34,6 +35,7 @@ pub extern "C" fn kmain() -> ! {
         fb.init();
         fb.clear(fb::Color::rgba(0x37474FFF));
     }
+    debug!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
     wait_forever();
 }
 
