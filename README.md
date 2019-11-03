@@ -5,6 +5,7 @@
 1. `qemu-system-aarch64` >= 2.12
 2. Rustup nightly channel
 3. [cargo-xbuild](https://github.com/rust-osdev/cargo-xbuild)
+4. [cargo-binutils](https://github.com/rust-embedded/cargo-binutils)
 
 ## Build & Run
 
@@ -38,3 +39,4 @@ make run
 3. [Bare Metal Raspberry Pi 3 Tutorials](https://github.com/bztsrc/raspi3-tutorial)
 4. [Bare Metal Raspberry Pi 3 Tutorials (Rust)](https://github.com/rust-embedded/rust-raspi3-OS-tutorials)
 5. [Raspberry Pi Hardware Documents](https://github.com/raspberrypi/documentation/tree/master/hardware/raspberrypi)
+6. [Learning OS dev using Linux kernel & Raspberry Pi](https://github.com/s-matyukevich/raspberry-pi-os)
