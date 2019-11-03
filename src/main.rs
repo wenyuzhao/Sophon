@@ -17,6 +17,7 @@ mod debug;
 mod mailbox;
 mod fb;
 mod random;
+mod exception;
 
 
 global_asm!(include_str!("./boot.S"));
@@ -30,10 +31,7 @@ pub fn wait_forever() -> ! {
 
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
-    unsafe {
-        debug!("1234");
-        // *(0xdeadbeef as *mut u8) = 0;
-    }
+    debug!("Hello, Raspberry PI!");
     {
         let mut fb = fb::FRAME_BUFFER.lock();
         fb.init();
@@ -45,17 +43,11 @@ pub extern "C" fn kmain() -> ! {
         asm!("mrs x0, CurrentEL" : "={x0}" (el) :: "x0");
         (el >> 2) & 3
     });
+    // Manually trigger a pauge fault
+    // unsafe { *(0xdeadbeef as *mut u8) = 0; }
     wait_forever();
 }
 
-
-#[no_mangle]
-#[naked]
-pub extern "C" fn exc_handler() -> ! {
-    loop {
-        unsafe { asm!("wfe" :::: "volatile") }
-    }
-}
 
 
 #[cfg(not(feature="rls"))]

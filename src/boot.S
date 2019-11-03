@@ -61,7 +61,7 @@ _execptoin_handlers:
     mrs     x2, elr_el1
     mrs     x3, spsr_el1
     mrs     x4, far_el1
-    b       exc_handler
+    b       exception_handler
     // IRQ
     .align  7
     mov     x0, #1
@@ -69,7 +69,7 @@ _execptoin_handlers:
     mrs     x2, elr_el1
     mrs     x3, spsr_el1
     mrs     x4, far_el1
-    b       exc_handler
+    b       exception_handler
     // FIQ
     .align  7
     mov     x0, #2
@@ -77,7 +77,7 @@ _execptoin_handlers:
     mrs     x2, elr_el1
     mrs     x3, spsr_el1
     mrs     x4, far_el1
-    b       exc_handler
+    b       exception_handler
     // SError
     .align  7
     mov     x0, #3
@@ -85,4 +85,4 @@ _execptoin_handlers:
     mrs     x2, elr_el1
     mrs     x3, spsr_el1
     mrs     x4, far_el1
-    b       exc_handler
+    b       exception_handler
