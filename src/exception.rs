@@ -68,4 +68,9 @@ exception_handlers:
     except    #2 // FIQ
     except    #3 // SError
     // Transit to upper exeception level, AArch32: Unreachable
+    .align 9
+    except    #0 // Synchronous
+    except    #1 // IRQ
+    except    #2 // FIQ
+    except    #3 // SError
 "}

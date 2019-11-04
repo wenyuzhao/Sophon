@@ -5,13 +5,18 @@
 #![feature(core_intrinsics)]
 #![feature(stmt_expr_attributes)]
 #![feature(naked_functions)]
+#![feature(const_fn)]
+#![feature(const_raw_ptr_to_usize_cast)]
 #![allow(unused)]
 #![no_std]
 #![no_main]
-
+ 
+#[macro_use]
 extern crate lazy_static;
 extern crate spin;
 extern crate cortex_a;
+#[macro_use]
+extern crate bitflags;
 mod gpio;
 #[macro_use]
 mod debug;
@@ -20,6 +25,7 @@ mod fb;
 mod random;
 mod exception;
 mod start;
+mod mm;
 use cortex_a::regs::*;
 
 
