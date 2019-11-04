@@ -6,14 +6,12 @@ const VIDEOCORE_MAILBOX_BASE: usize = PERIPHERAL_BASE + 0xB880;
 
 const BUFFER_ENTRIES: usize = 48;
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MailBoxError {
     ErrorParsingRequestBuffer(u32),
     Other(u32)
 }
 
-#[allow(unused)]
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MailBoxStatus {
@@ -65,7 +63,6 @@ impl MailBoxBuffer {
     }
 }
 
-#[allow(unused)]
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Channel {
@@ -73,7 +70,6 @@ pub enum Channel {
     PropertyVC2ARM = 9,
 }
 
-#[allow(unused)]
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PixelOrder {
@@ -81,7 +77,6 @@ pub enum PixelOrder {
     RGB = 0x1,
 }
 
-#[allow(unused)]
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlphaMode {
@@ -90,7 +85,6 @@ pub enum AlphaMode {
     Ignored = 0x2, // ignored
 }
 
-#[allow(unused)]
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Clock {
@@ -108,7 +102,6 @@ pub enum Clock {
     EMMC2 = 0x00000000c,
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Request {
     SetPowerState { device: u32, state: u32 }, // 0x28001
@@ -163,7 +156,6 @@ impl Request {
     }
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Response {
     Nil,

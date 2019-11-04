@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 lazy_static = { version="1.4.0", features = ["spin_no_std"] }
 spin = "0.5.2"
+cortex-a = "2.7.0"
 
 [profile.dev]
 panic = "abort"

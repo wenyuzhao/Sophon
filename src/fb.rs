@@ -8,7 +8,6 @@ pub static FRAME_BUFFER: Mutex<FrameBuffer> = Mutex::new(FrameBuffer::new());
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub struct Color(u32);
 
-#[allow(unused)]
 impl Color {
     pub const BLACK: Self = Color::rgba(0x000000FF);
     pub const WHITE: Self = Color::rgba(0xFFFFFFFF);

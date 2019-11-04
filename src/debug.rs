@@ -23,7 +23,6 @@ pub static UART: Mutex<UART0> = Mutex::new(UART0);
 
 pub struct UART0;
 
-#[allow(unused)]
 impl UART0 {
     const UART_DR: *mut u32 = (PERIPHERAL_BASE + 0x201000) as _;
     const UART_FR: *mut u32 = (PERIPHERAL_BASE + 0x201018) as _;
@@ -66,10 +65,8 @@ impl Write for UART0 {
 
 
 
-#[allow(unused)]
 pub struct GPIO18;
 
-#[allow(unused)]
 impl GPIO18 {
     const GPFSEL1: *mut u32 = (GPIO_BASE + 0x4) as _;
     const GPSET0: *mut u32 = (GPIO_BASE + 0x1c) as _;
