@@ -28,9 +28,35 @@ qemu-system-aarch64 -M raspi3 -serial stdio -kernel ./kernel8.img
 make run
 ```
 
+## Design
+
+The current plan is:
+To make the kernel as simple as possible. So we will likely to make a MINIX-like
+micro kernel. Then we can throw most tasks, including drivers, fs to the user
+space.
+
+BTW, it is almost impossible to take care of performance for now...
+
 ## TODO
 
-- [ ] Fill this todo list
+- [ ] Make the kernel boot on a real Raspberry PI
+- [x] Boot kernel into Exception Level 0
+- [x] Setup kernel virtual memory
+- [x] Basic interrupt handler support
+- [x] Kernel heap allocation
+- [ ] Properly trap and handle Stack-overflow exception
+- [ ] Enter to usermode
+- [ ] Syscalls
+- [ ] Usermode memory map
+- [ ] Timer interrupts
+- [ ] Scheduling/Context switch
+- [ ] *May need to port GCC/Rustc/libc at this point*
+- [ ] Init process
+- [ ] Multi-core support
+- [ ] Design & implement a driver interface
+- [ ] Basic FAT32 FS support (to load init.d from /boot)
+- [ ] Virtual File System
+- [ ] *Other necessary components for a kernel?*
 
 ## References
 
