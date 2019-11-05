@@ -162,7 +162,6 @@ impl <L: TableLevel> PageTable<L> {
         if L::ID == 2 && self.entries[index].present() && self.entries[index].is_block() {
             return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
         }
-        
         if S::LOG_SIZE == Size4K::LOG_SIZE && L::ID == 1 {
             return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
         }

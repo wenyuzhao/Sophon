@@ -22,7 +22,7 @@ SECTIONS {
         __bss_end = .;
     }
 
-    /DISCARD/ : { *(.comment*) }
-
     __kernel_end = .;
+
+    /DISCARD/ : { *(.comment*) }
 }

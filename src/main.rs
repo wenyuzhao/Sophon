@@ -10,6 +10,8 @@
 #![feature(never_type)]
 #![feature(step_trait)]
 #![feature(const_transmute)]
+#![feature(box_syntax)]
+#![feature(alloc_error_handler)]
 #![allow(unused)]
 #![no_std]
 #![no_main]
@@ -20,6 +22,8 @@ extern crate spin;
 extern crate cortex_a;
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate alloc;
 mod gpio;
 #[macro_use]
 mod debug;
@@ -31,13 +35,20 @@ mod start;
 mod mm;
 use cortex_a::regs::*;
 
+#[global_allocator]
+static ALLOCATOR: mm::heap::GlobalAllocator = mm::heap::GlobalAllocator::new();
 
 
-#[inline(never)]
-#[no_mangle]
-#[naked]
-pub extern "C" fn kmain() -> ! {
+
+pub fn kmain() -> ! {
     debug!("Hello, Raspberry PI!");
+    ALLOCATOR.init();
+    {
+        // // Test allocator
+        let v = vec![1, 1, 2, 3, 5, 7];
+        let b = box 233;
+        debug!("Heap allocation: {:?}, {}", v, b);
+    }
     {
         let mut fb = fb::FRAME_BUFFER.lock();
         fb.init();
@@ -57,4 +68,10 @@ pub extern "C" fn kmain() -> ! {
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     debug!("{}", info);
     loop {}
+}
+
+#[cfg(not(feature="rls"))]
+#[alloc_error_handler]
+fn alloc_error_handler(layout: ::alloc::alloc::Layout) -> ! {
+    panic!("Allocation error: {:?}", layout)
 }
