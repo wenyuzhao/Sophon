@@ -1,5 +1,5 @@
 use spin::Mutex;
-use crate::mailbox::{Mail, Request, Response, PixelOrder, AlphaMode, Channel};
+use crate::mailbox::{*, misc::*};
 use crate::mm::address::*;
 use crate::mm::page::Size4K;
 
@@ -54,44 +54,33 @@ impl FrameBuffer {
     }
 
     pub fn init(&mut self) {
-        let mut mail = Mail::new(Channel::PropertyARM2VC);
-        
-        mail.add(/*0*/ Request::GetPhysicalResolution)
-            .add(/*1*/ Request::SetVirtualOffset { x: 0, y: 0 })
-            .add(/*2*/ Request::SetDepth(32))
-            .add(/*3*/ Request::SetPixelOrder(PixelOrder::RGB))
-            .add(/*4*/ Request::SetAlphaMode(AlphaMode::Reversed))
-            .add(/*5*/ Request::AllocateBuffer { alignment: 4096 })
-            .add(/*6*/ Request::GetPitch);
-       
-        if let Ok(responese) = mail.send() {
-            debug_assert!(responese[2] == Response::SetDepth(32));
-            debug_assert!(responese[3] == Response::SetPixelOrder(PixelOrder::RGB));
-            debug_assert!(responese[4] == Response::SetAlphaMode(AlphaMode::Reversed));
-            match responese[0] {
-                Response::GetPhysicalResolution { width, height } => {
-                    self.width = width as _;
-                    self.height = height as _;
-                },
-                _ => unreachable!(),
-            }
-            match responese[5] {
-                Response::AllocateBuffer { base_address, size } => {
-                    self.fb = crate::mm::paging::identity_map_kernel_memory::<Size4K>(base_address.into(), size as _).as_ptr_mut();
-                },
-                _ => unreachable!(),
-            }
-            match responese[6] {
-                Response::GetPitch(pitch) => {
-                    self.pitch = pitch as _;
-                },
-                _ => unreachable!(),
-            }
-            debug!("Successfully initialize video output: {}x{} (rgba)", self.width, self.height);
-            debug!("Frame buffer = {:?}", self.fb);
-        } else {
-            debug!("Failed to initialize video output");
+        const CH: Channel = Channel::PropertyARM2VC;
+
+        let res::GetFirmwireRevision(rev) = MailBox::send(CH, req::GetFirmwireRevision).unwrap();
+        debug!("Revision = {:x}", rev);
+
+        {
+            let res::GetARMMemory { base_address, size } = MailBox::send(CH, req::GetARMMemory).unwrap();
+            debug!("ARM Memory: base={:x} size={:x}", base_address, size);
+            let res::GetVCMemory { base_address, size } = MailBox::send(CH, req::GetVCMemory).unwrap();
+            debug!("VC Memory: base={:x} size={:x}", base_address, size);
         }
+
+        let res::GetPhysicalResolution { width, height } = MailBox::send(CH, req::GetPhysicalResolution).unwrap();
+        MailBox::send(CH, req::SetVirtualOffset { x: 0, y: 0 }).unwrap();
+        MailBox::send(CH, req::SetDepth(32)).unwrap();
+        MailBox::send(CH, req::SetPixelOrder(PixelOrder::RGB)).unwrap();
+        MailBox::send(CH, req::SetAlphaMode(AlphaMode::Reversed)).unwrap();
+        let res::AllocateBuffer { base_address, size } = MailBox::send(CH, req::AllocateBuffer { alignment: 4096 }).unwrap();
+        let res::GetPitch(pitch) = MailBox::send(CH, req::GetPitch).unwrap();
+
+        self.width = width as _;
+        self.height = height as _;
+        self.pitch = pitch as _;
+        self.fb = base_address as usize as *mut _;
+
+        debug!("Successfully initialize video output: {}x{} (rgba)", self.width, self.height);
+        debug!("Frame buffer = {:?}", self.fb);
     }
 
     #[inline(always)]

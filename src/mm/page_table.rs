@@ -114,7 +114,11 @@ impl <L: TableLevel> PageTable<L> {
         debug_assert!(L::ID > 1);
         if self.entries[index].present() && !self.entries[index].is_block() {
             let table_address = self as *const _ as usize;
-            Some((table_address << 9) | (index << 12))
+            let mut a = (table_address << 9) | (index << 12);
+            if self as *const _ as usize & (0xffff << 48) == 0 {
+                a &= 0x0000_ffff_ffff_ffff;
+            }
+            Some(a)
         } else {
             None
         }
@@ -181,10 +185,14 @@ impl PageTable<L4> {
         }
     }
 
-    pub fn get() -> &'static mut Self {
-        unsafe { Address::<V>::new(0xffff_ffff_ffff_f000).as_ref_mut() }
+    #[inline]
+    pub fn get(high: bool) -> &'static mut Self {
+        if high {
+            unsafe { Address::<V>::new(0xffff_ffff_ffff_f000).as_ref_mut() }
+        } else {
+            unsafe { Address::<V>::new(0x0000_ffff_ffff_f000).as_ref_mut() }
+        }
     }
-
 
     pub fn translate(&mut self, a: Address<V>) -> Option<(Address<P>, PageFlags)> {
         let (level, entry) = self.get_entry(a)?;

@@ -5,7 +5,8 @@ SECTIONS {
     __kernel_start = .;
     
     .text : {
-        *(.text._start) *(.text*)
+        *(.text._start)
+        *(.text*)
     }
     
     .rodata : {
@@ -24,5 +25,7 @@ SECTIONS {
 
     __kernel_end = .;
 
-    /DISCARD/ : { *(.comment*) }
+    /DISCARD/ : {
+        *(.comment*)
+    }
 }

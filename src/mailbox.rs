@@ -1,15 +1,146 @@
 use crate::gpio::PERIPHERAL_BASE;
 use spin::Mutex;
 use core::intrinsics::volatile_load;
+use cortex_a::asm;
 
 const VIDEOCORE_MAILBOX_BASE: usize = PERIPHERAL_BASE + 0xB880;
 
-const BUFFER_ENTRIES: usize = 48;
+
+
+pub trait Request {
+    const TAG_ID: u32;
+    const TAG_VALUE_SIZE: usize;
+    type Response;
+}
+
+pub mod req {
+    use super::{*, misc::*};
+
+    #[repr(C)] pub struct GetFirmwireRevision;
+    #[repr(C)] pub struct GetARMMemory;
+    #[repr(C)] pub struct GetVCMemory;
+    #[repr(C)] pub struct SetPowerState { pub device: u32, pub state: u32 }
+    #[repr(C)] pub struct SetClockRate { pub clock: Clock, pub rate: u32, /** 0 or 1 */pub skip_setting_turbo: u32 }
+    #[repr(C)] pub struct AllocateBuffer { /** Alignment in bytes */ pub alignment: u32 }
+    #[repr(C)] pub struct GetPhysicalResolution;
+    #[repr(C)] pub struct GetVirtualResolution;
+    #[repr(C)] pub struct GetPitch;
+    #[repr(C)] pub struct SetPhysicalResolution { pub width: u32, pub height: u32 }
+    #[repr(C)] pub struct SetVirtualResolution { pub width: u32, pub height: u32 }
+    #[repr(C)] pub struct SetDepth(pub u32);
+    #[repr(C)] pub struct SetPixelOrder(pub PixelOrder);
+    #[repr(C)] pub struct SetAlphaMode(pub AlphaMode);
+    #[repr(C)] pub struct SetVirtualOffset { pub x: u32, pub y: u32 }
+}
+
+pub mod res {
+    use super::{*, misc::*};
+
+    #[repr(C)] pub struct GetFirmwireRevision(pub u32);
+    #[repr(C)] pub struct GetARMMemory { pub base_address: u32, pub size: u32 }
+    #[repr(C)] pub struct GetVCMemory { pub base_address: u32, pub size: u32 }
+    #[repr(C)] pub struct SetPowerState { pub device: u32, pub state: u32 }
+    #[repr(C)] pub struct SetClockRate { pub clock: Clock, pub rate: u32 }
+    #[repr(C)] pub struct AllocateBuffer { pub base_address: u32, pub size: u32 }
+    #[repr(C)] pub struct GetPhysicalResolution { pub width: u32, pub height: u32 }
+    #[repr(C)] pub struct GetVirtualResolution { pub width: u32, pub height: u32 }
+    #[repr(C)] pub struct GetPitch(pub u32);
+    #[repr(C)] pub struct SetPhysicalResolution { pub width: u32, pub height: u32 }
+    #[repr(C)] pub struct SetVirtualResolution { pub width: u32, pub height: u32 }
+    #[repr(C)] pub struct SetDepth(pub u32);
+    #[repr(C)] pub struct SetPixelOrder(pub PixelOrder);
+    #[repr(C)] pub struct SetAlphaMode(pub AlphaMode);
+    #[repr(C)] pub struct SetVirtualOffset { pub x: u32, pub y: u32 }
+}
+
+macro_rules! register_tag {
+    ($t:ident : tag = $tagid:literal, size = $tagsize:literal) => {
+        impl Request for req::$t {
+            const TAG_ID: u32 = $tagid;
+            const TAG_VALUE_SIZE: usize = $tagsize;
+            type Response = res::$t;
+        }
+    };
+}
+
+register_tag!(GetFirmwireRevision:   tag = 0x00000001, size = 4);
+register_tag!(GetARMMemory:          tag = 0x00010005, size = 8);
+register_tag!(GetVCMemory:           tag = 0x00010006, size = 8);
+register_tag!(SetPowerState:         tag = 0x00028001, size = 8);
+register_tag!(SetClockRate:          tag = 0x00038002, size = 12);
+register_tag!(AllocateBuffer:        tag = 0x00040001, size = 8);
+register_tag!(GetPhysicalResolution: tag = 0x00040003, size = 8);
+register_tag!(GetVirtualResolution:  tag = 0x00040004, size = 8);
+register_tag!(GetPitch:              tag = 0x00040008, size = 4);
+register_tag!(SetPhysicalResolution: tag = 0x00048003, size = 8);
+register_tag!(SetVirtualResolution:  tag = 0x00048004, size = 8);
+register_tag!(SetDepth:              tag = 0x00048005, size = 4);
+register_tag!(SetPixelOrder:         tag = 0x00048006, size = 4);
+register_tag!(SetAlphaMode:          tag = 0x00048007, size = 4);
+register_tag!(SetVirtualOffset:      tag = 0x00048009, size = 8);
+
+pub struct MailBox;
+
+impl MailBox {
+    const MAILBOX_READ: *const u32 = (VIDEOCORE_MAILBOX_BASE + 0x0) as _;
+    const MAILBOX_WRITE: *mut u32 = (VIDEOCORE_MAILBOX_BASE + 0x20) as _;
+    const MAILBOX_RESPONSE_OK: u32 = 0x80000000;
+    const MAILBOX_RESPONSE_ERR: u32 = 0x80000001;
+
+    pub fn send<R: Request>(channel: Channel, request: R) -> Result<R::Response, MailBoxError> {
+        debug_assert!(::core::mem::size_of::<R>() & 0b11 == 0);
+        debug_assert!(::core::mem::size_of::<R::Response>() & 0b11 == 0);
+        debug_assert!(R::TAG_VALUE_SIZE & 0b11 == 0);
+        #[repr(C, align(16))] struct MBBuffer([u32; 16]);
+        let mut buffer = MBBuffer([0u32; 16]);
+        buffer.0[0] = 16 * 4;      // Buffer size
+        buffer.0[1] = 0;           // Request code
+        buffer.0[2] = R::TAG_ID;   // Tag identifier
+        buffer.0[3] = R::TAG_VALUE_SIZE as u32; // Request value buffer size
+        buffer.0[4] = R::TAG_VALUE_SIZE as u32; // Response value buffer size
+        // Values
+        let values_ptr = &mut buffer.0[5] as *mut _ as usize as *mut R;
+        unsafe { ::core::ptr::write(values_ptr, request); }
+        // End Tag
+        buffer.0[5 + R::TAG_VALUE_SIZE >> 0b11] = 0;
+        // Send buffer
+        let buffer_address = &buffer as *const _ as usize;
+        debug_assert!(buffer_address & 0xF == 0);
+        debug_assert!(buffer_address == &buffer.0[0] as *const _ as usize);
+        let message = (buffer_address & !0xF) as u32 | (channel as u8 & 0xF) as u32;
+        while MailBoxStatus::get() == MailBoxStatus::Full {
+            asm::nop();
+        }
+        unsafe { *Self::MAILBOX_WRITE = message; }
+        loop {
+            while MailBoxStatus::get() == MailBoxStatus::Empty {
+                asm::nop();
+            }
+            if unsafe { *Self::MAILBOX_READ } == message {
+                return match buffer.0[1] {
+                    Self::MAILBOX_RESPONSE_OK => {
+                        let ptr = &buffer.0[5] as *const _ as usize as *const R::Response;
+                        Ok(unsafe { ::core::ptr::read(ptr) })
+                    },
+                    Self::MAILBOX_RESPONSE_ERR => Err(MailBoxError::ErrorParsingRequestBuffer(buffer.0[1])),
+                    _ => Err(MailBoxError::Other(buffer.0[1])),
+                }
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MailBoxError {
     ErrorParsingRequestBuffer(u32),
     Other(u32)
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Channel {
+    PropertyARM2VC = 8, // VC: VideoCore
+    PropertyVC2ARM = 9,
 }
 
 #[repr(u32)]
@@ -29,295 +160,40 @@ impl MailBoxStatus {
     }
 }
 
-static MAILBOX_BUFFER: Mutex<MailBoxBuffer> = Mutex::new(MailBoxBuffer([0; BUFFER_ENTRIES]));
 
-#[repr(C, align(16))]
-struct MailBoxBuffer([u32; BUFFER_ENTRIES]);
 
-impl MailBoxBuffer {
-    const MAILBOX_READ: *const u32 = (VIDEOCORE_MAILBOX_BASE + 0x0) as _;
-    const MAILBOX_WRITE: *mut u32 = (VIDEOCORE_MAILBOX_BASE + 0x20) as _;
-    const MAILBOX_RESPONSE_OK: u32 = 0x80000000;
-    const MAILBOX_RESPONSE_ERR: u32 = 0x80000001;
+// Helper structs for building requests / responses
 
-    pub fn send(&mut self, ch: u8) -> Result<(), MailBoxError> {
-        let message = ((self as *const _ as usize) & !0xF) as u32 | (ch & 0xF) as u32;
-        while MailBoxStatus::get() == MailBoxStatus::Full {
-            unsafe { asm!("nop"::::"volatile"); }
-        }
-        unsafe {
-            *Self::MAILBOX_WRITE = message;
-        }
-        loop {
-            while MailBoxStatus::get() == MailBoxStatus::Empty {
-                unsafe { asm!("nop"::::"volatile"); }
-            }
-            if unsafe { volatile_load(Self::MAILBOX_READ) } == message {
-                return match self.0[1] {
-                    Self::MAILBOX_RESPONSE_OK => Ok(()),
-                    Self::MAILBOX_RESPONSE_ERR => Err(MailBoxError::ErrorParsingRequestBuffer(self.0[1])),
-                    _ => Err(MailBoxError::Other(self.0[1])),
-                }
-            }
-        }
-    }
-}
-
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Channel {
-    PropertyARM2VC = 8, // VC: VideoCore
-    PropertyVC2ARM = 9,
-}
-
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PixelOrder {
-    BGR = 0x0,
-    RGB = 0x1,
-}
-
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AlphaMode {
-    Enabled = 0x0, // 0 = fully opaque
-    Reversed = 0x1, // 0 = fully transparent
-    Ignored = 0x2, // ignored
-}
-
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Clock {
-    _Reserved = 0x000000000,
-    EMMC = 0x000000001,
-    UART = 0x000000002,
-    ARM = 0x000000003,
-    CORE = 0x000000004,
-    V3D = 0x000000005,
-    H264 = 0x000000006,
-    ISP = 0x000000007,
-    SDRAM = 0x000000008,
-    PIXEL = 0x000000009,
-    PWM = 0x00000000a,
-    EMMC2 = 0x00000000c,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Request {
-    SetPowerState { device: u32, state: u32 }, // 0x28001
-    SetClockRate { clock: Clock, rate: u32, skip_setting_turbo: bool }, // 0x38002
-    AllocateBuffer { /** Alignment in bytes */ alignment: u32 }, // 0x40001,
-    GetPhysicalResolution,
-    GetPitch, // 0x40008
-    SetPhysicalResolution { width: u32, height: u32 }, // 0x48003
-    SetVirtualResolution { width: u32, height: u32 }, // 0x48004
-    SetDepth(u32), // 0x48005
-    SetPixelOrder(PixelOrder), // 0x48006
-    SetAlphaMode(AlphaMode), // 0x48007
-    SetVirtualOffset { x: u32, y: u32 }, // 0x48009
-}
-
-impl Request {
-    fn write(&self, buf: &mut [u32; BUFFER_ENTRIES], c: usize) -> usize {
-        let new_cursor = match self {
-            Self::SetPowerState {..} => c + 5,
-            Self::SetClockRate {..} => c + 6,
-            Self::AllocateBuffer {..} => c + 5,
-            Self::GetPhysicalResolution => c + 5,
-            Self::GetPitch => c + 4,
-            Self::SetPhysicalResolution {..} => c + 5,
-            Self::SetVirtualResolution {..} => c + 5,
-            Self::SetDepth(..) => c + 4,
-            Self::SetPixelOrder(..) => c + 4,
-            Self::SetAlphaMode(..) => c + 4,
-            Self::SetVirtualOffset {..} => c + 5,
-        };
-        assert!(new_cursor <= buf.len(), "Mailbox message buffer overflow ({} > {}). Too many requests?", new_cursor, buf.len());
-        macro_rules! write_buf {
-            ($($v: expr),*) => {{
-                let mut c = c;
-                $(buf[c] = $v; #[allow(unused_assignments)] c += 1;)*
-            }};
-        }
-        match self {
-            Self::SetPowerState { device, state } => write_buf![0x28001, 8, 8, *device, *state],
-            Self::SetClockRate { clock, rate, skip_setting_turbo } => write_buf![0x38002, 12, 12, *clock as _, *rate, *skip_setting_turbo as _],
-            Self::AllocateBuffer { alignment } => write_buf![0x40001, 8, 8, *alignment, 0],
-            Self::GetPhysicalResolution => write_buf![0x40003, 8, 8, 0, 0],
-            Self::GetPitch => write_buf![0x40008, 4, 4, 0],
-            Self::SetPhysicalResolution { width, height } => write_buf![0x48003, 8, 8, *width, *height],
-            Self::SetVirtualResolution { width, height } => write_buf![0x48004, 8, 8, *width, *height],
-            Self::SetDepth(depth) => write_buf![0x48005, 4, 4, *depth],
-            Self::SetPixelOrder(pixel_order) => write_buf![0x48006, 4, 4, *pixel_order as _],
-            Self::SetAlphaMode(mode) => write_buf![0x48007, 4, 4, *mode as _],
-            Self::SetVirtualOffset { x, y } => write_buf![0x48009, 8, 8, *x, *y],
-        }
-        new_cursor
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Response {
-    Nil,
-    SetPowerState { device: u32, state: u32 }, // 0x28001
-    SetClockRate { clock: Clock, rate: u32 }, // 0x38002
-    AllocateBuffer { base_address: *mut (), size: u32 }, // 0x40001,
-    GetPhysicalResolution { width: u32, height: u32 },
-    GetPitch(u32), // 0x40008
-    SetPhysicalResolution { width: u32, height: u32 }, // 0x48003
-    SetVirtualResolution { width: u32, height: u32 }, // 0x48004
-    SetDepth(u32), // 0x48005
-    SetPixelOrder(PixelOrder), // 0x48006
-    SetAlphaMode(AlphaMode), // 0x48007
-    SetVirtualOffset { x: u32, y: u32 }, // 0x48009
-}
-
-impl Response {
-    fn read(buf: &[u32; BUFFER_ENTRIES], cursor: usize) -> (usize, Self) {
-        match buf[cursor] {
-            0x28001 => (cursor + 5, Self::SetPowerState {
-                device: buf[cursor + 3],
-                state: buf[cursor + 4],
-            }),
-            0x38002 => (cursor + 6, Self::SetClockRate {
-                clock: unsafe { ::core::mem::transmute(buf[cursor + 3]) },
-                rate: buf[cursor + 4],
-            }),
-            0x40001 => (cursor + 5, Self::AllocateBuffer {
-                base_address: buf[cursor + 3] as usize as *mut (),
-                size: buf[cursor + 4],
-            }),
-            0x40003 => (cursor + 5, Self::GetPhysicalResolution {
-                width: buf[cursor + 3],
-                height: buf[cursor + 4],
-            }),
-            0x40008 => (cursor + 4, Self::GetPitch(buf[cursor + 3] as _)),
-            0x48003 => (cursor + 5, Self::SetPhysicalResolution {
-                width: buf[cursor + 3],
-                height: buf[cursor + 4],
-            }),
-            0x48004 => (cursor + 5, Self::SetVirtualResolution {
-                width: buf[cursor + 3],
-                height: buf[cursor + 4],
-            }),
-            0x48005 => (cursor + 4, Self::SetDepth(buf[cursor + 3])),
-            0x48006 => (cursor + 4, Self::SetPixelOrder(unsafe { ::core::mem::transmute(buf[cursor + 3]) })),
-            0x48007 => (cursor + 4, Self::SetAlphaMode(unsafe { ::core::mem::transmute(buf[cursor + 3]) })),
-            0x48009 => (cursor + 5, Self::SetVirtualOffset {
-                x: buf[cursor + 3],
-                y: buf[cursor + 4],
-            }),
-            v => panic!("Unrecognized mailbox tag {:?}", v),
-        }
-    }
-}
-
-pub struct MailResponses {
-    pub channel: Channel,
-    responses: [Response; BUFFER_ENTRIES],
-}
-
-impl ::core::ops::Deref for MailResponses {
-    type Target = [Response; BUFFER_ENTRIES];
-
-    fn deref(&self) -> &Self::Target {
-        &self.responses
-    }
-}
-
-impl core::fmt::Debug for MailResponses {
-    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-        write!(f, "MailResponses({:?}) [", self.channel)?;
-        for i in 0..self.responses.len() {
-            if self.responses[i] == Response::Nil {
-                break;
-            }
-            if i == 0 {
-                write!(f, "{:?}", self.responses[i])?;
-            } else {
-                write!(f, ", {:?}", self.responses[i])?;
-            }
-        }
-        write!(f, "]")
-    }
-}
-
-pub struct Mail {
-    pub channel: Channel,
-    requests: [Option<Request>; 8],
-    request_cursor: usize,
-}
-
-impl core::fmt::Debug for Mail {
-    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-        write!(f, "Mail({:?}) [", self.channel)?;
-        for i in 0..self.requests.len() {
-            if let Some(req) = self.requests[i] {
-                if i == 0 {
-                    write!(f, "{:?}", req)?;
-                } else {
-                    write!(f, ", {:?}", req)?;
-                }
-            } else {
-                break;
-            }
-        }
-        write!(f, "]")
-    }
-}
-
-impl Mail {
-    pub fn new(channel: Channel) -> Self {
-        Self {
-            channel,
-            requests: [None; 8],
-            request_cursor: 0,
-        }
+pub mod misc {
+    #[repr(u32)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum PixelOrder {
+        BGR = 0x0,
+        RGB = 0x1,
     }
 
-    pub fn add(&mut self, req: Request) -> &mut Self {
-        if self.request_cursor >= self.requests.len() {
-            panic!("Too many (> 8) requests in a single mail");
-        }
-        self.requests[self.request_cursor] = Some(req);
-        self.request_cursor += 1;
-        self
+    #[repr(u32)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum AlphaMode {
+        Enabled = 0x0,  // 0 = fully opaque
+        Reversed = 0x1, // 0 = fully transparent
+        Ignored = 0x2,  // ignored
     }
 
-    pub fn send(self) -> Result<MailResponses, MailBoxError> {
-        let mut buffer = MAILBOX_BUFFER.lock();
-        // Set message buffer
-        {
-            // Set header
-            buffer.0[0] = (BUFFER_ENTRIES * 4) as u32;
-            buffer.0[1] = 0; // Process request
-            let mut buffer_cursor = 2;
-            for i in 0..self.requests.len() {
-                match self.requests[i] {
-                    Some(req) => buffer_cursor = req.write(&mut buffer.0, buffer_cursor),
-                    None => break,
-                }
-            }
-            // Set end tag
-            buffer.0[buffer_cursor] = 0;
-        }
-        // Send
-        buffer.send(self.channel as _)?;
-        // Parse responses
-        let mut responses = [Response::Nil; BUFFER_ENTRIES];
-        {
-            let mut buffer_cursor = 2;
-            for i in 0..self.request_cursor {
-                let (new_cursor, res) = Response::read(&buffer.0, buffer_cursor);
-                responses[i] = res;
-                buffer_cursor = new_cursor;
-            }
-        }
-        let responses = MailResponses {
-            channel: self.channel,
-            responses,
-        };
-        // debug!("{:?}", responses);
-        Ok(responses)
+    #[repr(u32)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Clock {
+        _Reserved = 0x000000000,
+        EMMC = 0x000000001,
+        UART = 0x000000002,
+        ARM = 0x000000003,
+        CORE = 0x000000004,
+        V3D = 0x000000005,
+        H264 = 0x000000006,
+        ISP = 0x000000007,
+        SDRAM = 0x000000008,
+        PIXEL = 0x000000009,
+        PWM = 0x00000000a,
+        EMMC2 = 0x00000000c,
     }
 }
