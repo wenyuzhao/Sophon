@@ -2,6 +2,9 @@ use crate::exception;
 use crate::mm::paging;
 use cortex_a::{asm, regs::*};
 
+/// Kernel entry code, loaded at `0x80000`
+/// 
+/// Shoud running in Exception Level 2
 #[no_mangle]
 #[naked]
 pub unsafe extern "C" fn _start() -> ! {
@@ -33,6 +36,9 @@ pub unsafe extern "C" fn _start() -> ! {
     asm::eret();
 }
 
+/// Starting from this function,
+/// 
+/// kernel code is running in Exception Level 1
 #[naked]
 unsafe extern fn _start_el1() -> ! {
     // Enable all co-processors
@@ -41,13 +47,20 @@ unsafe extern fn _start_el1() -> ! {
     crate::mm::paging::setup_kernel_pagetables();
     SP.set(SP.get() | 0xffff0000_00000000);
     // Call _start_el1_upper_address
-    let fn_addr = _start_el1_upper_address as usize | 0xffff0000_00000000;
+    let fn_addr = _start_el1_high_address_space as usize | 0xffff0000_00000000;
     let func: unsafe extern fn() -> ! = ::core::mem::transmute(fn_addr);
     func()
 }
 
+/// Starting from this function,
+/// 
+/// all kernel (virtual) addresses are located in the high address space.
+/// 
+/// Including SP, PC and other registers
+/// 
+/// i.e. `address & 0xffff0000_00000000 == 0xffff0000_00000000`
 #[naked]
-unsafe extern fn _start_el1_upper_address() -> ! {
+unsafe extern fn _start_el1_high_address_space() -> ! {
     assert!(SP.get() & 0xffff0000_00000000 == 0xffff0000_00000000);
     // Set EL1 interrupt vector
     VBAR_EL1.set(&exception::exception_handlers as *const _ as _);

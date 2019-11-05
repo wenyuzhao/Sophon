@@ -1,5 +1,7 @@
 use spin::Mutex;
 use crate::mailbox::{Mail, Request, Response, PixelOrder, AlphaMode, Channel};
+use crate::mm::address::*;
+use crate::mm::page::Size4K;
 
 pub static FRAME_BUFFER: Mutex<FrameBuffer> = Mutex::new(FrameBuffer::new());
 
@@ -74,8 +76,8 @@ impl FrameBuffer {
                 _ => unreachable!(),
             }
             match responese[5] {
-                Response::AllocateBuffer { base_address, .. } => {
-                    self.fb = base_address as _;
+                Response::AllocateBuffer { base_address, size } => {
+                    self.fb = crate::mm::paging::identity_map_kernel_memory::<Size4K>(base_address.into(), size as _).as_ptr_mut();
                 },
                 _ => unreachable!(),
             }
@@ -86,6 +88,7 @@ impl FrameBuffer {
                 _ => unreachable!(),
             }
             debug!("Successfully initialize video output: {}x{} (rgba)", self.width, self.height);
+            debug!("Frame buffer = {:?}", self.fb);
         } else {
             debug!("Failed to initialize video output");
         }

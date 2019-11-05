@@ -19,6 +19,17 @@ macro_rules! debug {
     });
 }
 
+pub fn print_boot(s: &str) {
+    const UART_DR: *mut u32 = unsafe { (UART0::UART_DR as usize & 0x0000ffff_ffffffff) as _ };
+    const UART_FR: *mut u32 = unsafe { (UART0::UART_FR as usize & 0x0000ffff_ffffffff) as _ };
+    for b in s.bytes() {
+        while (unsafe { *UART_FR }) & (1 << 5) > 0 {}
+        unsafe { *UART_DR = b as u32 };
+    }
+    while (unsafe { *UART_FR }) & (1 << 5) > 0 {}
+    unsafe { *UART_DR = '\n' as u32 };
+}
+
 pub static UART: Mutex<UART0> = Mutex::new(UART0);
 
 pub struct UART0;

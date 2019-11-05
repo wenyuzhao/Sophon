@@ -2,6 +2,7 @@ ENTRY(_start)
 
 SECTIONS {
     . = 0xffff000000080000;
+    __kernel_start = .;
     
     .text : {
         *(.text._start) *(.text*)
@@ -22,4 +23,6 @@ SECTIONS {
     }
 
     /DISCARD/ : { *(.comment*) }
+
+    __kernel_end = .;
 }

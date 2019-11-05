@@ -7,10 +7,13 @@
 #![feature(naked_functions)]
 #![feature(const_fn)]
 #![feature(const_raw_ptr_to_usize_cast)]
+#![feature(never_type)]
+#![feature(step_trait)]
+#![feature(const_transmute)]
 #![allow(unused)]
 #![no_std]
 #![no_main]
- 
+
 #[macro_use]
 extern crate lazy_static;
 extern crate spin;
@@ -38,7 +41,7 @@ pub extern "C" fn kmain() -> ! {
     {
         let mut fb = fb::FRAME_BUFFER.lock();
         fb.init();
-        fb.clear(fb::Color::rgba(0x37474FFF));
+        fb.clear(fb::Color::rgba(0x0000FFFF));
     }
     debug!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
     debug!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);

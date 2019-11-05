@@ -17,4 +17,4 @@ debug: build kernel8.img objdump
 	@qemu-system-aarch64 -M raspi3 -serial stdio -kernel ./kernel8.img  -d int -s -S
 
 gdb:
-	@gdb-multiarch "target/aarch64-proton/$(profile)/proton" -ex "set arch aarch64" -ex "target remote :1234"
+	@gdb-multiarch -quiet "target/aarch64-proton/$(profile)/proton" -ex "set arch aarch64" -ex "target remote :1234"

@@ -31,12 +31,12 @@ impl <K: MemoryKind> Address<K> {
     }
 
     #[inline]
-    pub const fn null() -> Self {
+    pub const fn zero() -> Self {
         Self(0, PhantomData)
     }
     
     #[inline]
-    pub fn is_null(&self) -> bool {
+    pub fn is_zero(&self) -> bool {
         self.0 == 0
     }
 
@@ -50,6 +50,11 @@ impl <K: MemoryKind> Address<K> {
         *(self.0 as *mut T) = value;
     }
 
+    #[inline]
+    pub fn as_usize(&self) -> usize {
+        self.0
+    }
+    
     #[inline]
     pub fn as_ptr<T>(&self) -> *const T {
         unsafe { ::core::mem::transmute(self.0) }
@@ -69,45 +74,44 @@ impl <K: MemoryKind> Address<K> {
     pub unsafe fn as_ref_mut<T>(&self) -> &'static mut T {
         ::core::mem::transmute(self.0)
     }
-
-    #[inline]
-    pub fn validate(&self) -> Self {
-        if cfg!(debug_assertions) {
-            let b47 = **self & (0b1 << 47);
-            const HIGH_MASK: usize = 0xFFFF << 48;
-            if b47 == 0 {
-                assert!((**self & HIGH_MASK) == 0, "Invalid address {:?}", self);
-            } else {
-                assert!((**self & HIGH_MASK) == HIGH_MASK, "Invalid address {:?}", self);
-            }
-        }
-        *self
-    }
-}
-
-impl <K: MemoryKind> Deref for Address<K> {
-    type Target = usize;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
 }
 
 impl <K: MemoryKind> From<usize> for Address<K> {
     fn from(v: usize) -> Self {
-        Self(v, PhantomData).validate()
+        Self(v, PhantomData)
     }
 }
 
 impl <K: MemoryKind, T> From<*const T> for Address<K> {
     fn from(v: *const T) -> Self {
-        Self(v as _, PhantomData).validate()
+        Self(v as _, PhantomData)
     }
 }
 
 impl <K: MemoryKind, T> From<*mut T> for Address<K> {
     fn from(v: *mut T) -> Self {
-        Self(v as _, PhantomData).validate()
+        Self(v as _, PhantomData)
+    }
+}
+
+impl Into<usize> for Address {
+    #[inline(always)]
+    fn into(self) -> usize {
+        self.0
+    }
+}
+
+impl <T> Into<*const T> for Address {
+    #[inline(always)]
+    fn into(self) -> *const T {
+        self.0 as _
+    }
+}
+
+impl <T> Into<*mut T> for Address {
+    #[inline(always)]
+    fn into(self) -> *mut T {
+        self.0 as _
     }
 }
 
@@ -117,74 +121,54 @@ impl <K: MemoryKind> fmt::Debug for Address<K> {
     }
 }
 
-impl <K: MemoryKind> Add<usize> for Address<K> {
-    type Output = Self;
-    fn add(self, rhs: usize) -> Self {
-        Self(self.0 + rhs, PhantomData)
-    }
+macro_rules! impl_address_add {
+    ($t: ty, $apply: expr) => {
+        impl <K: MemoryKind> Add<$t> for Address<K> {
+            type Output = Self;
+            #[inline(always)]
+            fn add(self, rhs: $t) -> Self {
+                $apply(self, rhs)
+            }
+        }
+        impl <K: MemoryKind> AddAssign<$t> for Address<K> {
+            #[inline(always)]
+            fn add_assign(&mut self, rhs: $t) {
+                *self = *self + rhs;
+            }
+        }
+    };
 }
 
-impl <K: MemoryKind> Sub<usize> for Address<K> {
-    type Output = Self;
-    fn sub(self, rhs: usize) -> Self {
-        Self(self.0 - rhs, PhantomData)
-    }
+impl_address_add!(usize, |l: Address<_>, r| Address(l.0 + r, PhantomData));
+impl_address_add!(isize, |l: Address<_>, r| Address((l.0 as isize + r) as _, PhantomData));
+impl_address_add!(i32, |l, r| l + r as isize);
+
+macro_rules! impl_address_sub {
+    ($t: ty, $apply: expr) => {
+        impl <K: MemoryKind> Sub<$t> for Address<K> {
+            type Output = Self;
+            #[inline(always)]
+            fn sub(self, rhs: $t) -> Self {
+                $apply(self, rhs)
+            }
+        }
+        impl <K: MemoryKind> SubAssign<$t> for Address<K> {
+            #[inline(always)]
+            fn sub_assign(&mut self, rhs: $t) {
+                *self = *self - rhs;
+            }
+        }
+    };
 }
 
-impl <K: MemoryKind> Add<isize> for Address<K> {
-    type Output = Self;
-    fn add(self, rhs: isize) -> Self {
-        Self((self.0 as isize + rhs) as _, PhantomData)
-    }
-}
-
-impl <K: MemoryKind> Sub<i32> for Address<K> {
-    type Output = Self;
-    fn sub(self, rhs: i32) -> Self {
-        Self((self.0 as isize - (rhs as isize)) as _, PhantomData)
-    }
-}
-
-impl <K: MemoryKind> Add<i32> for Address<K> {
-    type Output = Self;
-    fn add(self, rhs: i32) -> Self {
-        self + rhs as isize
-    }
-}
-
+impl_address_sub!(usize, |l: Address<_>, r| Address(l.0 - r, PhantomData));
+impl_address_sub!(isize, |l: Address<_>, r| Address((l.0 as isize - r) as _, PhantomData));
+impl_address_sub!(i32, |l, r| l - r as isize);
 impl <K: MemoryKind> Sub<Address<K>> for Address<K> {
     type Output = usize;
+    #[inline(always)]
     fn sub(self, rhs: Address<K>) -> usize {
         self.0 - rhs.0
     }
 }
 
-impl <K: MemoryKind> AddAssign<usize> for Address<K> {
-    fn add_assign(&mut self, rhs: usize) {
-        self.0 += rhs;
-    }
-}
-
-impl <K: MemoryKind> SubAssign<usize> for Address<K> {
-    fn sub_assign(&mut self, rhs: usize) {
-        self.0 -= rhs;
-    }
-}
-
-impl <K: MemoryKind> AddAssign<isize> for Address<K> {
-    fn add_assign(&mut self, rhs: isize) {
-        self.0 = (self.0 as isize + rhs) as _;
-    }
-}
-
-impl <K: MemoryKind> AddAssign<i32> for Address<K> {
-    fn add_assign(&mut self, rhs: i32) {
-        self.0 = (self.0 as isize + (rhs as isize)) as _;
-    }
-}
-
-impl <K: MemoryKind> SubAssign<i32> for Address<K> {
-    fn sub_assign(&mut self, rhs: i32) {
-        self.0 = ((self.0 as isize) - (rhs as isize)) as _;
-    }
-}
