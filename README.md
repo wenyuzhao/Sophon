@@ -31,7 +31,7 @@ make run
 ## Design
 
 The current plan is:
-To make the kernel as simple as possible. So we will likely to make a MINIX-like
+Make the kernel as simple as possible. So we will likely to make a MINIX-like
 micro kernel. Then we can throw most tasks, including drivers, fs to the user
 space.
 
