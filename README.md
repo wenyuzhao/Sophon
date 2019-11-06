@@ -42,7 +42,7 @@ BTW, it is almost impossible to take care of performance for now...
 - [ ] Make the kernel boot on a real Raspberry PI
 - [x] Boot kernel into Exception Level 0
 - [x] Setup kernel virtual memory
-- [ ] Basic interrupt handler support
+- [x] Basic interrupt handler support
 - [x] Kernel heap allocation
 - [ ] Properly trap and handle Stack-overflow exception
 - [ ] Enter to usermode
