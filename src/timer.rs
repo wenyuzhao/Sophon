@@ -1,7 +1,7 @@
 use crate::gpio::*;
 use cortex_a::regs::*;
 
-const TIMER_INTERRUPT_FREQUENCY: usize = 2; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 10000; // Hz
 
 pub const ARM_TIMER_BASE: usize = 0x40000000;
 const ARM_CONTROL_REGISTER: *mut u32 = (ARM_TIMER_BASE + 0x0) as _;
@@ -53,6 +53,8 @@ pub fn pending_timer_irq() -> bool {
 
 #[inline]
 pub fn handle_timer_irq() {
-    debug!("Timer iterrupt received, count = {}", timer_count());
-    update_compare_value()
+    // debug!("Timer iterrupt received, count = {}", timer_count());
+    update_compare_value();
+
+    crate::task::Task::timer_tick();
 }

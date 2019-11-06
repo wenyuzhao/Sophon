@@ -13,13 +13,32 @@ const DISABLE_IRQS_1:     *mut u32 = (PERIPHERAL_BASE + 0xB21C) as _;
 const DISABLE_IRQS_2:     *mut u32 = (PERIPHERAL_BASE + 0xB220) as _;
 const DISABLE_BASIC_IRQS: *mut u32 = (PERIPHERAL_BASE + 0xB224) as _;
 
+pub fn is_enabled() -> bool {
+    unsafe {
+        let daif: usize;
+        asm!("mrs $0, DAIF":"=r"(daif));
+        daif & (1 << 7) == 0
+    }
+}
 
-pub fn enable_irq() {
+pub fn enable() {
     unsafe { asm!("msr daifclr, #2") };
 }
 
-pub fn disable_irq() {
-    unsafe { asm!("msr daifset, #2") }
+pub fn disable() {
+    unsafe { asm!("msr daifset, #2") };
+}
+
+pub fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
+    let enabled = is_enabled();
+    if enabled {
+        disable();
+    }
+    let ret = f();
+    if enabled {
+        enable();
+    }
+    ret
 }
 
 #[no_mangle]

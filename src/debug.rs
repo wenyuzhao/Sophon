@@ -8,8 +8,10 @@ use crate::gpio::*;
 
 #[doc(hidden)]
 pub fn _println(args: fmt::Arguments) {
-    let mut write = UART.lock();
-    write.write_fmt(args).unwrap();
+    crate::interrupt::uninterruptable(|| {
+        let mut write = UART.lock();
+        write.write_fmt(args).unwrap();
+    });
 }
 
 #[macro_export]

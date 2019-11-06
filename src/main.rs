@@ -35,10 +35,33 @@ mod start;
 mod mm;
 mod interrupt;
 mod timer;
+mod task;
 use cortex_a::regs::*;
 
 #[global_allocator]
 static ALLOCATOR: mm::heap::GlobalAllocator = mm::heap::GlobalAllocator::new();
+
+use core::sync::atomic::{AtomicUsize, Ordering};
+static ID: AtomicUsize = AtomicUsize::new(0);
+
+extern fn init_process() -> ! {
+    let id = ID.fetch_add(1, Ordering::SeqCst);
+    debug!("Start init {}", id);
+    loop {
+        debug!("Hello from init_process! ID={}", id);
+        if false {
+            let mut fb = fb::FRAME_BUFFER.lock();
+            let r = random::random(0, 255);
+            let g = random::random(0, 255);
+            let b = random::random(0, 255);
+            let c = (r << 24) | (g << 16) | (b << 8) | 0xFF;
+            fb.clear(fb::Color::rgba(c as u32));
+        }
+        for i in 0..10000 {
+            unsafe { asm!("nop") }
+        }
+    }
+}
 
 
 
@@ -60,12 +83,17 @@ pub fn kmain() -> ! {
     debug!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
     // Initialize & start timer
     timer::init();
-    // Enable IRQ
-    interrupt::enable_irq();
+    interrupt::enable();
+
+    let task = task::Task::create(init_process);
+    debug!("Created init process: {:?}", task.id());
+    let task = task::Task::create(init_process);
+    debug!("Created init process: {:?}", task.id());
+
     // Manually trigger a page fault
     // unsafe { *(0xdeadbeef as *mut u8) = 0; }
     loop {
-        unsafe { asm!("wfe") }
+        task::Task::schedule()
     }
 }
 
