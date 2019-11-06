@@ -62,7 +62,7 @@ pub fn kmain() -> ! {
     timer::init();
     // Enable IRQ
     interrupt::enable_irq();
-    // Manually trigger a pauge fault
+    // Manually trigger a page fault
     // unsafe { *(0xdeadbeef as *mut u8) = 0; }
     loop {
         unsafe { asm!("wfe") }
