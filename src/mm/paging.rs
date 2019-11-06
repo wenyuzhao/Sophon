@@ -108,6 +108,12 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
             p4.identity_map::<Size2M>(f, PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::PRESENT);
         }
     }
+    // Mark ARM Generic Timer Mapped Memory
+    {
+        let p4 = PageTable::<L4>::get(false);
+        let frame = Frame::<Size4K>::new(crate::timer::ARM_TIMER_BASE.into());
+        p4.identity_map::<Size4K>(frame, PageFlags::SMALL_PAGE | PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::PRESENT);
+    }
 }
 
 fn mark_as_used<S: PageSize>(start_frame: Frame<S>, n_frames: usize) {

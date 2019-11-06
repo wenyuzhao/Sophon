@@ -33,6 +33,8 @@ mod random;
 mod exception;
 mod start;
 mod mm;
+mod interrupt;
+mod timer;
 use cortex_a::regs::*;
 
 #[global_allocator]
@@ -56,9 +58,15 @@ pub fn kmain() -> ! {
     }
     debug!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
     debug!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
+    // Initialize & start timer
+    timer::init();
+    // Enable IRQ
+    interrupt::enable_irq();
     // Manually trigger a pauge fault
     // unsafe { *(0xdeadbeef as *mut u8) = 0; }
-    loop {}
+    loop {
+        unsafe { asm!("wfe") }
+    }
 }
 
 

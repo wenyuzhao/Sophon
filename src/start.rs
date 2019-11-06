@@ -23,9 +23,6 @@ pub unsafe extern "C" fn _start() -> ! {
     assert!(CurrentEL.get() == CurrentEL::EL::EL2.value);
     // Disable MMU
     SCTLR_EL1.set((3 << 28) | (3 << 22) | (1 << 20) | (1 << 11));
-    // Enable time counter registers
-    CNTHCTL_EL2.set(CNTHCTL_EL2.get() | 0b11);
-    CNTVOFF_EL2.set(0);
     // Set execution mode = AArch64
     HCR_EL2.set(HCR_EL2.get() | (1 << 32));
     // Enable Debug+SError+IRQ+FIQ+EL1h
@@ -39,7 +36,6 @@ pub unsafe extern "C" fn _start() -> ! {
 /// Starting from this function,
 /// 
 /// kernel code is running in Exception Level 1
-#[naked]
 unsafe extern fn _start_el1() -> ! {
     // Enable all co-processors
     asm!("msr cpacr_el1, $0"::"r"(0xfffffff));
@@ -59,7 +55,6 @@ unsafe extern fn _start_el1() -> ! {
 /// Including SP, PC and other registers
 /// 
 /// i.e. `address & 0xffff0000_00000000 == 0xffff0000_00000000`
-#[naked]
 unsafe extern fn _start_el1_high_address_space() -> ! {
     assert!(SP.get() & 0xffff0000_00000000 == 0xffff0000_00000000);
     // Set EL1 interrupt vector

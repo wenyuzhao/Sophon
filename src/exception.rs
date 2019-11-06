@@ -1,3 +1,4 @@
+use crate::gpio::*;
 
 #[repr(usize)]
 #[derive(Debug)]
@@ -16,61 +17,89 @@ pub enum ExceptionKind {
     SError = 3,
 }
 
-pub extern "C" fn exception_handler(kind: ExceptionKind, prev_el: ExceptionLevel, esr: usize, elr: usize, spsr: usize, far: usize) -> ! {
-    debug!("Exception {:?}@{:?}: ESR={:x} ELR={:x} SPSR={:x} FAR={:x}", kind, prev_el, esr, elr, spsr, far);
-    unimplemented!();
-}
-
 #[no_mangle]
-#[naked]
-pub unsafe extern "C" fn exception_entry(kind: ExceptionKind, prev_el: ExceptionLevel) -> ! {
-    let esr:  usize; asm!("mrs $0, esr_el1": "=r"(esr));
-    let elr:  usize; asm!("mrs $0, elr_el1": "=r"(elr));
-    let spsr: usize; asm!("mrs $0, spsr_el1": "=r"(spsr));
-    let far:  usize; asm!("mrs $0, far_el1": "=r"(far));
-    exception_handler(kind, prev_el, esr, elr, spsr, far);
+pub extern fn handle_exception() -> ! {
+    loop {}
+    unimplemented!();
 }
 
 extern {
     pub static exception_handlers: u8;
 }
 
+// FIXME: We may need to switch stack after enter an exception,
+//        to avoid stack overflow.
 // Exception handlers table
 global_asm! {"
 .global exception_handlers
 
-.macro except, exception_id
-    .align 7
-    mov       x0, \\exception_id
-    mrs       x1, CurrentEL
-    and       x1, x1, #0b1100
-    lsr	      x1, x1, #2
-    b         exception_entry
+.macro push_all
+    stp	x0,  x1,  [sp, #-16]!
+    stp	x2,  x3,  [sp, #-16]!
+    stp	x4,  x5,  [sp, #-16]!
+    stp	x6,  x7,  [sp, #-16]!
+    stp	x8,  x9,  [sp, #-16]!
+    stp	x10, x11, [sp, #-16]!
+    stp	x12, x13, [sp, #-16]!
+    stp	x14, x15, [sp, #-16]!
 .endm
 
-    .align 11
+.macro pop_all
+    ldp	x0,  x1,  [sp], #16
+	ldp	x2,  x3,  [sp], #16
+	ldp	x4,  x5,  [sp], #16
+	ldp	x6,  x7,  [sp], #16
+	ldp	x8,  x9,  [sp], #16
+	ldp	x10, x11, [sp], #16
+	ldp	x12, x13, [sp], #16
+    ldp	x14, x15, [sp], #16
+.endm
+
+.macro except_hang, exception_id
+    .align 7
+0:  wfi
+    b 0b
+.endm
+
+.macro except, exception_id
+    .align 7
+    push_all
+    bl handle_exception
+    pop_all
+    eret
+.endm
+
+.macro irq, exception_id
+    .align 7
+    push_all
+    bl	handle_interrupt
+    pop_all
+    eret
+.endm
+
+    .balign 4096
 exception_handlers:
     // Same exeception level, EL0
     except    #0 // Synchronous
-    except    #1 // IRQ
+    irq       #1 // IRQ
     except    #2 // FIQ
     except    #3 // SError
     // Same exeception level, ELx
     .align 9
     except    #0 // Synchronous
-    except    #1 // IRQ
+    irq       #1 // IRQ
     except    #2 // FIQ
     except    #3 // SError
     // Transit to upper exeception level, AArch64
     .align 9
     except    #0 // Synchronous
-    except    #1 // IRQ
+    irq       #1 // IRQ
     except    #2 // FIQ
     except    #3 // SError
     // Transit to upper exeception level, AArch32: Unreachable
     .align 9
     except    #0 // Synchronous
-    except    #1 // IRQ
+    irq       #1 // IRQ
     except    #2 // FIQ
     except    #3 // SError
 "}
