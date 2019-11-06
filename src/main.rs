@@ -93,7 +93,7 @@ pub fn kmain() -> ! {
     // Manually trigger a page fault
     // unsafe { *(0xdeadbeef as *mut u8) = 0; }
     loop {
-        task::Task::schedule()
+        task::GLOBAL_TASK_SCHEDULER.schedule();
     }
 }
 

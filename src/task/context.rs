@@ -1,4 +1,5 @@
 
+/// Represents the archtectural context (i.e. registers)
 #[repr(C)]
 pub struct Context {
     pub sp: usize,
@@ -17,11 +18,20 @@ pub struct Context {
 }
 
 impl Context {
-    pub const fn new() -> Self {
+    pub const fn empty() -> Self {
         Self {
             x19: 0, x20: 0, x21: 0, x22: 0, x23: 0, x24: 0,
             x25: 0, x26: 0, x27: 0, x28: 0, x29: 0,
             pc: 0, sp: 0,
+        }
+    }
+
+    pub const fn new(entry: *const extern fn() -> !, stack: *const u8) -> Self {
+        Self {
+            x19: 0, x20: 0, x21: 0, x22: 0, x23: 0, x24: 0,
+            x25: 0, x26: 0, x27: 0, x28: 0, x29: 0,
+            pc: unsafe { entry as _ },
+            sp: unsafe { stack as _ },
         }
     }
 }

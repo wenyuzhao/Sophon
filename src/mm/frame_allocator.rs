@@ -67,7 +67,7 @@ impl BitMapAllocator {
                 for j in 0..BITS_IN_ENTRY {
                     if entry & (1 << j) == 0 {
                         let index = i * BITS_IN_ENTRY + j;
-                        debug_assert!(self.get_2m(index / PAGES_IN_BLOCK), "x");
+                        debug_assert!(self.get_2m(index / PAGES_IN_BLOCK));
                         self.set_4k(index, true);
                         return Some(index);
                     }
