@@ -45,7 +45,7 @@ unsafe fn setup_ttbr1_el1() {
 
 
 pub unsafe fn setup_kernel_pagetables() {// Query VC memory
-    // loop {}
+    // Get video-core occupied memory
     let (vcm_start, vcm_end) = {
         use crate::mailbox::*;
         let res::GetVCMemory { base_address, size } = MailBox::send(Channel::PropertyARM2VC, req::GetVCMemory).unwrap();

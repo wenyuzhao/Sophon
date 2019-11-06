@@ -48,16 +48,10 @@ impl Scheduler {
     pub fn register_new_task(&self, mut task: Box<Task>) -> &'static mut Task {
         crate::interrupt::uninterruptable(|| {
             let id = task.id();
-            { task.scheduler_state().borrow_mut().run_state = RunState::Ready; }
+            task.scheduler_state().borrow_mut().run_state = RunState::Ready;
             let task_ref: &'static mut Task = unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
-            {
-                let mut tasks = self.tasks.lock();
-                tasks.insert(id, task);
-                // for (t, _) in &*tasks {
-                //     debug!("tasks: {:?} {}", t, tasks.len());
-                // }
-            }
-            { self.task_queue.lock().push_back(id); }
+            self.tasks.lock().insert(id, task);
+            self.task_queue.lock().push_back(id);
             task_ref
         })
     }
@@ -90,10 +84,10 @@ impl Scheduler {
     pub fn schedule(&self) {
         // Find a scheduleable task
         let next_task = {
-            if let Some(next_runnable_task) = { self.task_queue.lock().pop_front() } {
+            if let Some(next_runnable_task) = self.task_queue.lock().pop_front() {
                 Task::by_id(next_runnable_task).expect("task not found")
             } else {
-                debug!("No more runnable tasks");
+                // debug!("No more runnable tasks");
                 return
             }
         };
