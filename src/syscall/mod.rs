@@ -8,12 +8,22 @@ use crate::exception::ExceptionFrame;
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum SysCall {
     Fork = 0x0,
+    // Exit,
+    // MemoryMap,
+    // MemoryUnmap,
     #[allow(non_camel_case_types)] __MAX_SYSCALLS,
 }
 
-type SysCallHandler = fn (exception_frame: &mut ExceptionFrame) -> isize;
+type Handler = fn (exception_frame: &mut ExceptionFrame) -> isize;
 
-static SYSCALL_HANDLERS: [SysCallHandler; SysCall::__MAX_SYSCALLS as usize] = [
+macro_rules! handlers {
+    ($($f: expr,)*) => { handlers![$($f),*] };
+    ($($f: expr),*) => {[
+        $(|ef: &mut ExceptionFrame| unsafe { ::core::mem::transmute($f(ef)) }),*
+    ]};
+}
+
+static SYSCALL_HANDLERS: [Handler; SysCall::__MAX_SYSCALLS as usize] = handlers![
     fork::fork,
 ];
 
