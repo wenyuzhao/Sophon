@@ -3,3 +3,6 @@
 /Cargo.lock
 /kernel8.img
 /kernel.S
+/init.S
+/init/Cargo.lock
+/init/target

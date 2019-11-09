@@ -24,6 +24,7 @@ extern crate cortex_a;
 extern crate bitflags;
 #[macro_use]
 extern crate alloc;
+extern crate goblin;
 mod gpio;
 #[macro_use]
 mod debug;
@@ -38,6 +39,7 @@ mod mm;
 mod interrupt;
 mod timer;
 mod task;
+mod init;
 use cortex_a::regs::*;
 
 #[global_allocator]
@@ -49,26 +51,8 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 extern fn init_process() -> ! {
     let id = ID.fetch_add(1, Ordering::SeqCst);
     debug!("Start init {:?}", task::Task::current().unwrap().id());
-    if id == 0 {
-        debug!("forkstart");
-        let id = syscall!(syscall::SysCall::Fork);
-        debug!("forkend, ret = {}", id);
-        debug!("forkend, sp = {:x}", SP.get());
-    }
-    loop {}
-    let id = task::Task::current().unwrap().id();
-    // let el = (CurrentEL.get() & 0b1100) >> 2;
-    // if el != 1 {
-    //     loop {}
-    // }
-    // debug!("EL: {}", el);
-    debug!("Forked {:?}", id);
-    loop {
-        debug!("Hello from {:?}!", task::Task::current().unwrap().id());
-        for i in 0..10000 {
-            unsafe { asm!("nop") }
-        }
-    }
+    task::exec::exec_user(init::INIT_ELF);
+    unreachable!();
 }
 
 

@@ -1,6 +1,7 @@
 #[macro_use]
 pub mod utils;
-pub mod fork;
+mod fork;
+mod log;
 
 use crate::exception::ExceptionFrame;
 
@@ -8,6 +9,7 @@ use crate::exception::ExceptionFrame;
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum SysCall {
     Fork = 0x0,
+    Log,
     // Exit,
     // MemoryMap,
     // MemoryUnmap,
@@ -25,6 +27,7 @@ macro_rules! handlers {
 
 static SYSCALL_HANDLERS: [Handler; SysCall::__MAX_SYSCALLS as usize] = handlers![
     fork::fork,
+    log::log,
 ];
 
 

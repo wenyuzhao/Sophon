@@ -45,11 +45,13 @@ BTW, it is almost impossible to take care of performance for now...
 - [x] Basic interrupt handler support
 - [x] Kernel heap allocation
 - [ ] Properly trap and handle Stack-overflow exception
-- [ ] Enter to usermode
-- [ ] Syscalls
+- [x] Enter to usermode
+- [x] Syscalls
 - [ ] Usermode memory map
-- [ ] Timer interrupts
-- [ ] Scheduling/Context switch
+- [ ] Fork syscall (either from kernel or user mode)
+- [ ] ProcessExit syscall (either from kernel or user mode)
+- [x] Timer interrupts
+- [x] Scheduling/Context switch
 - [ ] *May need to port GCC/Rustc/libc at this point*
 - [ ] Init process
 - [ ] Multi-core support

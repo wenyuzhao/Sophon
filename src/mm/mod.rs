@@ -11,6 +11,19 @@ pub use self::page::*;
 pub use self::page_table::*;
 pub use self::paging::*;
 
+pub fn memory_map(address: Address, size: usize, mut flags: PageFlags) -> Result<Address, ()> {
+    assert!(Page::<Size4K>::is_aligned(address));
+    assert!(Page::<Size4K>::is_aligned(size.into()));
+    let start_page = Page::<Size4K>::new(address);
+    let end_page = Page::<Size4K>::new(address + size);
+    let p4 = PageTable::<L4>::get(false);
+    for page in start_page..end_page {
+        let frame = frame_allocator::alloc().unwrap();
+        debug!("mmap {:?} -> {:?}, {:?}", page, frame, flags);
+        p4.map(page, frame, flags);
+    }
+    Ok(address)
+}
 
 pub fn map_user<S: PageSize>(page: Page<S>, frame: Frame<S>, mut flags: PageFlags) -> Page<S> {
     if S::LOG_SIZE == Size4K::LOG_SIZE {

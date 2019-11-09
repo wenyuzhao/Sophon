@@ -7,7 +7,7 @@ use crate::gpio::*;
 
 
 #[doc(hidden)]
-pub fn _println(args: fmt::Arguments) {
+pub fn _print(args: fmt::Arguments) {
     crate::interrupt::uninterruptable(|| {
         let mut write = UART.lock();
         write.write_fmt(args).unwrap();
@@ -15,9 +15,16 @@ pub fn _println(args: fmt::Arguments) {
 }
 
 #[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ({
+        $crate::debug::_print(format_args!($($arg)*))
+    });
+}
+
+#[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => ({
-        $crate::debug::_println(format_args_nl!($($arg)*))
+        $crate::debug::_print(format_args_nl!($($arg)*))
     });
 }
 
