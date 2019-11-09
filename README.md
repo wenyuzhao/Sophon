@@ -9,23 +9,9 @@
 
 ## Build & Run
 
-Under project root directory:
-
-```
-cargo xbuild --target aarch64-proton.json --features raspi3
-cargo objcopy -- ./target/aarch64-proton/debug/proton -O binary ./kernel8.img
-```
-
-Then test the kernel with:
-
-```
-qemu-system-aarch64 -M raspi3 -serial stdio -kernel ./kernel8.img
-```
-
-**Alternative:** Simply run:
-
-```
-make run
+```bash
+make build # This will produce a `kernel8.img` under project root directory
+make run # Test the kernel with QEMU
 ```
 
 ## Design
