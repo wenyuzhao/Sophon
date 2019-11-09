@@ -309,7 +309,7 @@ impl <L: TableLevel> PageTable<L> {
     pub fn fork(&mut self, stack_frames: &[(Frame, Frame); KERNEL_STACK_PAGES]) -> Frame {
         if L::ID == 0 { unreachable!() }
 
-        debug!("Fork {}", L::ID);
+        // debug!("Fork {}", L::ID);
         
         // Alloc a new table
         let new_table_frame = frame_allocator::alloc::<Size4K>().unwrap();
@@ -318,20 +318,20 @@ impl <L: TableLevel> PageTable<L> {
         let limit = if L::ID == 4 { 511 } else { 512 };
         for i in 0..limit {
             if self.entries[i].present() {
-                debug!("- {:?}", self.entries[i].address());
+                // debug!("- {:?}", self.entries[i].address());
                 if L::ID != 1 && self.entries[i].flags().contains(PageFlags::SMALL_PAGE) {
-                    debug!("- {:?} page table {}", self.entries[i].address(), L::ID - 1);
+                    // debug!("- {:?} page table {}", self.entries[i].address(), L::ID - 1);
                     // This entry is a page table
                     let table = self.next_table(i).unwrap();
                     let flags = self.entries[i].flags();
-                    debug!("- {:?} page table {} recursive fork", self.entries[i].address(), L::ID - 1);
-                    debug!("table = {:?}", table as *const _);
+                    // debug!("- {:?} page table {} recursive fork", self.entries[i].address(), L::ID - 1);
+                    // debug!("table = {:?}", table as *const _);
                     let frame = table.fork(stack_frames);
-                    debug!("- {:?} page table {} recursive fork end", self.entries[i].address(), L::ID - 1);
+                    // debug!("- {:?} page table {} recursive fork end", self.entries[i].address(), L::ID - 1);
                     let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
                     let new_table = unsafe { page.start().as_ref_mut::<Self>() };
                     new_table.entries[i].set(frame, flags);
-                    debug!("PT{}({:?})[{}] = T {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
+                    // debug!("PT{}({:?})[{}] = T {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
                 } else {
                     // This entry points to a page
                     // Mark as copy-on-write
@@ -344,10 +344,10 @@ impl <L: TableLevel> PageTable<L> {
                         if let Some(pos) = stack_frames.iter().position(|x| x.0 == Frame::of(address)) {
                             // This is a kernel stack, remap it
                             let new_stack_frame = stack_frames[pos].1;
-                            debug!("Remapped stack {:?} -> {:?}", address, new_stack_frame);
+                            // debug!("Remapped stack {:?} -> {:?}", address, new_stack_frame);
                             debug_assert!(flags.contains(PageFlags::ACCESSED));
                             new_table.entries[i].set(new_stack_frame, flags);
-                            debug!("PT{}({:?})[{}] = P {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
+                            // debug!("PT{}({:?})[{}] = P {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
                             continue;
                         }
                     }

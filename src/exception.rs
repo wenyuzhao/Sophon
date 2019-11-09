@@ -60,6 +60,7 @@ pub struct ExceptionFrame {
 pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
     let esr_el1: usize;
     asm!("mrs $0, esr_el1":"=r"(esr_el1));
+    debug!("exception at frame {:?}", exception_frame);
     if (esr_el1 >> 26) == 0x15 {
         crate::syscall::handle_syscall(&mut *exception_frame);
     } else {

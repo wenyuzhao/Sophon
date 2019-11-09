@@ -25,7 +25,7 @@ pub unsafe fn handle_syscall(exception_frame: &mut ExceptionFrame) {
     let handler = SYSCALL_HANDLERS[syscall_id as usize];
     let result = handler(exception_frame);
     debug!("Syscall {:?} returned {:?}", syscall_id, result);
-    exception_frame.x0 = ::core::mem::transmute(fork::fork(exception_frame));
+    exception_frame.x0 = ::core::mem::transmute(result);
 }
 
 

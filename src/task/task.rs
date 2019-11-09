@@ -48,13 +48,8 @@ impl Task {
     #[inline(never)]
     pub fn fork(&self, parent_sp: usize) -> &'static mut Task {
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
-        // debug!("parent sp = {:x}", parent_sp);
-        // debug!("parent sp bottom = {:?}", self.kernel_stack);
-        // let parent_sp_offset = parent_sp - self.kernel_stack.start().as_usize();
-        // // let kernel_stack = self.kernel_stack.clone();
-        // let stack_pointer = kernel_stack.start().as_usize() + parent_sp_offset;
-        // debug!("child sp = {:x}", stack_pointer);
-        // debug!("child sp bottom = {:?}", kernel_stack);
+        debug!("parent_sp {:x}", parent_sp);
+        debug_assert!(id.0 != 3);
         let mut task = box Task {
             id,
             context: self.context.clone(),
@@ -67,7 +62,7 @@ impl Task {
             },
             scheduler_state: RefCell::new(SchedulerState::new()),
         };
-        debug!("A");
+        // debug!("A");
         // let stack_frame = frame_allocator::alloc::<Size2M>().unwrap();
         // task.kernal_stack_frame
         task.context.sp = parent_sp as _;
@@ -77,10 +72,10 @@ impl Task {
             for i in 0..KERNEL_STACK_PAGES {
                 stacks[i] = (self.kernel_stack[i], task.kernel_stack[i]);
             }
-            debug!("B {:?}", stacks);
+            // debug!("B {:?}", stacks);
             paging::fork_page_table(self.context.p4, &stacks)
         };
-        debug!("C");
+        // debug!("C");
         // {unsafe {
         //     let page = crate::mm::map_kernel_temporarily(task.context.p4, PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::SMALL_PAGE);
         //     let new_table = unsafe { page.start().as_ref_mut::<PageTable<L4>>() };
