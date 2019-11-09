@@ -116,7 +116,7 @@ impl Task {
         {
             let sp_offset = parent_sp - KERNEL_STACK_START.as_usize();
             let page_index = sp_offset >> Size4K::LOG_SIZE;
-            let page_offset = sp_offset & ((1 << Size4K::LOG_SIZE) - 1);
+            let page_offset = sp_offset & Size4K::MASK;
             let stack_page = crate::mm::map_kernel_temporarily(task.kernel_stack[page_index], PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::SMALL_PAGE);
             let child_exception_frame_ptr = stack_page.start() + page_offset;
             let child_exception_frame = unsafe { child_exception_frame_ptr.as_ref_mut::<ExceptionFrame>() };

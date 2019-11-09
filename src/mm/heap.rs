@@ -13,7 +13,7 @@ pub struct FreeListAllocator {
 impl FreeListAllocator {
     const fn new() -> Self {
         Self {
-            cells: [Address::zero(); 28]
+            cells: [Address::ZERO; 28]
         }
     }
 
@@ -59,7 +59,7 @@ impl FreeListAllocator {
         } else if !self.cells[size_class].is_zero() {
             let cell = self.cells[size_class];
             self.cells[size_class] = unsafe { cell.load() };
-            unsafe { cell.store(Address::<V>::zero()) };
+            unsafe { cell.store(Address::<V>::ZERO) };
             Some(cell)
         } else {
             let next_level_cell = self.alloc_cell(size_class + 1)?;

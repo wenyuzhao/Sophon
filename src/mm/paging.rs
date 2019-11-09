@@ -100,7 +100,7 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     identity_map_kernel_memory_nomark::<Size4K>(Frame::new(kernel_start.into()), (0x200000 - kernel_start) >> Size4K::LOG_SIZE, true);
     // Remaining blocks
     let kernel_end = kernel_heap_end() & 0x0000ffff_ffffffff;
-    let blocks = ((kernel_end - 0x200000) + ((1 << Size2M::LOG_SIZE) - 1)) / (1 << Size2M::LOG_SIZE);
+    let blocks = ((kernel_end - 0x200000) + (Size2M::SIZE - 1)) / Size2M::SIZE;
     identity_map_kernel_memory_nomark::<Size2M>(Frame::new(0x200000.into()), blocks, true);
     // Map VC Memory
     let p4 = PageTable::<L4>::get(true);

@@ -10,6 +10,8 @@ use core::hash::Hash;
 pub trait PageSize: Copy + Clone + PartialOrd + Ord + PartialEq + Eq + Hash {
     const NAME: &'static str;
     const LOG_SIZE: usize;
+    const SIZE: usize = 1 << Self::LOG_SIZE;
+    const MASK: usize = Self::SIZE - 1;
 }
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -38,7 +40,7 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
     pub const LOG_SIZE: usize = S::LOG_SIZE;
     pub const SIZE: usize = 1 << Self::LOG_SIZE;
     pub const MASK: usize = Self::SIZE - 1;
-    pub const ZERO: Self = Self(Address::zero(), PhantomData);
+    pub const ZERO: Self = Self(Address::ZERO, PhantomData);
 
     #[inline]
     pub fn is_zero(&self) -> bool {
@@ -90,7 +92,7 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
 
     #[inline]
     pub fn align_up<M: MemoryKind>(a: Address<M>) -> Address<M> {
-        let v = (a.as_usize() + (1 << S::LOG_SIZE) - 1) & !((1 << S::LOG_SIZE) - 1);
+        let v = (a.as_usize() + S::SIZE - 1) & !(S::SIZE - 1);
         v.into()
     }
 }

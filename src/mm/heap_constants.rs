@@ -7,8 +7,14 @@ pub const KERNEL_CORE0_STACK_END:   usize = 0xffff0000_00080000;
 /// Kernel process stack
 pub const KERNEL_STACK_START: Address<V> = Address::new(0x1000);
 pub const KERNEL_STACK_PAGES: usize = 4;
-pub const KERNEL_STACK_SIZE: usize = KERNEL_STACK_PAGES * (1 << Size4K::LOG_SIZE);
+pub const KERNEL_STACK_SIZE: usize = KERNEL_STACK_PAGES * Size4K::SIZE;
 pub const KERNEL_STACK_END: Address<V> = Address::new(KERNEL_STACK_START.as_usize() + KERNEL_STACK_SIZE);
+
+/// User stack
+pub const USER_STACK_START: Address<V> = Address::new(0x200000);
+pub const USER_STACK_PAGES: usize = 4;
+pub const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::LOG_SIZE;
+pub const USER_STACK_END: Address<V> = Address::new(USER_STACK_START.as_usize() + USER_STACK_SIZE);
 
 pub const KERNEL_HEAP_SIZE: usize = 16 * 1024 * 1024; // 16M
 

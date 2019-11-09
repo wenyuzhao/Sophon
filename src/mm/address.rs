@@ -25,14 +25,11 @@ impl MemoryKind for Physical {}
 pub struct Address<K: MemoryKind = Virtual>(usize, PhantomData<K>);
 
 impl <K: MemoryKind> Address<K> {
+    pub const ZERO: Self = Address::new(0usize);
+
     #[inline]
     pub const fn new(v: usize) -> Self {
         Self(v, PhantomData)
-    }
-
-    #[inline]
-    pub const fn zero() -> Self {
-        Self(0, PhantomData)
     }
     
     #[inline]
