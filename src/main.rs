@@ -55,7 +55,7 @@ extern fn init_process() -> ! {
         debug!("forkend, ret = {}", id);
         debug!("forkend, sp = {:x}", SP.get());
     }
-    // loop {}
+    loop {}
     let id = task::Task::current().unwrap().id();
     // let el = (CurrentEL.get() & 0b1100) >> 2;
     // if el != 1 {

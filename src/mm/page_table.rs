@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 use super::frame_allocator;
 use super::address::*;
 use super::page::*;
+use super::heap_constants::*;
 
 
 bitflags! {
@@ -288,69 +289,45 @@ impl PageTable<L4> {
 
     pub fn with_temporary_low_table<R>(new_p4_frame: Frame, f: impl Fn(&'static mut PageTable<L4>) -> R) -> R {
         let old_p4_frame = TTBR0_EL1.get();
-        // TTBR0_EL1.set(new_p4_frame.start().as_usize() as u64);
-        unsafe {
-            asm! {"
-            msr	ttbr0_el1, $0
-            tlbi vmalle1is
-            DSB ISH
-            isb
-        "::"r"(new_p4_frame.start().as_usize())
-        }
-    }
+        TTBR0_EL1.set(new_p4_frame.start().as_usize() as u64);
+        crate::mm::paging::invalidate_tlb();
         let r = f(Self::get(false));
-        unsafe {
-            asm! {"
-            msr	ttbr0_el1, $0
-            tlbi vmalle1is
-            DSB ISH
-            isb
-        "::"r"(old_p4_frame)
-        }
-    }
-        // TTBR0_EL1.set(old_p4_frame);
+        TTBR0_EL1.set(new_p4_frame.start().as_usize() as u64);
+        crate::mm::paging::invalidate_tlb();
         r
     }
 }
 
 // 4096 / 8
 impl <L: TableLevel> PageTable<L> {
-    fn mark_as_copy_on_write(&mut self) {
-        if L::ID == 0 { return }
-        for i in 0..self.entries.len() {
-            // // Alloc a new table
-            // let frame = frame_allocator::alloc::<Size4K>().unwrap();
-            // // Copy current table
-            // let page = crate::mm::map_kernel_temporarily(frame, PAGE_TABLE_FLAGS);
-            // let new_table = unsafe { page.start().as_ref_mut::<Self>() };
-            if self.entries[i].present() {
-                if L::ID != 1 && self.entries[i].flags().contains(PageFlags::SMALL_PAGE) {
-                    let table = self.next_table(i).unwrap();
-                    table.mark_as_copy_on_write();
-                }
-                let flags = self.entries[i].flags();
-                self.entries[i].update_flags(flags | PageFlags::NO_WRITE | PageFlags::COPY_ON_WRITE);
-            }
-        }
-    }
-    pub fn fork(&mut self, new_stack_frame: Frame<Size2M>, map_stack_frame_at_this_table: bool) -> Frame {
+    /// Fork a (user) page table hierarchy
+    /// 
+    /// This will copy all page tables and mark all (non-pagetable) pages as copy-on-write.
+    /// 
+    /// Special case for kernel stack pages:
+    /// we simply redirect them to new frames, but not responsible for the copying
+    pub fn fork(&mut self, stack_frames: &[(Frame, Frame); KERNEL_STACK_PAGES]) -> Frame {
         if L::ID == 0 { unreachable!() }
+
+        debug!("Fork {}", L::ID);
         
         // Alloc a new table
         let new_table_frame = frame_allocator::alloc::<Size4K>().unwrap();
-        // let with_new_table = |f: impl Fn(&mut Self)| {
-        //     let page = crate::mm::map_kernel_temporarily(frame, PAGE_TABLE_FLAGS);
-        //     f(unsafe { page.start().as_ref_mut::<Self>() })
-        // };
-        // let stack_frame_id: usize = Self::get_index(0x1000000usize.into());
+        
         // Copy entries & recursively fork children
-        for i in 0..511 {
+        let limit = if L::ID == 4 { 511 } else { 512 };
+        for i in 0..limit {
             if self.entries[i].present() {
+                debug!("- {:?}", self.entries[i].address());
                 if L::ID != 1 && self.entries[i].flags().contains(PageFlags::SMALL_PAGE) {
+                    debug!("- {:?} page table {}", self.entries[i].address(), L::ID - 1);
                     // This entry is a page table
                     let table = self.next_table(i).unwrap();
                     let flags = self.entries[i].flags();
-                    let frame = table.fork(new_stack_frame, false);
+                    debug!("- {:?} page table {} recursive fork", self.entries[i].address(), L::ID - 1);
+                    debug!("table = {:?}", table as *const _);
+                    let frame = table.fork(stack_frames);
+                    debug!("- {:?} page table {} recursive fork end", self.entries[i].address(), L::ID - 1);
                     let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
                     let new_table = unsafe { page.start().as_ref_mut::<Self>() };
                     new_table.entries[i].set(frame, flags);
@@ -359,21 +336,47 @@ impl <L: TableLevel> PageTable<L> {
                     // This entry points to a page
                     // Mark as copy-on-write
                     let flags = self.entries[i].flags();
+                    let address = self.entries[i].address();
                     let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
                     let new_table = unsafe { page.start().as_ref_mut::<Self>() };
-                    if L::ID == 2 && i == 1 {
-                        debug!("Remapped stack {:?} -> {:?}", self.entries[i].address(), new_stack_frame);
-                        debug_assert!(!flags.contains(PageFlags::SMALL_PAGE));
-                        debug_assert!(flags.contains(PageFlags::ACCESSED));
-                        
-                        new_table.entries[i].set(new_stack_frame, flags);
-                        
-                        debug!("PT{}({:?})[{}] = P {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
-                    } else {
-                        new_table.entries[i] = PageTableEntry(self.entries[i].0);
+                    
+                    if L::ID == 1 {
+                        if let Some(pos) = stack_frames.iter().position(|x| x.0 == Frame::of(address)) {
+                            // This is a kernel stack, remap it
+                            let new_stack_frame = stack_frames[pos].1;
+                            debug!("Remapped stack {:?} -> {:?}", address, new_stack_frame);
+                            debug_assert!(flags.contains(PageFlags::ACCESSED));
+                            new_table.entries[i].set(new_stack_frame, flags);
+                            debug!("PT{}({:?})[{}] = P {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
+                            continue;
+                        }
                     }
+
+                    // This is a normal user page, mark it as copy-on-write
+                    new_table.entries[i] = PageTableEntry(self.entries[i].0);
+                    // let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
+                    // let new_table = unsafe { page.start().as_ref_mut::<Self>() };
+                    // let old_frame = 
+                    // if L::ID == 2 && i == 1 {
+                    //     // This is a kernel stack, copy it.
+                    //     let new_stack_frame = frame_allocator::alloc().unwrap();
+                    //     debug!("Remapped stack {:?} -> {:?}", self.entries[i].address(), new_stack_frame);
+                    //     debug_assert!(!flags.contains(PageFlags::SMALL_PAGE));
+                    //     debug_assert!(flags.contains(PageFlags::ACCESSED));
+                    //     new_table.entries[i].set(new_stack_frame, flags);
+                    //     debug!("PT{}({:?})[{}] = P {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
+                    // } else {
+                    //     new_table.entries[i] = PageTableEntry(self.entries[i].0);
+                    // }
                 }
             }
+        }
+
+        if L::ID == 4 {
+            // Recursively reference P4 itself
+            let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
+            let new_table = unsafe { page.start().as_ref_mut::<PageTable<L4>>() };
+            new_table.entries[511].set(new_table_frame, super::page_table::PAGE_TABLE_FLAGS);
         }
 
         new_table_frame

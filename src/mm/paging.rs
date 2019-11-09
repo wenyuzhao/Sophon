@@ -137,25 +137,18 @@ fn identity_map_kernel_memory_nomark<S: PageSize>(start_frame: Frame<S>, n_frame
     }
 }
 
-pub fn fork_page_table(parent_p4_frame: Frame, stack_frame: Frame<Size2M>) -> Frame {
+pub fn fork_page_table(parent_p4_frame: Frame, stack_frames: &[(Frame, Frame); KERNEL_STACK_PAGES]) -> Frame {
     PageTable::<L4>::with_temporary_low_table(parent_p4_frame, |parent_p4| {
-        let frame = parent_p4.fork(stack_frame, false);
-        
-
-        {
-            let page = crate::mm::map_kernel_temporarily(frame, PAGE_TABLE_FLAGS);
-            let new_table = unsafe { page.start().as_ref_mut::<PageTable<L4>>() };
-            new_table.entries[511].set(frame, super::page_table::PAGE_TABLE_FLAGS);
-        }
-
-        frame
-        // parent_p4.mark_as_copy_on_write();
-        // let child_p4_frame = super::frame_allocator::alloc::<Size4K>().unwrap();
-        // let child_p4_page = crate::mm::map_kernel_temporarily(child_p4_frame, PageFlags::OUTER_SHARE | PageFlags::ACCESSED);
-        // let child_p4 = unsafe { child_p4_page.start().as_ref_mut::<PageTable<L4>>() };
-        // for i in 0..parent_p4.entries.len() {
-        //     child_p4.entries[i] = parent_p4.entries[i].clone();
-        // }
-        // child_p4_frame
+        parent_p4.fork(stack_frames)
     })
+}
+
+pub fn invalidate_tlb() {
+    unsafe {
+        asm! {"
+            tlbi vmalle1is
+            DSB ISH
+            isb
+        "}
+    }
 }

@@ -53,41 +53,26 @@ impl <S: PageSize> Deref for TemporaryKernelPage<S> {
 
 impl <S: PageSize> Drop for TemporaryKernelPage<S> {
     fn drop(&mut self) {
-        unsafe {
-            asm! {"
-            tlbi vmalle1is
-            DSB ISH
-            isb
-            "}
-        }
+        // paging::invalidate_tlb();
         unmap_kernel(self.0, self.1);
-        unsafe {
-            asm! {"
-            tlbi vmalle1is
-            DSB ISH
-            isb
-            "}
-        }
+        paging::invalidate_tlb();
     }
 }
 
 pub fn map_kernel_temporarily<S: PageSize>(frame: Frame<S>, mut flags: PageFlags) -> TemporaryKernelPage<S> {
     const MAGIC_PAGE: usize = 0xffff_1234_5600_0000;
     let page = Page::new(MAGIC_PAGE.into());
-    unsafe {
-        asm! {"
-        tlbi vmalle1is
-        DSB ISH
-        isb
-        "}
-    }
+    // paging::invalidate_tlb();
     map_kernel(page, frame, flags);
-    unsafe {
-        asm! {"
-        tlbi vmalle1is
-        DSB ISH
-        isb
-        "}
-    }
+    paging::invalidate_tlb();
+    TemporaryKernelPage(page, false)
+}
+
+pub fn map_kernel_temporarily2<S: PageSize>(frame: Frame<S>, mut flags: PageFlags, p: Option<usize>) -> TemporaryKernelPage<S> {
+    const MAGIC_PAGE: usize = 0xffff_1234_5600_0000;
+    let page = Page::new(p.unwrap_or(MAGIC_PAGE).into());
+    // paging::invalidate_tlb();
+    map_kernel(page, frame, flags);
+    paging::invalidate_tlb();
     TemporaryKernelPage(page, false)
 }

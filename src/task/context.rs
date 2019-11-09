@@ -46,15 +46,16 @@ impl Context {
 
 impl Context {
     pub unsafe extern fn switch_to(&mut self, ctx: &Context) {
-        if self.p4 != ctx.p4 {
+        // if self.p4 != ctx.p4 {
             debug!("Switch P4: {:?} -> {:?}", self.p4, ctx.p4);
+            debug!("Switch SP: {:?} -> {:?}", self.sp, ctx.sp);
             // asm! {"
             //     msr	ttbr0_el1, $0
             //     tlbi vmalle1is
             //     DSB ISH
             //     isb
             // "::"r"(ctx.p4.start().as_usize())}
-        }
+        // }
         switch_context(self, ctx, ctx.p4.start().as_usize())
     }
 }
