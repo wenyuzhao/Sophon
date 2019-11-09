@@ -57,13 +57,13 @@ impl FrameBuffer {
         const CH: Channel = Channel::PropertyARM2VC;
 
         let res::GetFirmwireRevision(rev) = MailBox::send(CH, req::GetFirmwireRevision).unwrap();
-        debug!("Revision = {:x}", rev);
+        println!("Revision = {:x}", rev);
 
         {
             let res::GetARMMemory { base_address, size } = MailBox::send(CH, req::GetARMMemory).unwrap();
-            debug!("ARM Memory: base={:x} size={:x}", base_address, size);
+            println!("ARM Memory: base={:x} size={:x}", base_address, size);
             let res::GetVCMemory { base_address, size } = MailBox::send(CH, req::GetVCMemory).unwrap();
-            debug!("VC Memory: base={:x} size={:x}", base_address, size);
+            println!("VC Memory: base={:x} size={:x}", base_address, size);
         }
 
         let res::GetPhysicalResolution { width, height } = MailBox::send(CH, req::GetPhysicalResolution).unwrap();
@@ -79,8 +79,8 @@ impl FrameBuffer {
         self.pitch = pitch as _;
         self.fb = (base_address as usize | (0xffff << 48)) as *mut _;
 
-        debug!("Successfully initialize video output: {}x{} (rgba)", self.width, self.height);
-        debug!("Frame buffer = {:?}", self.fb);
+        println!("Successfully initialize video output: {}x{} (rgba)", self.width, self.height);
+        println!("Frame buffer = {:?}", self.fb);
     }
 
     #[inline(always)]

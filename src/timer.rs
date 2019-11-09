@@ -53,7 +53,7 @@ pub fn pending_timer_irq() -> bool {
 
 #[inline]
 pub fn handle_timer_irq() {
-    // debug!("Timer iterrupt received, count = {}", timer_count());
+    // println!("Timer iterrupt received, count = {}", timer_count());
     update_compare_value();
 
     crate::task::GLOBAL_TASK_SCHEDULER.timer_tick();

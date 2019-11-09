@@ -46,7 +46,7 @@ pub extern fn handle_interrupt() {
     if crate::timer::pending_timer_irq() {
         crate::timer::handle_timer_irq();
     } else {
-        debug!("Unknown IRQ");
+        println!("Unknown IRQ");
         loop {}
     }
 }

@@ -82,15 +82,15 @@ impl Scheduler {
     }
 
     pub fn schedule(&self) {
-        // debug!("Schedule");
+        // println!("Schedule");
         // Find a scheduleable task
         let next_task = {
             if let Some(next_runnable_task) = self.task_queue.lock().pop_front() {
                 Task::by_id(next_runnable_task).expect("task not found")
             } else {
-                // debug!("No task to schedule");
+                // println!("No task to schedule");
                 if let Some(current_task) = self.get_current_task() {
-                    // debug!("No task to schedule");
+                    // println!("No task to schedule");
                     let mut state = current_task.scheduler_state().borrow_mut();
                     state.time_slice_units = 100;
                 } else {
@@ -102,7 +102,7 @@ impl Scheduler {
         };
         // Push current task to task queue
         let current_task = self.get_current_task();
-        // debug!("Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
+        // println!("Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
         debug_assert!(Some(next_task.id()) != current_task.as_ref().map(|t| t.id()));
         // Add this task to ready queue
         if let Some(current_task) = current_task.as_ref() {

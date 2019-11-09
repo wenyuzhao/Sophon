@@ -19,7 +19,7 @@ pub fn memory_map(address: Address, size: usize, mut flags: PageFlags) -> Result
     let p4 = PageTable::<L4>::get(false);
     for page in start_page..end_page {
         let frame = frame_allocator::alloc().unwrap();
-        debug!("mmap {:?} -> {:?}, {:?}", page, frame, flags);
+        println!("mmap {:?} -> {:?}, {:?}", page, frame, flags);
         p4.map(page, frame, flags);
     }
     Ok(address)

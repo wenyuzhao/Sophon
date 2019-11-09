@@ -22,7 +22,7 @@ macro_rules! print {
 }
 
 #[macro_export]
-macro_rules! debug {
+macro_rules! println {
     ($($arg:tt)*) => ({
         $crate::debug::_print(format_args_nl!($($arg)*))
     });

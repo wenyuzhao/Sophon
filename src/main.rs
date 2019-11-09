@@ -50,7 +50,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 
 extern fn init_process() -> ! {
     let id = ID.fetch_add(1, Ordering::SeqCst);
-    debug!("Start init {:?}", task::Task::current().unwrap().id());
+    println!("Start init {:?}", task::Task::current().unwrap().id());
     task::exec::exec_user(init::INIT_ELF);
     unreachable!();
 }
@@ -58,27 +58,27 @@ extern fn init_process() -> ! {
 
 
 pub fn kmain() -> ! {
-    debug!("Hello, Raspberry PI!");
+    println!("Hello, Raspberry PI!");
     ALLOCATOR.init();
     {
         // // Test allocator
         let v = vec![1, 1, 2, 3, 5, 7];
         let b = box 233;
-        debug!("Heap allocation: {:?}, {}", v, b);
+        println!("Heap allocation: {:?}, {}", v, b);
     }
     {
         let mut fb = fb::FRAME_BUFFER.lock();
         fb.init();
         fb.clear(fb::Color::rgba(0x0000FFFF));
     }
-    debug!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
-    debug!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
+    println!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
+    println!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
     // Initialize & start timer
     timer::init();
     interrupt::enable();
 
     let task = task::Task::create_init_task(init_process);
-    debug!("Created init process: {:?}", task.id());
+    println!("Created init process: {:?}", task.id());
 
     // Manually trigger a page fault
     // unsafe { *(0xdeadbeef as *mut u8) = 0; }
@@ -92,7 +92,7 @@ pub fn kmain() -> ! {
 #[cfg(not(feature="rls"))]
 #[panic_handler]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
-    debug!("{}", info);
+    println!("{}", info);
     loop {}
 }
 
