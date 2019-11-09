@@ -41,27 +41,30 @@ unsafe fn setup_ttbr1_el1() {
     let p4 = &KERNEL_P4_HIGH as *const PageTable<L4>;
     TTBR1_EL1.set(p4 as u64 & 0x0000ffff_ffffffff);
 }
- 
 
+pub fn clear_temp_user_pagetable() {
+    unsafe {
+        for i in 0..511 {
+            KERNEL_P4_LOW.entries[i].clear();
+        }
+    }
+}
 
 pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     // Get video-core occupied memory
     let (vcm_start, vcm_end) = {
         use crate::mailbox::*;
-        let res::GetVCMemory { base_address, size } = MailBox::send(Channel::PropertyARM2VC, req::GetVCMemory).unwrap();
+        let res::GetVCMemory { base_address, size } = MailBox::boottime_send(Channel::PropertyARM2VC, req::GetVCMemory).unwrap();
         let start = Address::<P>::new(base_address as _);
         let end = start + size as usize;
-        (start, end)
+        (Frame::<Size2M>::new(start), Frame::<Size2M>::new(end))
     };
     // Reserve frames for later identity mapping
     {
         // Stack + Kernel: 0x0 ~ KERNEL_HEAP_END
         let blocks = (kernel_heap_end() & 0x0000ffff_ffffffff) >> Size2M::LOG_SIZE;
         mark_as_used::<Size2M>(Frame::new(0x0.into()), blocks);
-        // VC: vcm_start ~ vcm_end
-        let vcm_frame_start = Frame::<Size2M>::new(vcm_start);
-        let vcm_frame_end = Frame::<Size2M>::new(vcm_end);
-        for f in vcm_frame_start..vcm_frame_end {
+        for f in vcm_start..vcm_end {
             mark_as_used::<Size2M>(f, 1);
         }
     }
@@ -100,20 +103,13 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     let blocks = ((kernel_end - 0x200000) + ((1 << Size2M::LOG_SIZE) - 1)) / (1 << Size2M::LOG_SIZE);
     identity_map_kernel_memory_nomark::<Size2M>(Frame::new(0x200000.into()), blocks, true);
     // Map VC Memory
-    {
-        let p4 = PageTable::<L4>::get(false);
-        let vcm_frame_start = Frame::<Size2M>::new(vcm_start);
-        let vcm_frame_end = Frame::<Size2M>::new(vcm_end);
-        for f in vcm_frame_start..vcm_frame_end {
-            p4.identity_map::<Size2M>(f, PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::PRESENT);
-        }
+    let p4 = PageTable::<L4>::get(true);
+    for f in vcm_start..vcm_end {
+        p4.identity_map::<Size2M>(f, PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::PRESENT);
     }
     // Mark ARM Generic Timer Mapped Memory
-    {
-        let p4 = PageTable::<L4>::get(false);
-        let frame = Frame::<Size4K>::new(crate::timer::ARM_TIMER_BASE.into());
-        p4.identity_map::<Size4K>(frame, PageFlags::SMALL_PAGE | PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::PRESENT);
-    }
+    let arm_frame = Frame::<Size4K>::new(crate::timer::ARM_TIMER_BASE.into());
+    p4.identity_map::<Size4K>(arm_frame, PageFlags::SMALL_PAGE | PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::PRESENT);
 }
 
 fn mark_as_used<S: PageSize>(start_frame: Frame<S>, n_frames: usize) {
@@ -139,4 +135,27 @@ fn identity_map_kernel_memory_nomark<S: PageSize>(start_frame: Frame<S>, n_frame
             unreachable!()
         }
     }
+}
+
+pub fn fork_page_table(parent_p4_frame: Frame, stack_frame: Frame<Size2M>) -> Frame {
+    PageTable::<L4>::with_temporary_low_table(parent_p4_frame, |parent_p4| {
+        let frame = parent_p4.fork(stack_frame, false);
+        
+
+        {
+            let page = crate::mm::map_kernel_temporarily(frame, PAGE_TABLE_FLAGS);
+            let new_table = unsafe { page.start().as_ref_mut::<PageTable<L4>>() };
+            new_table.entries[511].set(frame, super::page_table::PAGE_TABLE_FLAGS);
+        }
+
+        frame
+        // parent_p4.mark_as_copy_on_write();
+        // let child_p4_frame = super::frame_allocator::alloc::<Size4K>().unwrap();
+        // let child_p4_page = crate::mm::map_kernel_temporarily(child_p4_frame, PageFlags::OUTER_SHARE | PageFlags::ACCESSED);
+        // let child_p4 = unsafe { child_p4_page.start().as_ref_mut::<PageTable<L4>>() };
+        // for i in 0..parent_p4.entries.len() {
+        //     child_p4.entries[i] = parent_p4.entries[i].clone();
+        // }
+        // child_p4_frame
+    })
 }

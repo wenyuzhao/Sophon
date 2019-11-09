@@ -56,6 +56,7 @@ unsafe extern fn _start_el1() -> ! {
 /// 
 /// i.e. `address & 0xffff0000_00000000 == 0xffff0000_00000000`
 unsafe extern fn _start_el1_high_address_space() -> ! {
+    crate::mm::paging::clear_temp_user_pagetable();
     assert!(SP.get() & 0xffff0000_00000000 == 0xffff0000_00000000);
     // Set EL1 interrupt vector
     VBAR_EL1.set(&exception::exception_handlers as *const _ as _);

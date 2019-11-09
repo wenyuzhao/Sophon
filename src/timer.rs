@@ -1,9 +1,9 @@
 use crate::gpio::*;
 use cortex_a::regs::*;
 
-const TIMER_INTERRUPT_FREQUENCY: usize = 10000; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz
 
-pub const ARM_TIMER_BASE: usize = 0x40000000;
+pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
 const ARM_CONTROL_REGISTER: *mut u32 = (ARM_TIMER_BASE + 0x0) as _;
 const ARM_CORE_TIMER_INTERRUPT_CONTROL_BASE: usize = ARM_TIMER_BASE + 0x40;
 const ARM_CORE_TIMER_IRQ_SOURCE_BASE: usize = ARM_TIMER_BASE + 0x60;

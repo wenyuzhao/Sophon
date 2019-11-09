@@ -1,8 +1,11 @@
+use crate::mm::*;
+
 
 /// Represents the archtectural context (i.e. registers)
 #[repr(C)]
+#[derive(Clone, Debug)]
 pub struct Context {
-    pub sp: usize,
+    pub sp: *mut usize,
     pub x19: usize,
     pub x20: usize,
     pub x21: usize,
@@ -14,7 +17,8 @@ pub struct Context {
     pub x27: usize,
     pub x28: usize,
     pub x29: usize, // FP
-    pub pc: usize,  // x30
+    pub pc: *mut usize,  // x30
+    pub p4: Frame,
 }
 
 impl Context {
@@ -22,28 +26,41 @@ impl Context {
         Self {
             x19: 0, x20: 0, x21: 0, x22: 0, x23: 0, x24: 0,
             x25: 0, x26: 0, x27: 0, x28: 0, x29: 0,
-            pc: 0, sp: 0,
+            pc: 0 as _, sp: 0 as _,
+            p4: Frame::ZERO,
         }
     }
 
-    pub const fn new(entry: *const extern fn() -> !, stack: *const u8) -> Self {
+    /// Create a new context with empty regs, given kernel stack,
+    /// and current p4 table
+    pub fn new(entry: *const extern fn() -> !, stack: *const u8) -> Self {
         Self {
             x19: 0, x20: 0, x21: 0, x22: 0, x23: 0, x24: 0,
             x25: 0, x26: 0, x27: 0, x28: 0, x29: 0,
             pc: unsafe { entry as _ },
             sp: unsafe { stack as _ },
+            p4: Frame::ZERO,
         }
     }
 }
 
 impl Context {
     pub unsafe extern fn switch_to(&mut self, ctx: &Context) {
-        switch_context(self, ctx)
+        if self.p4 != ctx.p4 {
+            debug!("Switch P4: {:?} -> {:?}", self.p4, ctx.p4);
+            // asm! {"
+            //     msr	ttbr0_el1, $0
+            //     tlbi vmalle1is
+            //     DSB ISH
+            //     isb
+            // "::"r"(ctx.p4.start().as_usize())}
+        }
+        switch_context(self, ctx, ctx.p4.start().as_usize())
     }
 }
 
 extern {
-    fn switch_context(from: &mut Context, to: &Context);
+    fn switch_context(from: &mut Context, to: &Context, p4: usize);
     pub fn start_task();
 }
 
@@ -61,6 +78,14 @@ switch_context:
     stp x25, x26, [x0], #16
     stp x27, x28, [x0], #16
     stp x29, x30, [x0], #16
+
+    tlbi vmalle1is
+    DSB ISH
+    isb
+    msr	ttbr0_el1, x2
+    tlbi vmalle1is
+    DSB ISH
+    isb
 
     // Restore registers
 

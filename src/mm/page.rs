@@ -38,6 +38,7 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
     pub const LOG_SIZE: usize = S::LOG_SIZE;
     pub const SIZE: usize = 1 << Self::LOG_SIZE;
     pub const MASK: usize = Self::SIZE - 1;
+    pub const ZERO: Self = Self(Address::zero(), PhantomData);
 
     #[inline]
     pub fn is_zero(&self) -> bool {
@@ -55,8 +56,8 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
     }
 
     #[inline]
-    pub fn align(a: Address<K>) -> Address<K> {
-        (a.as_usize() & !Self::MASK).into()
+    pub const fn align(a: Address<K>) -> Address<K> {
+        Address::new((a.as_usize() & !Self::MASK))
     }
 
     #[inline]
@@ -65,7 +66,7 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
     }
 
     #[inline]
-    pub fn of(a: Address<K>) -> Self {
+    pub const fn of(a: Address<K>) -> Self {
         Self(Self::align(a), PhantomData)
     }
 

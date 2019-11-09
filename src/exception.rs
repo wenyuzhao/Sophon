@@ -1,4 +1,5 @@
 use crate::gpio::*;
+use cortex_a::regs::*;
 
 #[repr(usize)]
 #[derive(Debug)]
@@ -17,14 +18,64 @@ pub enum ExceptionKind {
     SError = 3,
 }
 
+#[repr(C)]
+pub struct ExceptionFrame {
+    pub elr_el1: usize,
+    pub spsr_el1: usize,
+    pub x30: usize,
+    pub sp_el0: usize,
+    pub x28: usize,
+    pub x29: usize,
+    pub x26: usize,
+    pub x27: usize,
+    pub x24: usize,
+    pub x25: usize,
+    pub x22: usize,
+    pub x23: usize,
+    pub x20: usize,
+    pub x21: usize,
+    pub x18: usize,
+    pub x19: usize,
+    pub x16: usize,
+    pub x17: usize,
+    pub x14: usize,
+    pub x15: usize,
+    pub x12: usize,
+    pub x13: usize,
+    pub x10: usize,
+    pub x11: usize,
+    pub x8: usize,
+    pub x9: usize,
+    pub x6: usize,
+    pub x7: usize,
+    pub x4: usize,
+    pub x5: usize,
+    pub x2: usize,
+    pub x3: usize,
+    pub x0: usize,
+    pub x1: usize,
+}
+
 #[no_mangle]
-pub extern fn handle_exception() -> ! {
+pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
+    let esr_el1: usize;
+    asm!("mrs $0, esr_el1":"=r"(esr_el1));
+    if (esr_el1 >> 26) == 0x15 {
+        crate::syscall::handle_syscall(exception_frame);
+    } else if (esr_el1 >> 26) == 0x24 {
+        crate::syscall::handle_syscall(exception_frame);
+    } else {
+        unimplemented!();
+    }
+}
+
+pub unsafe extern fn exit_from_exception2() {
     loop {}
-    unimplemented!();
 }
 
 extern {
     pub static exception_handlers: u8;
+    pub fn exit_from_exception() -> !;
 }
 
 // FIXME: We may need to switch stack after enter an exception,
@@ -49,15 +100,17 @@ global_asm! {"
     stp x24, x25, [sp, #-16]!
     stp x26, x27, [sp, #-16]!
     stp x28, x29, [sp, #-16]!
+    mrs	x21, sp_el0
     mrs x22, elr_el1
     mrs x23, spsr_el1
-    stp x30, x22, [sp, #-16]!
-    str x23, [sp, #-8]!
+    stp x30, x21, [sp, #-16]!
+    stp x22, x23, [sp, #-16]!
 .endm
 
 .macro pop_all
-    ldr x23, [sp], #8
-    ldp x30, x22, [sp], #16
+    ldp x22, x23, [sp], #16
+    ldp x30, x21, [sp], #16
+    msr	sp_el0, x21
     msr elr_el1, x22  
     msr spsr_el1, x23
     ldp x28, x29, [sp], #16
@@ -85,6 +138,7 @@ global_asm! {"
 
 except:
     push_all
+    mov x0, sp
     bl handle_exception
     pop_all
     eret
@@ -117,4 +171,10 @@ exception_handlers:
     .align 7; b irq
     .align 7; b except
     .align 7; b except
+
+.global exit_from_exception
+exit_from_exception:
+    msr	daifset, #2
+    pop_all
+    eret
 "}

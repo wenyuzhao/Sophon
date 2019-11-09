@@ -27,6 +27,8 @@ extern crate alloc;
 mod gpio;
 #[macro_use]
 mod debug;
+#[macro_use]
+mod syscall;
 mod mailbox;
 mod fb;
 mod random;
@@ -46,17 +48,23 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 
 extern fn init_process() -> ! {
     let id = ID.fetch_add(1, Ordering::SeqCst);
-    debug!("Start init {}", id);
+    debug!("Start init {:?}", task::Task::current().unwrap().id());
+    if id == 0 {
+        debug!("forkstart");
+        let id = syscall!(syscall::SysCall::Fork);
+        debug!("forkend, ret = {}", id);
+        debug!("forkend, sp = {:x}", SP.get());
+    }
+    // loop {}
+    let id = task::Task::current().unwrap().id();
+    // let el = (CurrentEL.get() & 0b1100) >> 2;
+    // if el != 1 {
+    //     loop {}
+    // }
+    // debug!("EL: {}", el);
+    debug!("Forked {:?}", id);
     loop {
-        debug!("Hello from init_process! ID={}", id);
-        if false {
-            let mut fb = fb::FRAME_BUFFER.lock();
-            let r = random::random(0, 255);
-            let g = random::random(0, 255);
-            let b = random::random(0, 255);
-            let c = (r << 24) | (g << 16) | (b << 8) | 0xFF;
-            fb.clear(fb::Color::rgba(c as u32));
-        }
+        debug!("Hello from {:?}!", task::Task::current().unwrap().id());
         for i in 0..10000 {
             unsafe { asm!("nop") }
         }
@@ -85,9 +93,7 @@ pub fn kmain() -> ! {
     timer::init();
     interrupt::enable();
 
-    let task = task::Task::create(init_process);
-    debug!("Created init process: {:?}", task.id());
-    let task = task::Task::create(init_process);
+    let task = task::Task::create_init_task(init_process);
     debug!("Created init process: {:?}", task.id());
 
     // Manually trigger a page fault

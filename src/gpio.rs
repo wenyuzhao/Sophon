@@ -1,9 +1,9 @@
 
 
 #[cfg(feature="raspi3")]
-pub const PERIPHERAL_BASE: usize = 0x3F000000;
+pub const PERIPHERAL_BASE: usize = 0xFFFF0000_3F000000;
 #[cfg(feature="raspi4")]
-pub const PERIPHERAL_BASE: usize = 0xFE000000;
+pub const PERIPHERAL_BASE: usize = 0xFFFF0000_FE000000;
 
 pub const GPIO_BASE: usize = PERIPHERAL_BASE + 0x200000;
 

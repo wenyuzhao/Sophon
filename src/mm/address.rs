@@ -51,7 +51,7 @@ impl <K: MemoryKind> Address<K> {
     }
 
     #[inline]
-    pub fn as_usize(&self) -> usize {
+    pub const fn as_usize(&self) -> usize {
         self.0
     }
     

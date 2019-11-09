@@ -77,7 +77,7 @@ impl FrameBuffer {
         self.width = width as _;
         self.height = height as _;
         self.pitch = pitch as _;
-        self.fb = base_address as usize as *mut _;
+        self.fb = (base_address as usize | (0xffff << 48)) as *mut _;
 
         debug!("Successfully initialize video output: {}x{} (rgba)", self.width, self.height);
         debug!("Frame buffer = {:?}", self.fb);

@@ -19,3 +19,7 @@ debug: build kernel8.img objdump
 
 gdb:
 	@gdb-multiarch -quiet "target/aarch64-proton/$(profile)/proton" -ex "set arch aarch64" -ex "target remote :1234"
+
+clean:
+	@cargo clean
+	@rm ./Cargo.lock ./kernel.S ./kernel8.img

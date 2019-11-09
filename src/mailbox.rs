@@ -128,6 +128,51 @@ impl MailBox {
             }
         }
     }
+
+    /// Use mailbox when MMU is not enabled
+    pub fn boottime_send<R: Request>(channel: Channel, request: R) -> Result<R::Response, MailBoxError> {
+        const VIDEOCORE_MAILBOX_BASE_PHYSICAL: usize = VIDEOCORE_MAILBOX_BASE & 0x0000_ffff_ffff_ffff;
+        const MAILBOX_READ: *const u32 = (VIDEOCORE_MAILBOX_BASE_PHYSICAL + 0x0) as _;
+        const MAILBOX_WRITE: *mut u32 =  (VIDEOCORE_MAILBOX_BASE_PHYSICAL + 0x20) as _;
+        const MAILBOX_STATUS: *mut MailBoxStatus = (VIDEOCORE_MAILBOX_BASE_PHYSICAL + 0x18) as _;
+        
+        #[repr(C, align(16))] struct MBBuffer([u32; 16]);
+        let mut buffer = MBBuffer([0u32; 16]);
+        buffer.0[0] = 16 * 4;      // Buffer size
+        buffer.0[1] = 0;           // Request code
+        buffer.0[2] = R::TAG_ID;   // Tag identifier
+        buffer.0[3] = R::TAG_VALUE_SIZE as u32; // Request value buffer size
+        buffer.0[4] = R::TAG_VALUE_SIZE as u32; // Response value buffer size
+        // Values
+        let values_ptr = &mut buffer.0[5] as *mut _ as usize as *mut R;
+        unsafe { ::core::ptr::write(values_ptr, request); }
+        // End Tag
+        buffer.0[5 + R::TAG_VALUE_SIZE >> 0b11] = 0;
+        // Send buffer
+        let buffer_address = &buffer as *const _ as usize;
+        debug_assert!(buffer_address & 0xF == 0);
+        debug_assert!(buffer_address == &buffer.0[0] as *const _ as usize);
+        let message = (buffer_address & !0xF) as u32 | (channel as u8 & 0xF) as u32;
+        while unsafe { volatile_load(MAILBOX_STATUS) } == MailBoxStatus::Full {
+            asm::nop();
+        }
+        unsafe { *MAILBOX_WRITE = message; }
+        loop {
+            while unsafe { volatile_load(MAILBOX_STATUS) } == MailBoxStatus::Empty {
+                asm::nop();
+            }
+            if unsafe { *MAILBOX_READ } == message {
+                return match buffer.0[1] {
+                    Self::MAILBOX_RESPONSE_OK => {
+                        let ptr = &buffer.0[5] as *const _ as usize as *const R::Response;
+                        Ok(unsafe { ::core::ptr::read(ptr) })
+                    },
+                    Self::MAILBOX_RESPONSE_ERR => Err(MailBoxError::ErrorParsingRequestBuffer(buffer.0[1])),
+                    _ => Err(MailBoxError::Other(buffer.0[1])),
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -82,12 +82,21 @@ impl Scheduler {
     }
 
     pub fn schedule(&self) {
+        // debug!("Schedule");
         // Find a scheduleable task
         let next_task = {
             if let Some(next_runnable_task) = self.task_queue.lock().pop_front() {
                 Task::by_id(next_runnable_task).expect("task not found")
             } else {
-                // debug!("No more runnable tasks");
+                // debug!("No task to schedule");
+                if let Some(current_task) = self.get_current_task() {
+                    // debug!("No task to schedule");
+                    let mut state = current_task.scheduler_state().borrow_mut();
+                    state.time_slice_units = 100;
+                } else {
+                    panic!()
+                }
+                // Give 
                 return
             }
         };
@@ -115,7 +124,9 @@ impl Scheduler {
     pub fn timer_tick(&self) {
         let current_task = match self.get_current_task() {
             Some(t) => t,
-            None => return,
+            None => {
+                return
+            }
         };
         if current_task.scheduler_state().borrow().time_slice_units == 0 {
             return;
