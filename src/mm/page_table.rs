@@ -17,6 +17,17 @@ bitflags! {
         const INNER_SHARE = 0b10 << 8; // outter shareable
         const OUTER_SHARE = 0b11 << 8; // inner shareable
         const COPY_ON_WRITE = 1 << 53;
+
+        // Commonly used flags
+        const _PAGE_TABLE_FLAGS = Self::NO_EXEC.bits | Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
+        const _KERNEL_STACK_FLAGS = Self::NO_EXEC.bits | Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
+        const _KERNEL_CODE_FLAGS_2M = Self::PRESENT.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
+        const _KERNEL_CODE_FLAGS_4K = Self::_KERNEL_CODE_FLAGS_2M.bits | Self::SMALL_PAGE.bits;
+        const _KERNEL_DATA_FLAGS_2M = Self::NO_EXEC.bits | Self::PRESENT.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
+        const _KERNEL_DATA_FLAGS_4K = Self::_KERNEL_DATA_FLAGS_2M.bits | Self::SMALL_PAGE.bits;
+        const _USER_STACK_FLAGS = Self::_KERNEL_STACK_FLAGS.bits | Self::USER.bits;
+        // FIXME: Should we mark code pages as `NO_WRITE`?
+        const _USER_CODE_FLAGS = Self::_KERNEL_CODE_FLAGS_4K.bits | Self::USER.bits;
     }
 }
 
@@ -109,8 +120,6 @@ pub struct PageTable<L: TableLevel + 'static> {
     phantom: PhantomData<L>,
 }
 
-pub const PAGE_TABLE_FLAGS: PageFlags = PageFlags::from_bits_truncate(0b01 | 0b11 | (0b11 << 8) | (0b1 << 10));
-
 impl <L: TableLevel> PageTable<L> {
     const MASK: usize = 0b111111111 << L::SHIFT;
     fn zero(&mut self) {
@@ -153,7 +162,7 @@ impl <L: TableLevel> PageTable<L> {
             return unsafe { &mut *(address as *mut _) }
         } else {
             let frame = frame_allocator::alloc::<Size4K>().expect("no framxes available");
-            self.entries[index].set(frame, PageFlags::PRESENT | PageFlags::SMALL_PAGE | PageFlags::OUTER_SHARE | PageFlags::ACCESSED);
+            self.entries[index].set(frame, PageFlags::_PAGE_TABLE_FLAGS);
             let t = self.next_table_create(index);
             t.zero();
             t
@@ -235,7 +244,6 @@ impl PageTable<L4> {
         if S::LOG_SIZE != Size4K::LOG_SIZE {
             debug_assert!(flags.bits() & 0b10 == 0);
         }
-        // debug_assert!(!flags.contains(PageFlags::PRESENT));
         let flags = flags | PageFlags::PRESENT;
         entry.set(frame, flags);
         page
@@ -328,7 +336,7 @@ impl <L: TableLevel> PageTable<L> {
                     // println!("table = {:?}", table as *const _);
                     let frame = table.fork(stack_frames);
                     // println!("- {:?} page table {} recursive fork end", self.entries[i].address(), L::ID - 1);
-                    let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
+                    let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS);
                     let new_table = unsafe { page.start().as_ref_mut::<Self>() };
                     new_table.entries[i].set(frame, flags);
                     // println!("PT{}({:?})[{}] = T {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
@@ -337,7 +345,7 @@ impl <L: TableLevel> PageTable<L> {
                     // Mark as copy-on-write
                     let flags = self.entries[i].flags();
                     let address = self.entries[i].address();
-                    let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
+                    let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS);
                     let new_table = unsafe { page.start().as_ref_mut::<Self>() };
                     
                     if L::ID == 1 {
@@ -371,9 +379,9 @@ impl <L: TableLevel> PageTable<L> {
 
         if L::ID == 4 {
             // Recursively reference P4 itself
-            let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
+            let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS);
             let new_table = unsafe { page.start().as_ref_mut::<PageTable<L4>>() };
-            new_table.entries[511].set(new_table_frame, super::page_table::PAGE_TABLE_FLAGS);
+            new_table.entries[511].set(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS);
         }
 
         new_table_frame
@@ -393,7 +401,7 @@ impl PageTable<L4> {
             let old_page = Page::<Size4K>::of(a);
             let new_frame = frame_allocator::alloc::<Size4K>().unwrap();
             {
-                let new_page = crate::mm::map_kernel_temporarily2(new_frame, PageFlags::USER | PageFlags::OUTER_SHARE | PageFlags::SMALL_PAGE | PageFlags::ACCESSED | PageFlags::PRESENT, None);
+                let new_page = crate::mm::map_kernel_temporarily2(new_frame, PageFlags::_USER_STACK_FLAGS, None);
                 let mut offset = 0;
                 while offset < Size4K::SIZE {
                     let old_word = old_page.start() + offset;

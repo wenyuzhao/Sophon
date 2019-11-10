@@ -17,7 +17,9 @@ pub const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::SIZE;
 pub const USER_STACK_END: Address<V> = Address::new(USER_STACK_START.as_usize() + USER_STACK_SIZE);
 pub const USER_CODE_START: Page = Page::of(USER_STACK_END);
 
-pub const KERNEL_HEAP_SIZE: usize = 16 * 1024 * 1024; // 16M
+pub const LOG_KERNEL_HEAP_PAGES: usize = 12; // 16M
+pub const KERNEL_HEAP_PAGES: usize = 1 << LOG_KERNEL_HEAP_PAGES;
+pub const KERNEL_HEAP_SIZE: usize = KERNEL_HEAP_PAGES * Size4K::SIZE;
 
 pub const KERNEL_START: usize = 0x80000; // 16M
 

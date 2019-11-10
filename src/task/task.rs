@@ -75,33 +75,11 @@ impl Task {
             // println!("B {:?}", stacks);
             paging::fork_page_table(self.context.p4, &stacks)
         };
-        // println!("C");
-        // {unsafe {
-        //     let page = crate::mm::map_kernel_temporarily(task.context.p4, PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::SMALL_PAGE);
-        //     let new_table = unsafe { page.start().as_ref_mut::<PageTable<L4>>() };
-        //     println!("p4({:?})[0] = {:?} {:?}", task.context.p4, new_table.entries[0].address(), new_table.entries[0].flags());
-        //     println!("p4({:?})[511] = {:?} {:?}", task.context.p4, new_table.entries[511].address(), new_table.entries[511].flags());
-        // }}
-        // unsafe {
-        //     let f = Frame::new(0x120c000usize.into());
-        //     let page = crate::mm::map_kernel_temporarily::<Size4K>(f, PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::SMALL_PAGE);
-        //     let new_table = unsafe { page.start().as_ref_mut::<PageTable<L2>>() };
-        //     println!("p3({:?})[0] = {:?} {:?}", f, new_table.entries[0].address(), new_table.entries[0].flags());
-        //     println!("p3({:?})[511] = {:?} {:?}", f, new_table.entries[511].address(), new_table.entries[511].flags());
-        // }
-        // unsafe {
-        //     let f = Frame::new(0x120d000usize.into());
-        //     let page = crate::mm::map_kernel_temporarily::<Size4K>(f, PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::SMALL_PAGE);
-        //     let new_table = unsafe { page.start().as_ref_mut::<PageTable<L2>>() };
-        //     println!("p2({:?})[0] = {:?} {:?}", f, new_table.entries[0].address(), new_table.entries[0].flags());
-        //     println!("p2({:?})[1] = {:?} {:?}", f, new_table.entries[1].address(), new_table.entries[1].flags());
-        //     println!("p2({:?})[511] = {:?} {:?}", f, new_table.entries[511].address(), new_table.entries[511].flags());
-        // }
 
-        // Copy stack
+        // Copy kernel stack
         for i in 0..KERNEL_STACK_PAGES {
-            let parent_stack_page = crate::mm::map_kernel_temporarily2(self.kernel_stack[i], PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::SMALL_PAGE, Some(0xffff_1111_2222_2000));
-            let child_stack_page = crate::mm::map_kernel_temporarily2(task.kernel_stack[i], PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::SMALL_PAGE, Some(0xffff_1111_2222_3000));
+            let parent_stack_page = crate::mm::map_kernel_temporarily2(self.kernel_stack[i], PageFlags::_KERNEL_STACK_FLAGS, Some(0xffff_1111_2222_2000));
+            let child_stack_page = crate::mm::map_kernel_temporarily2(task.kernel_stack[i], PageFlags::_KERNEL_STACK_FLAGS, Some(0xffff_1111_2222_3000));
             println!("{:?} {:?}", *parent_stack_page, *child_stack_page);
             let mut cursor = 0;
             while cursor < (1usize << Size4K::LOG_SIZE) {
@@ -117,32 +95,11 @@ impl Task {
             let sp_offset = parent_sp - KERNEL_STACK_START.as_usize();
             let page_index = sp_offset >> Size4K::LOG_SIZE;
             let page_offset = sp_offset & Size4K::MASK;
-            let stack_page = crate::mm::map_kernel_temporarily(task.kernel_stack[page_index], PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::SMALL_PAGE);
+            let stack_page = crate::mm::map_kernel_temporarily(task.kernel_stack[page_index], PageFlags::_KERNEL_STACK_FLAGS);
             let child_exception_frame_ptr = stack_page.start() + page_offset;
             let child_exception_frame = unsafe { child_exception_frame_ptr.as_ref_mut::<ExceptionFrame>() };
             child_exception_frame.x0 = 0;
         }
-        // unsafe {
-        //     let stack_page = crate::mm::map_kernel_temporarily(stack_frame, PageFlags::OUTER_SHARE | PageFlags::ACCESSED);
-        //     let mut cursor = 0;
-        //     while cursor < (1usize << Size2M::LOG_SIZE) {
-        //         (stack_page.start() + cursor).store::<usize>((self.kernel_stack.0.start() + cursor).load());
-        //         cursor += 8;
-        //     }
-        //     // Set child process return value (x0)
-        //     let sp_offset = parent_sp - self.kernel_stack.0.start().as_usize();
-        //     let child_exception_frame_ptr = stack_page.start() + sp_offset;
-        //     let child_exception_frame = child_exception_frame_ptr.as_ref_mut::<ExceptionFrame>();
-        //     child_exception_frame.x0 = 233;
-        // }
-        // PageTable::<L4>::with_temporary_low_table(self.context.p4, |p4| {
-        //     p4.update_flags(self.kernel_stack, PageFlags::ACCESSED | PageFlags::OUTER_SHARE | PageFlags::PRESENT);
-        // });
-        // PageTable::<L4>::with_temporary_low_table(task.context.p4, |p4| {
-        //     loop {}
-        //     // p4.remap(task.kernel_stack, stack_frame, PageFlags::ACCESSED | PageFlags::OUTER_SHARE | PageFlags::PRESENT);
-        // });
-        // loop {}
         // Give it a new kernel stack
         GLOBAL_TASK_SCHEDULER.register_new_task(task)
     }
@@ -156,9 +113,9 @@ impl Task {
         // Alloc page table
         let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
         unsafe {
-            let p4_page = crate::mm::map_kernel_temporarily(p4_frame, PageFlags::OUTER_SHARE | PageFlags::ACCESSED);
+            let p4_page = crate::mm::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
             let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
-            p4.entries[511].set(p4_frame, PageFlags::SMALL_PAGE | PageFlags::OUTER_SHARE | PageFlags::ACCESSED | PageFlags::PRESENT);
+            p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
         }
         // Alloc & map stack
         let mut kernal_stack_frames = [Frame::ZERO; KERNEL_STACK_PAGES];
@@ -168,7 +125,7 @@ impl Task {
             println!("stack_page = {:?}", stack_page);
             kernal_stack_frames[i] = stack_frame;
             PageTable::<L4>::with_temporary_low_table(p4_frame, |p4| {
-                p4.map(stack_page, stack_frame, PageFlags::ACCESSED | PageFlags::OUTER_SHARE | PageFlags::PRESENT | PageFlags::SMALL_PAGE);
+                p4.map(stack_page, stack_frame, PageFlags::_KERNEL_STACK_FLAGS);
             });
         }
         println!("kernal_stack_frames {:?}", kernal_stack_frames);
