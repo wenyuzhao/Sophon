@@ -353,21 +353,18 @@ impl <L: TableLevel> PageTable<L> {
                     }
 
                     // This is a normal user page, mark it as copy-on-write
-                    new_table.entries[i] = PageTableEntry(self.entries[i].0);
-                    // let page = crate::mm::map_kernel_temporarily(new_table_frame, PAGE_TABLE_FLAGS);
-                    // let new_table = unsafe { page.start().as_ref_mut::<Self>() };
-                    // let old_frame = 
-                    // if L::ID == 2 && i == 1 {
-                    //     // This is a kernel stack, copy it.
-                    //     let new_stack_frame = frame_allocator::alloc().unwrap();
-                    //     println!("Remapped stack {:?} -> {:?}", self.entries[i].address(), new_stack_frame);
-                    //     debug_assert!(!flags.contains(PageFlags::SMALL_PAGE));
-                    //     debug_assert!(flags.contains(PageFlags::ACCESSED));
-                    //     new_table.entries[i].set(new_stack_frame, flags);
-                    //     println!("PT{}({:?})[{}] = P {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
-                    // } else {
-                    //     new_table.entries[i] = PageTableEntry(self.entries[i].0);
-                    // }
+                    let old_flags = self.entries[i].flags();
+                    if old_flags.contains(PageFlags::NO_WRITE) {
+                        continue; // Skip since it is readonly already
+                    }
+                    let flags = old_flags | PageFlags::COPY_ON_WRITE | PageFlags::NO_WRITE;
+                    let addr = self.entries[i].address();
+                    self.entries[i].update_flags(flags);
+                    if flags.contains(PageFlags::SMALL_PAGE) {
+                        new_table.entries[i].set::<Size4K>(Frame::new(addr), flags);
+                    } else {
+                        new_table.entries[i].set::<Size2M>(Frame::new(addr), flags);
+                    }
                 }
             }
         }
@@ -380,5 +377,35 @@ impl <L: TableLevel> PageTable<L> {
         }
 
         new_table_frame
+    }
+}
+
+impl PageTable<L4> {
+    pub fn fix_copy_on_write(&mut self, a: Address, is_large_page: bool) {
+        let p3 = self.next_table(PageTable::<L4>::get_index(a)).unwrap();
+        let p2 = p3.next_table(PageTable::<L3>::get_index(a)).unwrap();
+        if is_large_page {
+            unimplemented!();
+        } else {
+            let p1 = p2.next_table(PageTable::<L2>::get_index(a)).unwrap();
+            let p1_index = PageTable::<L1>::get_index(a);
+            debug_assert!(p1.entries[p1_index].flags().contains(PageFlags::COPY_ON_WRITE));
+            let old_page = Page::<Size4K>::of(a);
+            let new_frame = frame_allocator::alloc::<Size4K>().unwrap();
+            {
+                let new_page = crate::mm::map_kernel_temporarily2(new_frame, PageFlags::USER | PageFlags::OUTER_SHARE | PageFlags::SMALL_PAGE | PageFlags::ACCESSED | PageFlags::PRESENT, None);
+                let mut offset = 0;
+                while offset < Size4K::SIZE {
+                    let old_word = old_page.start() + offset;
+                    let new_word = new_page.start() + offset;
+                    unsafe {
+                        new_word.store::<usize>(old_word.load());
+                    }
+                    offset += Address::<V>::SIZE;
+                }
+            }
+            let new_flags = p1.entries[p1_index].flags() - PageFlags::COPY_ON_WRITE - PageFlags::NO_WRITE;
+            p1.entries[p1_index].set(new_frame, new_flags);
+        }
     }
 }

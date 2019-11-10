@@ -18,6 +18,13 @@ pub enum ExceptionKind {
     SError = 3,
 }
 
+#[repr(u32)]
+#[derive(Debug)]
+pub enum ExceptionClass {
+    SVCAArch64 = 0b010101,
+    DataAbortLowerEL = 0b100100,
+}
+
 #[repr(C)]
 pub struct ExceptionFrame {
     pub elr_el1: usize,
@@ -56,15 +63,23 @@ pub struct ExceptionFrame {
     pub x1: usize,
 }
 
+unsafe fn get_exception_class() -> ExceptionClass {
+    let esr_el1: u32;
+    asm!("mrs $0, esr_el1":"=r"(esr_el1));
+    ::core::mem::transmute(esr_el1 >> 26)
+}
+
 #[no_mangle]
 pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
-    let esr_el1: usize;
-    asm!("mrs $0, esr_el1":"=r"(esr_el1));
-    println!("exception at frame {:?}", exception_frame);
-    if (esr_el1 >> 26) == 0x15 {
-        crate::syscall::handle_syscall(&mut *exception_frame);
-    } else {
-        unimplemented!();
+    match get_exception_class() {
+        ExceptionClass::SVCAArch64 => crate::syscall::handle_syscall(&mut *exception_frame),
+        ExceptionClass::DataAbortLowerEL => {
+            let far: usize;
+            asm!("mrs $0, far_el1":"=r"(far));
+            println!("Data Abort {:?}", far as *mut ());
+            crate::mm::handle_user_pagefault(far.into());
+        },
+        v => panic!("Unknown exception 0b{:b}", v as u32),
     }
 }
 

@@ -26,6 +26,11 @@ pub struct Address<K: MemoryKind = Virtual>(usize, PhantomData<K>);
 
 impl <K: MemoryKind> Address<K> {
     pub const ZERO: Self = Address::new(0usize);
+    #[cfg(target_pointer_width="32")]
+    pub const LOG_SIZE: usize = 2;
+    #[cfg(target_pointer_width="64")]
+    pub const LOG_SIZE: usize = 3;
+    pub const SIZE: usize = 1 << Self::LOG_SIZE;
 
     #[inline]
     pub const fn new(v: usize) -> Self {

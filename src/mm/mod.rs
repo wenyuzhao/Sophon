@@ -89,3 +89,14 @@ pub fn map_kernel_temporarily2<S: PageSize>(frame: Frame<S>, mut flags: PageFlag
     paging::invalidate_tlb();
     TemporaryKernelPage(page, false)
 }
+
+pub fn handle_user_pagefault(address: Address) {
+    let p4 = PageTable::<L4>::get(false);
+    if let Some((_, flags)) = p4.translate(address) {
+        if flags.contains(PageFlags::COPY_ON_WRITE) {
+            p4.fix_copy_on_write(address, !flags.contains(PageFlags::SMALL_PAGE));
+            return
+        }
+    }
+    unimplemented!()
+}

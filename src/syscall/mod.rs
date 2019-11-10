@@ -32,12 +32,12 @@ static SYSCALL_HANDLERS: [Handler; SysCall::__MAX_SYSCALLS as usize] = handlers!
 
 
 pub unsafe fn handle_syscall(exception_frame: &mut ExceptionFrame) {
-    println!("exception_frame@{:?}", exception_frame as *mut _);
+    // println!("exception_frame@{:?}", exception_frame as *mut _);
     let syscall_id: SysCall = unsafe { ::core::mem::transmute((*exception_frame).x0) };
-    println!("Syscall: {:?}", syscall_id);
+    // println!("Syscall: {:?}", syscall_id);
     let handler = SYSCALL_HANDLERS[syscall_id as usize];
     let result = handler(exception_frame);
-    println!("Syscall {:?} returned {:?}", syscall_id, result);
+    // println!("Syscall {:?} returned {:?}", syscall_id, result);
     exception_frame.x0 = ::core::mem::transmute(result);
 }
 
