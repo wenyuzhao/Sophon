@@ -13,7 +13,8 @@ const BITS_IN_ENTRY: usize = 1 << 7;
 const BITMAP_ENTRIES_4K: usize = SMALL_FRAMES_IN_HEAP / BITS_IN_ENTRY;
 const BITMAP_ENTRIES_2M: usize = LARGE_FRAMES_IN_HEAP / BITS_IN_ENTRY;
 
-const PAGES_IN_BLOCK: usize = 1 << (Size2M::LOG_SIZE - Size4K::LOG_SIZE);
+const LOG_PAGES_IN_BLOCK: usize = Size2M::LOG_SIZE - Size4K::LOG_SIZE;
+const PAGES_IN_BLOCK: usize = 1 << LOG_PAGES_IN_BLOCK;
 
 struct BitMapAllocator {
     map4k: [UIntEntry; BITMAP_ENTRIES_4K],
@@ -67,7 +68,7 @@ impl BitMapAllocator {
                 for j in 0..BITS_IN_ENTRY {
                     if entry & (1 << j) == 0 {
                         let index = i * BITS_IN_ENTRY + j;
-                        debug_assert!(self.get_2m(index / PAGES_IN_BLOCK));
+                        debug_assert!(self.get_2m(index >> LOG_PAGES_IN_BLOCK));
                         self.set_4k(index, true);
                         return Some(index);
                     }
@@ -82,9 +83,9 @@ impl BitMapAllocator {
                     if entry & (1 << j) == 0 {
                         let index_2m = i * BITS_IN_ENTRY + j;
                         self.set_2m(index_2m, true);
-                        let index_4k = index_2m * PAGES_IN_BLOCK;
+                        let index_4k = index_2m << LOG_PAGES_IN_BLOCK;
                         for k in 1..PAGES_IN_BLOCK {
-                            self.set_4k(index_2m * PAGES_IN_BLOCK + k, false);
+                            self.set_4k(index_4k + k, false);
                         }
                         return Some(index_4k);
                     }
@@ -109,6 +110,42 @@ impl BitMapAllocator {
         }
         None
     }
+    
+    fn free4k(&mut self, index: usize) {
+        let entry_index = index >> LOG_BITS_IN_ENTRY;
+        let bit_index = index & ((1 << LOG_BITS_IN_ENTRY) - 1);
+        self.map4k[entry_index] &= !(1 << bit_index);
+        let all_freed = {
+            let mut all_freed = true;
+            let start = (index >> LOG_PAGES_IN_BLOCK) << LOG_PAGES_IN_BLOCK;
+            for k in 0..PAGES_IN_BLOCK {
+                if self.get_4k(start + k) {
+                    all_freed = false;
+                    break;
+                }
+            }
+            all_freed
+        };
+        if all_freed {
+            let index_2m = index >> LOG_PAGES_IN_BLOCK;
+            let entry_index = index_2m >> LOG_BITS_IN_ENTRY;
+            let bit_index = index_2m & ((1 << LOG_BITS_IN_ENTRY) - 1);
+            self.map2m[entry_index] &= !(1 << bit_index);
+            let index_4k = index_2m << LOG_PAGES_IN_BLOCK;
+            for k in 0..PAGES_IN_BLOCK {
+                self.set_4k(index_4k + k, true);
+            }
+        }
+    }
+    fn free2m(&mut self, index: usize) {
+        let entry_index = index >> LOG_BITS_IN_ENTRY;
+        let bit_index = index & ((1 << LOG_BITS_IN_ENTRY) - 1);
+        self.map2m[entry_index] &= !(1 << bit_index);
+        let index_4k = index << LOG_PAGES_IN_BLOCK;
+        for k in 0..PAGES_IN_BLOCK {
+            self.set_4k(index_4k + k, true);
+        }
+    }
 }
 
 static ALLOCATOR: Mutex<BitMapAllocator> = Mutex::new(BitMapAllocator::new());
@@ -119,8 +156,9 @@ pub fn mark_as_used<S: PageSize>(frame: Frame<S>) {
         let index_2m = frame.start().as_usize() >> Size2M::LOG_SIZE;
         if !allocator.get_2m(index_2m) {
             allocator.set_2m(index_2m, true);
+            let index_4k = index_2m << LOG_PAGES_IN_BLOCK;
             for i in 0..PAGES_IN_BLOCK {
-                allocator.set_4k(index_2m * PAGES_IN_BLOCK + i, false);
+                allocator.set_4k(index_4k + i, false);
             }
         }
         let index_4k = frame.start().as_usize() >> Size4K::LOG_SIZE;
@@ -142,18 +180,11 @@ pub fn alloc<S: PageSize>() -> Option<Frame<S>> {
     }
 }
 
-// static mut CURSOR: Address<P> = Address::new(0x1000);
-
-// pub fn alloc<S: PageSize>() -> Option<Frame<S>> {
-//     if S::LOG_SIZE == Size4K::LOG_SIZE {
-//         let frame = Frame::new(unsafe { CURSOR });
-//         unsafe { CURSOR += (1 << Size4K::LOG_SIZE) };
-//         Some(frame)
-//     } else {
-//         unimplemented!()
-//     }
-// }
-
 pub fn free<S: PageSize>(frame: Frame<S>) {
-    unimplemented!()
+    let mut allocator = ALLOCATOR.lock();
+    if S::LOG_SIZE == Size4K::LOG_SIZE {
+        unimplemented!()
+    } else {
+        allocator.free2m(frame.start().as_usize() >> Size2M::LOG_SIZE);
+    }
 }
