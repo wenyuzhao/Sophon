@@ -391,7 +391,7 @@ impl <L: TableLevel> PageTable<L> {
         new_table_frame
     }
 
-    /// Release all mapped frames
+    // Release all mapped frames
     // pub fn release(&mut self) {
     //     if L::ID == 0 { unreachable!() }
 
