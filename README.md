@@ -26,20 +26,20 @@ BTW, it is almost impossible to take care of performance for now...
 ## TODO
 
 - [ ] Make the kernel boot on a real Raspberry PI
-- [x] Boot kernel into Exception Level 0
+- [x] Start kernel at Exception Level 2
 - [x] Setup kernel virtual memory
 - [x] Basic interrupt handler support
 - [x] Kernel heap allocation
 - [ ] Properly trap and handle Stack-overflow exception
 - [x] Enter to usermode
 - [x] Syscalls
-- [ ] Usermode memory map
-- [ ] Fork syscall (either from kernel or user mode)
-- [ ] ProcessExit syscall (either from kernel or user mode)
+- [ ] Memory map related syscalls
+- [x] `Fork` syscall (and handle copy-on-write pages after `fork()`)
+- [ ] `ProcessExit` syscall (and cleanup all process resources)
 - [x] Timer interrupts
 - [x] Scheduling/Context switch
+- [x] Init process
 - [ ] *May need to port GCC/Rustc/libc at this point*
-- [ ] Init process
 - [ ] Multi-core support
 - [ ] Design & implement a driver interface
 - [ ] Basic FAT32 FS support (to load init.d from /boot)
