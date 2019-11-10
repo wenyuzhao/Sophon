@@ -78,8 +78,8 @@ impl Task {
 
         // Copy kernel stack
         for i in 0..KERNEL_STACK_PAGES {
-            let parent_stack_page = crate::mm::map_kernel_temporarily2(self.kernel_stack[i], PageFlags::_KERNEL_STACK_FLAGS, Some(0xffff_1111_2222_2000));
-            let child_stack_page = crate::mm::map_kernel_temporarily2(task.kernel_stack[i], PageFlags::_KERNEL_STACK_FLAGS, Some(0xffff_1111_2222_3000));
+            let parent_stack_page = crate::mm::map_kernel_temporarily(self.kernel_stack[i], PageFlags::_KERNEL_STACK_FLAGS, Some(0xffff_1111_2222_2000));
+            let child_stack_page = crate::mm::map_kernel_temporarily(task.kernel_stack[i], PageFlags::_KERNEL_STACK_FLAGS, Some(0xffff_1111_2222_3000));
             println!("{:?} {:?}", *parent_stack_page, *child_stack_page);
             let mut cursor = 0;
             while cursor < (1usize << Size4K::LOG_SIZE) {
@@ -95,7 +95,7 @@ impl Task {
             let sp_offset = parent_sp - KERNEL_STACK_START.as_usize();
             let page_index = sp_offset >> Size4K::LOG_SIZE;
             let page_offset = sp_offset & Size4K::MASK;
-            let stack_page = crate::mm::map_kernel_temporarily(task.kernel_stack[page_index], PageFlags::_KERNEL_STACK_FLAGS);
+            let stack_page = crate::mm::map_kernel_temporarily(task.kernel_stack[page_index], PageFlags::_KERNEL_STACK_FLAGS, None);
             let child_exception_frame_ptr = stack_page.start() + page_offset;
             let child_exception_frame = unsafe { child_exception_frame_ptr.as_ref_mut::<ExceptionFrame>() };
             child_exception_frame.x0 = 0;
@@ -113,7 +113,7 @@ impl Task {
         // Alloc page table
         let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
         unsafe {
-            let p4_page = crate::mm::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
+            let p4_page = crate::mm::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
             let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
             p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
         }

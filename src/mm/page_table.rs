@@ -336,7 +336,7 @@ impl <L: TableLevel> PageTable<L> {
                     // println!("table = {:?}", table as *const _);
                     let frame = table.fork(stack_frames);
                     // println!("- {:?} page table {} recursive fork end", self.entries[i].address(), L::ID - 1);
-                    let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS);
+                    let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
                     let new_table = unsafe { page.start().as_ref_mut::<Self>() };
                     new_table.entries[i].set(frame, flags);
                     // println!("PT{}({:?})[{}] = T {:?}", L::ID, new_table_frame, i, new_table.entries[i].address());
@@ -345,7 +345,7 @@ impl <L: TableLevel> PageTable<L> {
                     // Mark as copy-on-write
                     let flags = self.entries[i].flags();
                     let address = self.entries[i].address();
-                    let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS);
+                    let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
                     let new_table = unsafe { page.start().as_ref_mut::<Self>() };
                     
                     if L::ID == 1 {
@@ -379,7 +379,7 @@ impl <L: TableLevel> PageTable<L> {
 
         if L::ID == 4 {
             // Recursively reference P4 itself
-            let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS);
+            let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
             let new_table = unsafe { page.start().as_ref_mut::<PageTable<L4>>() };
             new_table.entries[511].set(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS);
         }
@@ -401,7 +401,7 @@ impl PageTable<L4> {
             let old_page = Page::<Size4K>::of(a);
             let new_frame = frame_allocator::alloc::<Size4K>().unwrap();
             {
-                let new_page = crate::mm::map_kernel_temporarily2(new_frame, PageFlags::_USER_STACK_FLAGS, None);
+                let new_page = crate::mm::map_kernel_temporarily(new_frame, PageFlags::_USER_STACK_FLAGS, None);
                 let mut offset = 0;
                 while offset < Size4K::SIZE {
                     let old_word = old_page.start() + offset;

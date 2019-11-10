@@ -72,16 +72,8 @@ impl <S: PageSize> Drop for TemporaryKernelPage<S> {
     }
 }
 
-pub fn map_kernel_temporarily<S: PageSize>(frame: Frame<S>, mut flags: PageFlags) -> TemporaryKernelPage<S> {
-    const MAGIC_PAGE: usize = 0xffff_1234_5600_0000;
-    let page = Page::new(MAGIC_PAGE.into());
-    // paging::invalidate_tlb();
-    map_kernel(page, frame, flags);
-    paging::invalidate_tlb();
-    TemporaryKernelPage(page, false)
-}
 
-pub fn map_kernel_temporarily2<S: PageSize>(frame: Frame<S>, mut flags: PageFlags, p: Option<usize>) -> TemporaryKernelPage<S> {
+pub fn map_kernel_temporarily<S: PageSize>(frame: Frame<S>, mut flags: PageFlags, p: Option<usize>) -> TemporaryKernelPage<S> {
     const MAGIC_PAGE: usize = 0xffff_1234_5600_0000;
     let page = Page::new(p.unwrap_or(MAGIC_PAGE).into());
     // paging::invalidate_tlb();
