@@ -321,6 +321,10 @@ impl <L: TableLevel> PageTable<L> {
         
         // Alloc a new table
         let new_table_frame = frame_allocator::alloc::<Size4K>().unwrap();
+        {
+            let page = crate::mm::map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
+            unsafe { page.zero(); }
+        }
         
         // Copy entries & recursively fork children
         let limit = if L::ID == 4 { 511 } else { 512 };
@@ -386,6 +390,36 @@ impl <L: TableLevel> PageTable<L> {
 
         new_table_frame
     }
+
+    /// Release all mapped frames
+    // pub fn release(&mut self) {
+    //     if L::ID == 0 { unreachable!() }
+
+    //     // Copy entries & recursively fork children
+    //     let limit = if L::ID == 4 { 511 } else { 512 };
+    //     for i in 0..limit {
+    //         if self.entries[i].present() {
+    //             let address = self.entries[i].address();
+    //             if L::ID != 1 && self.entries[i].flags().contains(PageFlags::SMALL_PAGE) {
+    //                 // This entry is a page table
+    //                 self.next_table(i).unwrap().release();
+    //                 frame_allocator::free::<Size4K>(Frame::new(address));
+    //             } else if self.entries[i].flags().contains(PageFlags::SMALL_PAGE) {
+    //                 debug_assert!(L::ID == 1);
+    //                 frame_allocator::free::<Size4K>(Frame::new(address));
+    //             } else {
+    //                 debug_assert!(L::ID == 2);
+    //                 frame_allocator::free::<Size2M>(Frame::new(address));
+    //             }
+    //         }
+    //     }
+
+    //     // Release P4 itself
+    //     if L::ID == 4 {
+    //         let p4_frame = Frame::<Size4K>::new(self.entries[511].address());
+    //         frame_allocator::free::<Size4K>(p4_frame);
+    //     }
+    // }
 }
 
 impl PageTable<L4> {

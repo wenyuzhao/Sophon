@@ -126,6 +126,7 @@ impl Task {
             kernal_stack_frames[i] = stack_frame;
             PageTable::<L4>::with_temporary_low_table(p4_frame, |p4| {
                 p4.map(stack_page, stack_frame, PageFlags::_KERNEL_STACK_FLAGS);
+                unsafe { stack_page.zero(); }
             });
         }
         println!("kernal_stack_frames {:?}", kernal_stack_frames);

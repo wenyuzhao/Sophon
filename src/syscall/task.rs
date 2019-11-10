@@ -8,3 +8,7 @@ pub fn fork(exception_frame: &mut ExceptionFrame) -> TaskId {
     println!("Fork task");
     child_task.id()
 }
+
+pub fn exit(exception_frame: &mut ExceptionFrame) -> isize {
+    unimplemented!()
+}
