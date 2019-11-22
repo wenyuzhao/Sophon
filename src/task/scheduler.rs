@@ -56,6 +56,16 @@ impl Scheduler {
         })
     }
 
+    pub fn remove_task(&self, id: TaskId) {
+        let task = self.get_task_by_id(id).unwrap();
+        task.scheduler_state().borrow_mut().run_state = RunState::Blocked;
+        self.tasks.lock().remove(&id);
+        debug_assert!(!self.task_queue.lock().contains(&id));
+        let current_task_table = unsafe { &mut *self.current_task.get() };
+        current_task_table[0] = None;
+        self.schedule()
+    }
+
     pub fn get_task_by_id(&self, id: TaskId) -> Option<&'static mut Task> {
         crate::interrupt::uninterruptable(|| {
             let tasks = self.tasks.lock();

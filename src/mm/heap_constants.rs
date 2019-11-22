@@ -5,10 +5,8 @@ pub const KERNEL_CORE0_STACK_START: usize = 0xffff0000_0007c000;
 pub const KERNEL_CORE0_STACK_END:   usize = 0xffff0000_00080000;
 
 /// Kernel process stack
-pub const KERNEL_STACK_START: Address<V> = Address::new(0x1000);
 pub const KERNEL_STACK_PAGES: usize = 8; // Too many???
 pub const KERNEL_STACK_SIZE: usize = KERNEL_STACK_PAGES * Size4K::SIZE;
-pub const KERNEL_STACK_END: Address<V> = Address::new(KERNEL_STACK_START.as_usize() + KERNEL_STACK_SIZE);
 
 /// User heap layout
 pub const USER_STACK_START: Address<V> = Address::new(0x111900000);

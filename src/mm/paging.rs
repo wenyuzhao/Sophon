@@ -133,9 +133,9 @@ fn identity_map_kernel_memory_nomark<S: PageSize>(start_frame: Frame<S>, n_frame
     }
 }
 
-pub fn fork_page_table(parent_p4_frame: Frame, stack_frames: &[(Frame, Frame); KERNEL_STACK_PAGES]) -> Frame {
+pub fn fork_page_table(parent_p4_frame: Frame) -> Frame {
     PageTable::<L4>::with_temporary_low_table(parent_p4_frame, |parent_p4| {
-        parent_p4.fork(stack_frames)
+        parent_p4.fork()
     })
 }
 

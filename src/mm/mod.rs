@@ -44,6 +44,11 @@ pub fn map_kernel<S: PageSize>(page: Page<S>, frame: Frame<S>, mut flags: PageFl
     p4.map(page, frame, flags);
 }
 
+pub fn update_kernel_page_flags<S: PageSize>(page: Page<S>, mut flags: PageFlags) {
+    let p4 = PageTable::<L4>::get(true);
+    p4.update_flags(page, flags);
+}
+
 /// Unmap a kernel page, optionally release its corresponding frame
 pub fn unmap_kernel<S: PageSize>(page: Page<S>, release_frame: bool) {
     let p4 = PageTable::<L4>::get(true);

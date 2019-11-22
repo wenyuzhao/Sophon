@@ -12,6 +12,7 @@
 #![feature(const_transmute)]
 #![feature(box_syntax)]
 #![feature(alloc_error_handler)]
+#![feature(new_uninit)]
 #![allow(unused)]
 #![no_std]
 #![no_main]
@@ -25,9 +26,9 @@ extern crate bitflags;
 #[macro_use]
 extern crate alloc;
 extern crate goblin;
-mod gpio;
 #[macro_use]
 mod debug;
+mod gpio;
 #[macro_use]
 mod syscall;
 mod mailbox;
@@ -60,24 +61,26 @@ extern fn init_process() -> ! {
 pub fn kmain() -> ! {
     println!("Hello, Raspberry PI!");
     ALLOCATOR.init();
-    {
-        // // Test allocator
-        let v = vec![1, 1, 2, 3, 5, 7];
-        let b = box 233;
-        println!("Heap allocation: {:?}, {}", v, b);
-    }
-    {
-        let mut fb = fb::FRAME_BUFFER.lock();
-        fb.init();
-        fb.clear(fb::Color::rgba(0x0000FFFF));
-    }
-    println!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
+    // {
+    //     // // Test allocator
+    //     let v = vec![1, 1, 2, 3, 5, 7];
+    //     let b = box 233;
+    //     println!("Heap allocation: {:?}, {}", v, b);
+    // }
+    // {
+    //     let mut fb = fb::FRAME_BUFFER.lock();
+    //     fb.init();
+    //     fb.clear(fb::Color::rgba(0x0000FFFF));
+    // }
+    // println!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
     println!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
     // Initialize & start timer
     timer::init();
+    println!("Timer init");
     interrupt::enable();
+    println!("Int init");
 
-    let task = task::Task::create_init_task(init_process);
+    let task = task::Task::create_kernel_task(init_process);
     println!("Created init process: {:?}", task.id());
 
     // Manually trigger a page fault

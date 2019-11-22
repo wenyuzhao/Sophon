@@ -4,6 +4,7 @@
 pub enum SysCall {
     Fork = 0x0,
     Log,
+    Exit,
 }
 
 pub unsafe fn syscall(id: SysCall, args: [usize; 6]) -> isize {

@@ -10,5 +10,6 @@ pub fn fork(exception_frame: &mut ExceptionFrame) -> TaskId {
 }
 
 pub fn exit(exception_frame: &mut ExceptionFrame) -> isize {
-    unimplemented!()
+    GLOBAL_TASK_SCHEDULER.remove_task(Task::current().unwrap().id());
+    0
 }

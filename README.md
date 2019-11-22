@@ -38,7 +38,9 @@ BTW, it is almost impossible to take care of performance for now...
 - [x] Syscalls support
 - [x] `Log` syscall (output to *UART*, for user process debugging)
 - [x] `Fork` syscall (and handle copy-on-write pages after `fork()`)
-- [ ] `ProcessExit` syscall (and cleanup all process resources)
+- [ ] `ProcessExit` syscall
+- [ ] Update/release ref-counted pages after process exit
+- [ ] Inter Process Communication
 - [ ] Memory map related syscalls (`mmap`, `munmap`)
 - [ ] *May need to port GCC/Rustc/libc at this point*
 - [ ] Multi-core support

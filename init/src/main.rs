@@ -14,13 +14,15 @@ pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     log!("Hello from init process!");
     let id = syscall!(SysCall::Fork);
     log!("Hello from init process! <{}>", id);
+    // loop {}
     for i in 0..100 {
         log!("Hello from init process! <{}>", id);
     }
-    // if id == 0 {
-    //     log!("Child process exit...");
-    //     syscall!(SysCall::Exit, 0);
-    // }
+
+    if id == 0 {
+        log!("Child process exit...");
+        syscall!(SysCall::Exit, 0usize);
+    }
     loop {
         log!("Hello from init process! <{}>", id);
         for i in 0..100000 {
