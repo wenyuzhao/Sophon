@@ -17,8 +17,8 @@ run: kernel kernel8.img objdump
 	@qemu-system-aarch64 -M raspi3 -serial stdio -kernel ./kernel8.img $(debug_interrupts)
 
 objdump:
-	@llvm-objdump -d ./target/$(target)/$(profile)/proton > kernel.S
-	@llvm-objdump -d ./init/target/$(target)/$(profile)/init > init.S
+	@llvm-objdump --source -d ./target/$(target)/$(profile)/proton > kernel.S
+	@llvm-objdump --source -d ./init/target/$(target)/$(profile)/init > init.S
 
 debug: kernel kernel8.img objdump
 	@qemu-system-aarch64 -M raspi3 -serial stdio -kernel ./kernel8.img $(debug_interrupts) -s -S

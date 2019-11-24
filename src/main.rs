@@ -40,22 +40,13 @@ mod mm;
 mod interrupt;
 mod timer;
 mod task;
-mod init;
+mod init_process;
+mod kernel_process;
+mod utils;
 use cortex_a::regs::*;
 
 #[global_allocator]
 static ALLOCATOR: mm::heap::GlobalAllocator = mm::heap::GlobalAllocator::new();
-
-use core::sync::atomic::{AtomicUsize, Ordering};
-static ID: AtomicUsize = AtomicUsize::new(0);
-
-extern fn init_process() -> ! {
-    let id = ID.fetch_add(1, Ordering::SeqCst);
-    println!("Start init {:?}", task::Task::current().unwrap().id());
-    task::exec::exec_user(init::INIT_ELF);
-    unreachable!();
-}
-
 
 
 pub fn kmain() -> ! {
@@ -80,8 +71,12 @@ pub fn kmain() -> ! {
     interrupt::enable();
     println!("Int init");
 
-    let task = task::Task::create_kernel_task(init_process);
+    let task = task::Task::create_kernel_task(kernel_process::main);
+    println!("Created kernel process: {:?}", task.id());
+    let task = task::Task::create_kernel_task(init_process::entry);
     println!("Created init process: {:?}", task.id());
+    let task = task::Task::create_kernel_task(kernel_process::idle);
+    println!("Created idle process: {:?}", task.id());
 
     // Manually trigger a page fault
     // unsafe { *(0xdeadbeef as *mut u8) = 0; }

@@ -2,9 +2,9 @@
 #[repr(usize)]
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum SysCall {
-    Fork = 0x0,
-    Log,
-    Exit,
+    Log = 0x0,
+    Send,
+    Receive,
 }
 
 pub unsafe fn syscall(id: SysCall, args: [usize; 6]) -> isize {

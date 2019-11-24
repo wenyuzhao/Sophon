@@ -7,18 +7,16 @@ use cortex_a::regs::*;
 
 
 pub fn exec_user(elf_data: &[u8]) -> ! {
-    println!("exec_user");
     let elf = Elf::parse(elf_data).unwrap();
-    println!("parsed");
     let entry: extern fn(isize, *const *const u8) = unsafe { ::core::mem::transmute(elf.header.e_entry) };
-    println!("entry: {:?}", entry as *mut ());
+    // println!("entry: {:?}", entry as *mut ());
     for p in elf.program_headers {
         if p.p_type == program_header::PT_LOAD {
-            println!("pheader = {:?}", p);
+            // println!("pheader = {:?}", p);
             let start: Address = (p.p_vaddr as usize).into();
             let size = (p.p_memsz as usize + Size4K::MASK) / Size4K::SIZE;
             let end = start + (size << Size4K::LOG_SIZE);
-            println!("{:?} {:?} {:?}", start, size, end);
+            // println!("{:?} {:?} {:?}", start, size, end);
             memory_map(start, size << Size4K::LOG_SIZE, PageFlags::_USER_CODE_FLAGS);
             let ptr: *mut u8 = start.as_ptr_mut();
             let mut cursor = start;

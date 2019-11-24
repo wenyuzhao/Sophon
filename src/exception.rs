@@ -23,10 +23,44 @@ pub enum ExceptionKind {
 pub enum ExceptionClass {
     SVCAArch64 = 0b010101,
     DataAbortLowerEL = 0b100100,
+    DataAbortHigherEL = 0b100101,
 }
 
 #[repr(C)]
 pub struct ExceptionFrame {
+    pub q30: u128,
+    pub q31: u128,
+    pub q28: u128,
+    pub q29: u128,
+    pub q26: u128,
+    pub q27: u128,
+    pub q24: u128,
+    pub q25: u128,
+    pub q22: u128,
+    pub q23: u128,
+    pub q20: u128,
+    pub q21: u128,
+    pub q18: u128,
+    pub q19: u128,
+    pub q16: u128,
+    pub q17: u128,
+    pub q14: u128,
+    pub q15: u128,
+    pub q12: u128,
+    pub q13: u128,
+    pub q10: u128,
+    pub q11: u128,
+    pub q8: u128,
+    pub q9: u128,
+    pub q6: u128,
+    pub q7: u128,
+    pub q4: u128,
+    pub q5: u128,
+    pub q2: u128,
+    pub q3: u128,
+    pub q0: u128,
+    pub q1: u128,
+
     pub elr_el1: usize,
     pub spsr_el1: usize,
     pub x30: usize,
@@ -70,26 +104,23 @@ unsafe fn get_exception_class() -> ExceptionClass {
 }
 
 #[no_mangle]
-pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
+pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> isize {
     match get_exception_class() {
         ExceptionClass::SVCAArch64 => crate::syscall::handle_syscall(&mut *exception_frame),
-        ExceptionClass::DataAbortLowerEL => {
+        ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
             let far: usize;
             asm!("mrs $0, far_el1":"=r"(far));
-            println!("Data Abort {:?}", far as *mut ());
+            // println!("Data Abort {:?}, {:?}", far as *mut (), crate::task::Task::current().unwrap().id());
             crate::mm::handle_user_pagefault(far.into());
         },
         v => panic!("Unknown exception 0b{:b}", v as u32),
     }
+    0
 }
 
-pub unsafe extern fn exit_from_exception2() {
-    loop {}
-}
 
 extern {
     pub static exception_handlers: u8;
-    pub fn exit_from_exception() -> !;
 }
 
 // FIXME: We may need to switch stack after enter an exception,
@@ -119,9 +150,41 @@ global_asm! {"
     mrs x23, spsr_el1
     stp x30, x21, [sp, #-16]!
     stp x22, x23, [sp, #-16]!
+    stp q0,  q1,  [sp, #-32]!
+    stp q2,  q3,  [sp, #-32]!
+    stp q4,  q5,  [sp, #-32]!
+    stp q6,  q7,  [sp, #-32]!
+    stp q8,  q9,  [sp, #-32]!
+    stp q10, q11, [sp, #-32]!
+    stp q12, q13, [sp, #-32]!
+    stp q14, q15, [sp, #-32]!
+    stp q16, q17, [sp, #-32]!
+    stp q18, q19, [sp, #-32]!
+    stp q20, q21, [sp, #-32]!
+    stp q22, q23, [sp, #-32]!
+    stp q24, q25, [sp, #-32]!
+    stp q26, q27, [sp, #-32]!
+    stp q28, q29, [sp, #-32]!
+    stp q30, q31, [sp, #-32]!
 .endm
 
 .macro pop_all
+    ldp q30, q31, [sp], #32
+    ldp q28, q29, [sp], #32
+    ldp q26, q27, [sp], #32
+    ldp q24, q25, [sp], #32
+    ldp q22, q23, [sp], #32
+    ldp q20, q21, [sp], #32
+    ldp q18, q19, [sp], #32
+    ldp q16, q17, [sp], #32
+    ldp q14, q15, [sp], #32
+    ldp q12, q13, [sp], #32
+    ldp q10, q11, [sp], #32
+    ldp q8,  q9,  [sp], #32
+    ldp q6,  q7,  [sp], #32
+    ldp q4,  q5,  [sp], #32
+    ldp q2,  q3,  [sp], #32
+    ldp q0,  q1,  [sp], #32
     ldp x22, x23, [sp], #16
     ldp x30, x21, [sp], #16
     msr	sp_el0, x21
@@ -185,10 +248,4 @@ exception_handlers:
     .align 7; b irq
     .align 7; b except
     .align 7; b except
-
-.global exit_from_exception
-exit_from_exception:
-    msr	daifset, #2
-    pop_all
-    eret
 "}

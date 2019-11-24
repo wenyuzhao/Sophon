@@ -70,19 +70,20 @@ pub struct Context {
     pub x28: usize,
     pub x29: usize, // FP
     pub pc: *mut u8,  // x30
+    
+    pub q0:  u128, pub q1:  u128, pub q2:  u128, pub q3:  u128, pub q4:  u128, pub q5:  u128, pub q6:  u128, pub q7:  u128,
+    pub q8:  u128, pub q9:  u128, pub q10: u128, pub q11: u128, pub q12: u128, pub q13: u128, pub q14: u128, pub q15: u128,
+    pub q16: u128, pub q17: u128, pub q18: u128, pub q19: u128, pub q20: u128, pub q21: u128, pub q22: u128, pub q23: u128,
+    pub q24: u128, pub q25: u128, pub q26: u128, pub q27: u128, pub q28: u128, pub q29: u128, pub q30: u128, pub q31: u128,
+
     pub p4: Frame,
     pub kernel_stack: Option<Box<KernelStack>>,
+    pub exception_frame: *mut ExceptionFrame,
 }
 
 impl Context {
-    pub const fn empty() -> Self {
-        Self {
-            x19: 0, x20: 0, x21: 0, x22: 0, x23: 0, x24: 0,
-            x25: 0, x26: 0, x27: 0, x28: 0, x29: 0,
-            pc: 0 as _, sp: 0 as _,
-            p4: Frame::ZERO,
-            kernel_stack: None,
-        }
+    pub fn empty() -> Self {
+        unsafe { ::core::mem::zeroed() }
     }
 
     /// Create a new context with empty regs, given kernel stack,
@@ -99,54 +100,50 @@ impl Context {
         // Alloc kernel stack
         let kernel_stack = KernelStack::new();
         let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
-        Self {
-            x19: 0, x20: 0, x21: 0, x22: 0, x23: 0, x24: 0,
-            x25: 0, x26: 0, x27: 0, x28: 0, x29: 0,
-            pc: unsafe { entry as _ },
-            sp, p4,
-            kernel_stack: Some(kernel_stack),
-        }
+        let mut ctx = Self::empty();
+        ctx.pc = unsafe { entry as _ };
+        ctx.sp = sp;
+        ctx.p4 = p4;
+        ctx.kernel_stack = Some(kernel_stack);
+        ctx
     }
  
-    pub fn fork(&self, parent_sp: usize, child_return_value: usize) -> Self {
+    pub fn fork(&self) -> Self {
         let mut ctx = Context {
             x19: self.x19, x20: self.x20, x21: self.x21, x22: self.x22,
             x23: self.x23, x24: self.x24, x25: self.x25, x26: self.x26,
             x27: self.x27, x28: self.x28, x29: self.x29,
             sp: self.sp, pc: self.pc, p4: self.p4,
+            q0:  self.q0,  q1:  self.q1,  q2:  self.q2,  q3:  self.q3,  q4:  self.q4,  q5:  self.q5,  q6:  self.q6,  q7:  self.q7,
+            q8:  self.q8,  q9:  self.q9,  q10: self.q10, q11: self.q11, q12: self.q12, q13: self.q13, q14: self.q14, q15: self.q15,
+            q16: self.q16, q17: self.q17, q18: self.q18, q19: self.q19, q20: self.q20, q21: self.q21, q22: self.q22, q23: self.q23,
+            q24: self.q24, q25: self.q25, q26: self.q26, q27: self.q27, q28: self.q28, q29: self.q29, q30: self.q30, q31: self.q31,
+            exception_frame: 0usize as _,
             kernel_stack: Some({
                 let mut kernel_stack = KernelStack::new();
                 kernel_stack.copy_from(self.kernel_stack.as_ref().unwrap());
                 kernel_stack
             }),
         };
+        ctx.exception_frame = {
+            let ef_offset = self.exception_frame as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
+            (ctx.kernel_stack.as_ref().unwrap().start_address() + ef_offset).as_ptr_mut()
+        };
         ctx.sp = {
-            let sp_offset = parent_sp - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
+            println!("Fork, sp = {:?}, kstack = {:?}", self.sp, self.kernel_stack.as_ref().unwrap().start_address());
+            let sp_offset = self.sp as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
             (ctx.kernel_stack.as_ref().unwrap().start_address() + sp_offset).as_ptr_mut()
         };
-        ctx.pc = crate::exception::exit_from_exception as _;
         ctx.p4 = paging::fork_page_table(self.p4);
-        // Set child process return value
-        {
-            let sp_offset = parent_sp - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
-            let child_exception_frame_ptr = ctx.kernel_stack.as_ref().unwrap().start_address() + sp_offset;
-            let child_exception_frame = unsafe { child_exception_frame_ptr.as_ref_mut::<ExceptionFrame>() };
-            child_exception_frame.x0 = 0;
+        // Set parent/child process return value
+        unsafe {
+            (*self.exception_frame).x0 = 0;
+            (*ctx.exception_frame).x0 = 0;
         }
         ctx
     }
 
     pub unsafe extern fn switch_to(&mut self, ctx: &Context) {
-        // if self.p4 != ctx.p4 {
-            // println!("Switch P4: {:?} -> {:?}", self.p4, ctx.p4);
-            // println!("Switch SP: {:?} -> {:?}", self.sp, ctx.sp);
-            // asm! {"
-            //     msr	ttbr0_el1, $0
-            //     tlbi vmalle1is
-            //     DSB ISH
-            //     isb
-            // "::"r"(ctx.p4.start().as_usize())}
-        // }
         switch_context(self, ctx, ctx.p4.start().as_usize())
     }
 }
@@ -177,6 +174,23 @@ switch_context:
     stp x27, x28, [x0], #16
     stp x29, x30, [x0], #16
 
+    stp q0,  q1,  [x0], #32
+    stp q2,  q3,  [x0], #32
+    stp q4,  q5,  [x0], #32
+    stp q6,  q7,  [x0], #32
+    stp q8,  q9,  [x0], #32
+    stp q10, q11, [x0], #32
+    stp q12, q13, [x0], #32
+    stp q14, q15, [x0], #32
+    stp q16, q17, [x0], #32
+    stp q18, q19, [x0], #32
+    stp q20, q21, [x0], #32
+    stp q22, q23, [x0], #32
+    stp q24, q25, [x0], #32
+    stp q26, q27, [x0], #32
+    stp q28, q29, [x0], #32
+    stp q30, q31, [x0], #32
+
     tlbi vmalle1is
     DSB ISH
     isb
@@ -195,6 +209,23 @@ switch_context:
     ldp x25, x26, [x1], #16
     ldp x27, x28, [x1], #16
     ldp x29, x30, [x1], #16 // FP, SP
+
+    ldp q0,  q1,  [x1], #32
+    ldp q2,  q3,  [x1], #32
+    ldp q4,  q5,  [x1], #32
+    ldp q6,  q7,  [x1], #32
+    ldp q8,  q9,  [x1], #32
+    ldp q10, q11, [x1], #32
+    ldp q12, q13, [x1], #32
+    ldp q14, q15, [x1], #32
+    ldp q16, q17, [x1], #32
+    ldp q18, q19, [x1], #32
+    ldp q20, q21, [x1], #32
+    ldp q22, q23, [x1], #32
+    ldp q24, q25, [x1], #32
+    ldp q26, q27, [x1], #32
+    ldp q28, q29, [x1], #32
+    ldp q30, q31, [x1], #32
 
     // Return
     ret

@@ -8,14 +8,25 @@ use core::cell::UnsafeCell;
 lazy_static! {
     pub static ref GLOBAL_TASK_SCHEDULER: Scheduler = Scheduler::new();
 }
-
+/**
+ *                        ___________
+ *                       |           |
+ *                       v           |
+ * [CreateProcess] --> Ready ---> Running
+ *                       ^           |
+ *                       |           v
+ *                       |___ Sending/Receiving
+ * 
+ */
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 enum RunState {
     Ready,
     Running,
-    Blocked,
+    Sending,
+    Receiving,
 }
 
+#[derive(Debug, Clone)]
 pub struct SchedulerState {
     run_state: RunState,
     time_slice_units: usize,
@@ -48,17 +59,17 @@ impl Scheduler {
     pub fn register_new_task(&self, mut task: Box<Task>) -> &'static mut Task {
         crate::interrupt::uninterruptable(|| {
             let id = task.id();
-            task.scheduler_state().borrow_mut().run_state = RunState::Ready;
             let task_ref: &'static mut Task = unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
             self.tasks.lock().insert(id, task);
-            self.task_queue.lock().push_back(id);
+            if task_ref.scheduler_state().borrow().run_state == RunState::Ready {
+                self.task_queue.lock().push_back(id);
+            }
             task_ref
         })
     }
 
     pub fn remove_task(&self, id: TaskId) {
         let task = self.get_task_by_id(id).unwrap();
-        task.scheduler_state().borrow_mut().run_state = RunState::Blocked;
         self.tasks.lock().remove(&id);
         debug_assert!(!self.task_queue.lock().contains(&id));
         let current_task_table = unsafe { &mut *self.current_task.get() };
@@ -91,33 +102,70 @@ impl Scheduler {
         })
     }
 
+    pub fn unblock_sending_task(&self, id: TaskId) {
+        let task = self.get_task_by_id(id).unwrap();
+        assert!(task.scheduler_state().borrow().run_state == RunState::Sending);
+        // Add this task to ready queue
+        task.scheduler_state().borrow_mut().run_state = RunState::Ready;
+        self.task_queue.lock().push_back(task.id());
+    }
+
+    pub fn unblock_receiving_task(&self, id: TaskId) {
+        let task = self.get_task_by_id(id).unwrap();
+        assert!(task.scheduler_state().borrow().run_state == RunState::Receiving);
+        // Add this task to ready queue
+        task.scheduler_state().borrow_mut().run_state = RunState::Ready;
+        self.task_queue.lock().push_back(task.id());
+    }
+
+    pub fn block_current_task_as_sending(&self) {
+        let task = self.get_current_task().unwrap();
+        assert!(task.scheduler_state().borrow().run_state == RunState::Running);
+        task.scheduler_state().borrow_mut().run_state = RunState::Sending;
+        self.schedule();
+    }
+
+    pub fn block_current_task_as_receiving(&self) {
+        let task = self.get_current_task().unwrap();
+        assert!(task.scheduler_state().borrow().run_state == RunState::Running, "{:?} {:?}", task.id(), task.scheduler_state().borrow().run_state);
+        task.scheduler_state().borrow_mut().run_state = RunState::Receiving;
+        self.schedule();
+    }
+
+    fn get_next_schedulable_task(&self) -> &'static mut Task {
+        if let Some(next_runnable_task) = self.task_queue.lock().pop_front() {
+            Task::by_id(next_runnable_task).expect("task not found")
+        } else {
+            // println!("No task to schedule");
+            if let Some(current_task) = self.get_current_task() {
+                // println!("No task to schedule");
+                {
+                    let mut state = current_task.scheduler_state().borrow_mut();
+                    state.time_slice_units = 100;
+                }
+                current_task
+            } else {
+                panic!()
+            }
+        }
+    }
+
     pub fn schedule(&self) {
         // println!("Schedule");
         // Find a scheduleable task
-        let next_task = {
-            if let Some(next_runnable_task) = self.task_queue.lock().pop_front() {
-                Task::by_id(next_runnable_task).expect("task not found")
-            } else {
-                // println!("No task to schedule");
-                if let Some(current_task) = self.get_current_task() {
-                    // println!("No task to schedule");
-                    let mut state = current_task.scheduler_state().borrow_mut();
-                    state.time_slice_units = 100;
-                } else {
-                    panic!()
-                }
-                // Give 
-                return
-            }
-        };
+        let next_task = self.get_next_schedulable_task();
         // Push current task to task queue
         let current_task = self.get_current_task();
-        // println!("Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
-        debug_assert!(Some(next_task.id()) != current_task.as_ref().map(|t| t.id()));
+        println!("Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
+        if Some(next_task.id()) == current_task.as_ref().map(|t| t.id()) {
+            return
+        }
         // Add this task to ready queue
         if let Some(current_task) = current_task.as_ref() {
-            current_task.scheduler_state().borrow_mut().run_state = RunState::Ready;
-            self.task_queue.lock().push_back(current_task.id());
+            if current_task.scheduler_state().borrow().run_state == RunState::Running {
+                current_task.scheduler_state().borrow_mut().run_state = RunState::Ready;
+                self.task_queue.lock().push_back(current_task.id());
+            }
         }
         // Run next task
         {
