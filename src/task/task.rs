@@ -163,19 +163,13 @@ impl Task {
     }
 
     pub fn switch(from_task: Option<&'static mut Task>, to_task: &'static mut Task) {
-        println!("do task switch 0");
         debug_assert!(from_task != Some(to_task), "{:?} {:?}", from_task.as_ref().map(|t| t.id), to_task.id);
-        println!("do task switch 1");
         crate::interrupt::enable();
-        println!("do task switch 2");
         unsafe {
             if let Some(from_task) = from_task {
-                println!("do ctx switch");
                 from_task.context.switch_to(&to_task.context);
             } else {
                 let mut temp_ctx = Context::empty();
-                println!("do ctx switch");
-                // to_task.context.p4 = temp_ctx.p4;
                 temp_ctx.switch_to(&to_task.context);
             }
         }

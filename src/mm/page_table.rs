@@ -139,41 +139,26 @@ impl <L: TableLevel> PageTable<L> {
     }
 
     fn next_table_address(&self, index: usize) -> Option<usize> {
-        // crate::debug_boot::log("next_table_address 0");
         debug_assert!(L::ID > 1);
-        // crate::debug_boot::log("next_table_address 1");
         debug_assert!(index < 512);
-        // crate::debug_boot::log("next_table_address 1.1");
         let x = self.entries[index].present();
-        // crate::debug_boot::log("next_table_address 1.2");
         if self.entries[index].present() && !self.entries[index].is_block() {
-            if crate::mm::booted() { println!("next_table_address {} {:x}", index, self.entries[index].0); }
-            // crate::debug_boot::log("next_table_address 2");
             let table_address = self as *const _ as usize;
-            // crate::debug_boot::log("next_table_address 3");
             let mut a = (table_address << 9) | (index << 12);
-            // crate::debug_boot::log("next_table_address 4");
             if self as *const _ as usize & (0xffff << 48) == 0 {
-                // crate::debug_boot::log("next_table_address 5");
                 a &= 0x0000_ffff_ffff_ffff;
             }
-            // crate::debug_boot::log("next_table_address 6");
             Some(a)
         } else {
-            // crate::debug_boot::log("next_table_address -> None");
             None
         }
     }
 
     fn next_table(&self, index: usize) ->  Option<&'static mut PageTable<L::NextLevel>> {
-        // crate::debug_boot::log("next_table 0");
         debug_assert!(L::ID > 1);
-        // crate::debug_boot::log("next_table 1");
         if let Some(address) = self.next_table_address(index) {
-            // crate::debug_boot::log("next_table 2");
             Some(unsafe { &mut *(address as *mut _) })
         } else {
-            // crate::debug_boot::log("next_table 3");
             None
         }
     }
@@ -183,19 +168,10 @@ impl <L: TableLevel> PageTable<L> {
         if let Some(address) = self.next_table_address(index) {
             return unsafe { &mut *(address as *mut _) }
         } else {
-            if crate::mm::booted() { println!("ntc 2"); }
             let frame = frame_allocator::alloc::<Size4K>().expect("no framxes available");
-            if crate::mm::booted() { println!("ntc 3"); }
-            // boot_log!("Alloc frame {:?}", frame);
             self.entries[index].set(frame, PageFlags::_PAGE_TABLE_FLAGS);
-            if crate::mm::booted() { println!("ntc 4"); }
-            // boot_log!("self.entries[{:?}]", index);
             let t = self.next_table_create(index);
-            if crate::mm::booted() { println!("ntc 5"); }
-            // boot_log!("next_table_create end {:?}", t as *const _);
             t.zero();
-            if crate::mm::booted() { println!("ntc 6"); }
-            // boot_log!("zeroed");
             t
         }
     }
@@ -203,54 +179,32 @@ impl <L: TableLevel> PageTable<L> {
     #[allow(mutable_transmutes)]
     fn get_entry(&self, address: Address<V>) -> Option<(usize, &'static mut PageTableEntry)> {
         debug_assert!(L::ID != 0);
-        // crate::debug_boot::log("get_entry 0");
         let index = Self::get_index(address);
-        // crate::debug_boot::log("get_entry 1");
         if L::ID == 2 && self.entries[index].is_block() {
-            // crate::debug_boot::log("get_entry 2");
             return Some((L::ID, unsafe { ::core::mem::transmute(&self.entries[index]) }));
         }
         if L::ID == 1 {
-            // crate::debug_boot::log("get_entry 3");
             return Some((L::ID, unsafe { ::core::mem::transmute(&self.entries[index]) }));
         }
         
-        // crate::debug_boot::log("get_entry 4");
         let next = self.next_table(index)?;
-        // crate::debug_boot::log("get_entry 5");
         next.get_entry(address)
     }
 
     fn get_entry_create<S: PageSize>(&mut self, address: Address<V>) -> (usize, &'static mut PageTableEntry) {
-        // crate::debug_boot::log("get_entry_create 0");
-        // if crate::mm::booted() { println!("gec 0"); }
         debug_assert!(L::ID != 0);
-        // crate::debug_boot::log("get_entry_create 1");
-        // if crate::mm::booted() { println!("gec 1"); }
         let index = Self::get_index(address);
-        // crate::debug_boot::log("get_entry_create 2");
-        // if crate::mm::booted() { println!("gec 2"); }
         if L::ID == 2 && self.entries[index].present() && self.entries[index].is_block() {
-            // crate::debug_boot::log("get_entry_create 3");
-            // if crate::mm::booted() { println!("gec 3"); }
             debug_assert!(S::LOG_SIZE != Size4K::LOG_SIZE);
             return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
         }
         if S::LOG_SIZE == Size4K::LOG_SIZE && L::ID == 1 {
-            // crate::debug_boot::log("get_entry_create 4");
-            // if crate::mm::booted() { println!("gec 4"); }
             return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
         }
         if S::LOG_SIZE == Size2M::LOG_SIZE && L::ID == 2 {
-            // crate::debug_boot::log("get_entry_create 5");
-            // if crate::mm::booted() { println!("gec 5"); }
             return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
         }
-        // crate::debug_boot::log("get_entry_create 6");
-        if crate::mm::booted() { println!("gec 6"); }
         let next = self.next_table_create(index);
-        // crate::debug_boot::log("get_entry_create 7");
-        if crate::mm::booted() { println!("gec 7 {:?}", next as *mut _); }
         next.get_entry_create::<S>(address)
     }
 }
@@ -290,9 +244,7 @@ impl PageTable<L4> {
     }
 
     pub fn map<S: PageSize>(&mut self, page: Page<S>, frame: Frame<S>, flags: PageFlags) -> Page<S> {
-        if crate::mm::booted() { println!("map 0"); }
         let (level, entry) = self.get_entry_create::<S>(page.start());
-        if crate::mm::booted() { println!("map 1"); }
         if cfg!(debug_assertions) {
             if S::LOG_SIZE == Size4K::LOG_SIZE {
                 assert!(level == 1, "{:?} {:?} {}", page, frame, level);
@@ -300,17 +252,11 @@ impl PageTable<L4> {
                 assert!(level == 2);
             }
         }
-        // if crate::mm::booted() { println!("map 2"); }
         if S::LOG_SIZE != Size4K::LOG_SIZE {
             debug_assert!(flags.bits() & 0b10 == 0);
         }
-        // if crate::mm::booted() { println!("map 3"); }
         let flags = flags | PageFlags::PRESENT;
-        
-        // if crate::mm::booted() { println!("map 4"); }
         entry.set(frame, flags);
-        
-        // if crate::mm::booted() { println!("map 5"); }
         page
     }
 

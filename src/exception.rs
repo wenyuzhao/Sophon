@@ -106,8 +106,8 @@ unsafe fn get_exception_class() -> ExceptionClass {
 #[no_mangle]
 pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> isize {
     println!("Exception received {:?}", get_exception_class());
-    println!("{:x}", SPSR_EL1.get());
-    println!("{:x}", SP.get());
+    // println!("{:b}", SPSR_EL1.get());
+    // println!("{:x}", SP.get());
     match get_exception_class() {
         ExceptionClass::SVCAArch64 => crate::syscall::handle_syscall(&mut *exception_frame),
         ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {

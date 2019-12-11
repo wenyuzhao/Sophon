@@ -145,6 +145,7 @@ impl Scheduler {
                 }
                 current_task
             } else {
+                // println!("Nothing to schedule 1!");
                 panic!()
             }
         }
@@ -158,6 +159,7 @@ impl Scheduler {
         let current_task = self.get_current_task();
         println!("Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
         if Some(next_task.id()) == current_task.as_ref().map(|t| t.id()) {
+            // println!("Nothing to schedule!");
             return
         }
         // Add this task to ready queue
@@ -176,11 +178,11 @@ impl Scheduler {
         self.set_current_task_id(next_task.id());
         // Switch
         // !IMPORTANT: Make sure we do not hold any locks/refcells
-        println!("do task switch");
         Task::switch(current_task, next_task)
     }
 
     pub fn timer_tick(&self) {
+        print!(".");
         let current_task = match self.get_current_task() {
             Some(t) => t,
             None => {
@@ -188,6 +190,7 @@ impl Scheduler {
             }
         };
         if current_task.scheduler_state().borrow().time_slice_units == 0 {
+            println!("time_slice_units is zero");
             return;
         }
         {

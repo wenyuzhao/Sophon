@@ -42,7 +42,7 @@ pub fn _print(args: fmt::Arguments) {
     // isb
     //         "}
     //     }
-        let mut write = UART0;//UART.lock();
+        let mut write = UART.lock();
         // boot_log!("UART locked");
         write.write_fmt(args).unwrap();
         // boot_log!("uninterruptable end");
@@ -75,9 +75,9 @@ macro_rules! println {
 //     unsafe { *UART_DR = '\n' as u32 };
 // }
 
-lazy_static! {
-    pub static ref UART: Mutex<UART0> = Mutex::new(UART0);
-}
+// lazy_static! {
+    pub static UART: Mutex<UART0> = Mutex::new(UART0);
+// }
 
 pub struct UART0;
 /**

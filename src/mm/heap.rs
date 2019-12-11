@@ -117,7 +117,7 @@ impl GlobalAllocator {
 unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let a = self.fa.lock().alloc(&layout).as_ptr_mut();
-        println!("alloc {:?}", a);
+        // println!("alloc {:?}", a);
         a
     }
 

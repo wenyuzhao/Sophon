@@ -27,9 +27,7 @@ pub fn memory_map(address: Address, size: usize, mut flags: PageFlags) -> Result
     for page in start_page..end_page {
         let frame = frame_allocator::alloc().unwrap();
         use ::cortex_a::regs::*;
-        println!("map start {:?} {:?} {:x} {:x}", page, frame, TTBR0_EL1.get(), TTBR1_EL1.get());
         p4.map(page, frame, flags);
-        println!("map end {:?}", frame);
         unsafe { page.zero(); }
     }
     Ok(address)
