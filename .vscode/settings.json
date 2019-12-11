@@ -1,5 +1,5 @@
 {
     "rust.all_features": false,
-    "rust.features": ["rls", "raspi3"],
+    "rust.features": ["rls", "device-raspi3"],
     "rust.all_targets": false,
 }

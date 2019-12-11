@@ -3,13 +3,13 @@ use crate::interrupt::*;
 use cortex_a::regs::*;
 use crate::gic::*;
 
-const TIMER_INTERRUPT_FREQUENCY: usize = 1; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz
 
 // pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
 
-#[cfg(feature="raspi3")]
+#[cfg(feature="device-raspi3")]
 pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
-#[cfg(feature="raspi4")]
+#[cfg(feature="device-raspi4")]
 pub const ARM_TIMER_BASE: usize = 0xFFFF0000_FF800000;
 
 const ARM_CONTROL_REGISTER: *mut u32 = (ARM_TIMER_BASE + 0x0) as _;
@@ -113,7 +113,7 @@ pub fn pending_timer_irq() -> bool {
 
 #[inline]
 pub fn handle_timer_irq() {
-    println!("Timer iterrupt received");
+    // println!("Timer iterrupt received");
     update_compare_value();
-    // crate::task::GLOBAL_TASK_SCHEDULER.timer_tick();
+    crate::task::GLOBAL_TASK_SCHEDULER.timer_tick();
 }

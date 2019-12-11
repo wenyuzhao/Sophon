@@ -7,7 +7,7 @@ debug_interrupts = $(if $(dint),-d int)
 # raspi=4 make kernel objdump copy-win
 
 kernel: init
-	cargo xbuild $(if $(release), --release) --target $(target).json --features raspi$(raspi),$(if $(qemu),qemu)
+	cargo xbuild $(if $(release), --release) --target $(target).json --features device-raspi$(raspi),$(if $(qemu),qemu)
 	@cargo objcopy -- --strip-all ./target/$(target)/$(profile)/proton -O binary ./kernel8.img
 
 init: FORCE

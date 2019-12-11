@@ -36,9 +36,9 @@ pub static mut UART_WRITER: UART = UART;
 pub struct UART;
 
 impl UART {    
-    #[cfg(feature="raspi3")]
+    #[cfg(feature="device-raspi3")]
     const BASE: usize = 0x3F201000;
-    #[cfg(feature="raspi4")]
+    #[cfg(feature="device-raspi4")]
     const BASE: usize = 0xFE201000;
     const UART_DR: *mut u32   = (Self::BASE + 0x00) as _;
     const UART_FR: *mut u32   = (Self::BASE + 0x18) as _;
@@ -47,16 +47,16 @@ impl UART {
     const UART_LCRH: *mut u32 = (Self::BASE + 0x2C) as _;
     const UART_CR: *mut u32   = (Self::BASE + 0x30) as _;
     const UART_ICR: *mut u32  = (Self::BASE + 0x44) as _;
-    #[cfg(feature="raspi3")] const GPIO_BASE: usize = 0x3F200000;
-    #[cfg(feature="raspi4")] const GPIO_BASE: usize = 0xFE200000;
+    #[cfg(feature="device-raspi3")] const GPIO_BASE: usize = 0x3F200000;
+    #[cfg(feature="device-raspi4")] const GPIO_BASE: usize = 0xFE200000;
     const GPFSEL1: *mut u32 = (Self::GPIO_BASE + 0x4) as _;
     const GPPUD: *mut u32 = (Self::GPIO_BASE + 0x94) as _;
     const GPPUDCLK0: *mut u32 = (Self::GPIO_BASE + 0x98) as _;
     const GPPUDCLK1: *mut u32 = (Self::GPIO_BASE + 0x9C) as _;
 
-    #[cfg(feature="raspi3")]
+    #[cfg(feature="device-raspi3")]
     const PBASE: usize = 0x3F000000;
-    #[cfg(feature="raspi4")]
+    #[cfg(feature="device-raspi4")]
     const PBASE: usize = 0xFE000000;
     const AUX_ENABLES: *mut u32     = (Self::PBASE + 0x00215004) as _;
     const AUX_MU_IO_REG: *mut u32   = (Self::PBASE + 0x00215040) as _;

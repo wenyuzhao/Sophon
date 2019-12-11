@@ -24,5 +24,7 @@ lto = true
 default = []
 rls = []
 qemu = []
-raspi3 = []
-raspi4 = []
+
+# Devices
+device-raspi3 = []
+device-raspi4 = []

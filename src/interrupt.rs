@@ -81,7 +81,7 @@ pub fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
     ret
 }
 
-#[cfg(feature="raspi4")]
+#[cfg(feature="device-raspi4")]
 #[no_mangle]
 pub extern fn handle_interrupt() {
     let GICC = GICC::get();
@@ -92,7 +92,10 @@ pub extern fn handle_interrupt() {
         // println!("GICC_IAR = {}, IRQ = {}", iar, irq);
 
         if irq == 30 {
+            // FIXME: End of Interrupt ??? here ???
+            GICC.EOIR = iar;
             crate::timer::handle_timer_irq();
+            return;
         }
 
         GICC.EOIR = iar;
@@ -123,7 +126,7 @@ pub extern fn handle_interrupt() {
     // }
 }
 
-#[cfg(all(feature="raspi3"))]
+#[cfg(all(feature="device-raspi3"))]
 #[no_mangle]
 pub extern fn handle_interrupt() {
     if !cfg!(feature="qemu") {
