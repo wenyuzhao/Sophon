@@ -58,3 +58,4 @@ BTW, it is almost impossible to take care of performance for now...
 5. [Raspberry Pi Hardware Documents](https://github.com/raspberrypi/documentation/tree/master/hardware/raspberrypi)
 6. [Learning OS dev using Linux kernel & Raspberry Pi](https://github.com/s-matyukevich/raspberry-pi-os)
 7. [ARM Quad-A7 Documentation (for timer configuration)](https://github.com/raspberrypi/documentation/blob/master/hardware/raspberrypi/bcm2836/QA7_rev3.4.pdf)
+8. [Circle - A C++ bare metal programming env for RPi](https://github.com/rsta2/circle)

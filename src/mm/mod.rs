@@ -11,6 +11,12 @@ pub use self::page::*;
 pub use self::page_table::*;
 pub use self::paging::*;
 
+pub static mut BOOTED: bool = false;
+
+pub fn booted() -> bool {
+    unsafe { BOOTED }
+}
+
 /// Allocate a frame and map it to the given virtual address
 pub fn memory_map(address: Address, size: usize, mut flags: PageFlags) -> Result<Address, ()> {
     assert!(Page::<Size4K>::is_aligned(address));
@@ -20,7 +26,10 @@ pub fn memory_map(address: Address, size: usize, mut flags: PageFlags) -> Result
     let p4 = PageTable::<L4>::get(false);
     for page in start_page..end_page {
         let frame = frame_allocator::alloc().unwrap();
+        use ::cortex_a::regs::*;
+        println!("map start {:?} {:?} {:x} {:x}", page, frame, TTBR0_EL1.get(), TTBR1_EL1.get());
         p4.map(page, frame, flags);
+        println!("map end {:?}", frame);
         unsafe { page.zero(); }
     }
     Ok(address)

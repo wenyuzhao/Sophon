@@ -23,7 +23,7 @@ pub const KERNEL_START: usize = 0x80000; // 16M
 
 #[inline]
 pub fn kernel_end() -> usize {
-    unsafe { &__kernel_end as *const _ as usize }
+    (unsafe { &__kernel_end as *const _ as usize }) | 0xffff0000_00000000
 }
 
 #[inline]
@@ -39,8 +39,8 @@ pub fn kernel_heap_end() -> usize {
 pub const MMIO_START: usize = crate::gpio::PERIPHERAL_BASE - 0x1000000;
 pub const MMIO_END: usize = MMIO_START + 0x1000000;
 
-pub const LOG_MAX_HEAP_SIZE: usize = 30; // 1G
-pub const MAX_HEAP_SIZE: usize = 1 << LOG_MAX_HEAP_SIZE; // 1G
+pub const LOG_MAX_HEAP_SIZE: usize = 32; // 4G
+pub const MAX_HEAP_SIZE: usize = 1 << LOG_MAX_HEAP_SIZE; // 4G
 
 extern {
     static __kernel_start: usize;

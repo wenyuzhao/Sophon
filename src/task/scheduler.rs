@@ -176,6 +176,7 @@ impl Scheduler {
         self.set_current_task_id(next_task.id());
         // Switch
         // !IMPORTANT: Make sure we do not hold any locks/refcells
+        println!("do task switch");
         Task::switch(current_task, next_task)
     }
 

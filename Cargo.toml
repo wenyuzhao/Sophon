@@ -23,5 +23,6 @@ lto = true
 [features]
 default = []
 rls = []
+qemu = []
 raspi3 = []
 raspi4 = []

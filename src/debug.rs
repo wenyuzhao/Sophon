@@ -5,14 +5,49 @@ use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
 use crate::gpio::*;
 
+use ::core::sync::atomic::{AtomicBool, Ordering};
+static AB: AtomicBool = AtomicBool::new(false);
 
 #[doc(hidden)]
 #[inline(never)]
 pub fn _print(args: fmt::Arguments) {
     crate::interrupt::uninterruptable(|| {
-        let mut write = UART.lock();
+        // boot_log!("uninterruptable start {:?}", &UART as *const _);
+        // {
+        //     let ab: AtomicBool = AtomicBool::new(false);
+        //     boot_log!("LOCK ab {:?}", &ab as *const _);
+        //     while ab.compare_and_swap(false, true, Ordering::SeqCst) != false {
+        //     }
+        //     boot_log!("LOCK ab {:?} end", &ab as *const _);
+        //     boot_log!("LOCK AB {:?}", &AB as *const _);
+        //     AB.store(false, Ordering::SeqCst);
+        //     boot_log!("LOCK AB {:?}", &AB as *const _);
+        //     while AB.compare_and_swap(false, true, Ordering::SeqCst) != false {
+        //     }
+        //     boot_log!("LOCK AB {:?} end", &AB as *const _);
+
+        // }
+        // {
+        //     match UART.try_lock() {
+        //         Some(l) => boot_log!("UART try lock ok"),
+        //         _ => boot_log!("UART try lock err"),
+        //     }
+        // }
+        // unsafe { UART.force_unlock(); }
+    //     unsafe {
+    //         asm!{"
+            
+    // tlbi vmalle1is
+    // DSB ISH
+    // isb
+    //         "}
+    //     }
+        let mut write = UART0;//UART.lock();
+        // boot_log!("UART locked");
         write.write_fmt(args).unwrap();
+        // boot_log!("uninterruptable end");
     });
+    // boot_log!("_print end");
 }
 
 #[macro_export]
@@ -29,24 +64,66 @@ macro_rules! println {
     }};
 }
 
-pub fn print_boot(s: &str) {
-    const UART_DR: *mut u32 = unsafe { (UART0::UART_DR as usize & 0x0000ffff_ffffffff) as _ };
-    const UART_FR: *mut u32 = unsafe { (UART0::UART_FR as usize & 0x0000ffff_ffffffff) as _ };
-    for b in s.bytes() {
-        while (unsafe { *UART_FR }) & (1 << 5) > 0 {}
-        unsafe { *UART_DR = b as u32 };
-    }
-    while (unsafe { *UART_FR }) & (1 << 5) > 0 {}
-    unsafe { *UART_DR = '\n' as u32 };
+// pub fn print_boot(s: &str) {
+//     const UART_DR: *mut u32 = unsafe { (UART0::UART_DR as usize & 0x0000ffff_ffffffff) as _ };
+//     const UART_FR: *mut u32 = unsafe { (UART0::UART_FR as usize & 0x0000ffff_ffffffff) as _ };
+//     for b in s.bytes() {
+//         while (unsafe { *UART_FR }) & (1 << 5) > 0 {}
+//         unsafe { *UART_DR = b as u32 };
+//     }
+//     while (unsafe { *UART_FR }) & (1 << 5) > 0 {}
+//     unsafe { *UART_DR = '\n' as u32 };
+// }
+
+lazy_static! {
+    pub static ref UART: Mutex<UART0> = Mutex::new(UART0);
 }
 
-pub static UART: Mutex<UART0> = Mutex::new(UART0);
-
 pub struct UART0;
+/**
+ * 
+    const UART_DR: *mut u32   = (Self::BASE + 0x00) as _;
+    const UART_FR: *mut u32   = (Self::BASE + 0x18) as _;
+    const UART_IBRD: *mut u32 = (Self::BASE + 0x24) as _;
+    const UART_FBRD: *mut u32 = (Self::BASE + 0x28) as _;
+    const UART_LCRH: *mut u32 = (Self::BASE + 0x2C) as _;
+    const UART_CR: *mut u32   = (Self::BASE + 0x30) as _;
+    const UART_ICR: *mut u32  = (Self::BASE + 0x44) as _;
 
+    pub fn init() {
+        unsafe {
+            *Self::UART_CR = 0;
+            *Self::UART_ICR = 0;
+            *Self::UART_IBRD = 26;
+            *Self::UART_FBRD = 3;
+            *Self::UART_LCRH = (0b11 << 5) | (0b1 << 4);
+            *Self::UART_CR = (1 << 0) | (1 << 8) | (1 << 9);
+        }
+    }
+ * 
+ */
 impl UART0 {
     const UART_DR: *mut u32 = (PERIPHERAL_BASE + 0x201000) as _;
     const UART_FR: *mut u32 = (PERIPHERAL_BASE + 0x201018) as _;
+    const UART_DR_LOW: *mut u32 = unsafe { (Self::UART_DR as usize & 0x0000ffff_ffffffff) as _ };
+    const UART_FR_LOW: *mut u32 = unsafe { (Self::UART_FR as usize & 0x0000ffff_ffffffff) as _ };
+    
+
+    fn dr(&self) -> *mut u32 {
+        // if (self as *const _ as usize & 0xffff0000_00000000) == 0 {
+        //     Self::UART_DR_LOW
+        // } else {
+            Self::UART_DR
+        // }
+    }
+
+    fn fr(&self) -> *mut u32 {
+        // if (self as *const _ as usize & 0xffff0000_00000000) == 0 {
+        //     Self::UART_FR_LOW
+        // } else {
+            Self::UART_FR
+        // }
+    }
 
     fn mmio_write(&self, reg: *mut u32, val: u32) {
         unsafe { volatile_store(reg as *mut u32, val) }
@@ -57,28 +134,31 @@ impl UART0 {
     }
     
     fn transmit_fifo_full(&self) -> bool {
-        self.mmio_read(Self::UART_FR) & (1 << 5) > 0
+        self.mmio_read(self.fr()) & (1 << 5) > 0
     }
     
     fn receive_fifo_empty(&self) -> bool {
-        self.mmio_read(Self::UART_FR) & (1 << 4) > 0
+        self.mmio_read(self.fr()) & (1 << 4) > 0
     }
     
-    fn putc(&self, c: u8) {
+    fn putc(&self, c: char) {
         while self.transmit_fifo_full() {}
-        self.mmio_write(Self::UART_DR, c as u32);
+        self.mmio_write(self.dr(), c as u32);
     }
     
     fn getc(&self) -> u8 {
         while self.receive_fifo_empty() {}
-        self.mmio_read(Self::UART_DR) as u8
+        self.mmio_read(self.dr()) as u8
     }
 }
 
 impl Write for UART0 {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        for b in s.bytes() {
-            self.putc(b)
+        for c in s.chars() {
+            if c == '\n' {
+                self.putc('\r')
+            }
+            self.putc(c)
         }
         Ok(())
     }

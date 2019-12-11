@@ -135,43 +135,66 @@ impl MailBox {
         const MAILBOX_READ: *const u32 = (VIDEOCORE_MAILBOX_BASE_PHYSICAL + 0x0) as _;
         const MAILBOX_WRITE: *mut u32 =  (VIDEOCORE_MAILBOX_BASE_PHYSICAL + 0x20) as _;
         const MAILBOX_STATUS: *mut MailBoxStatus = (VIDEOCORE_MAILBOX_BASE_PHYSICAL + 0x18) as _;
-        
+        // crate::debug_boot::log("[boot: boottime_send 0]");
         #[repr(C, align(16))] struct MBBuffer([u32; 16]);
-        let mut buffer = MBBuffer([0u32; 16]);
-        buffer.0[0] = 16 * 4;      // Buffer size
+        // crate::debug_boot::log("[boot: boottime_send 0]");
+        static mut buffer: MBBuffer = MBBuffer([0u32; 16]);
+        unsafe {
+        // crate::debug_boot::log("[boot: boottime_send 0.1]");
+        buffer.0[0] = 6 * 4 + (R::TAG_VALUE_SIZE as u32);      // Buffer size
+        // crate::debug_boot::log("[boot: boottime_send 0.2]");
         buffer.0[1] = 0;           // Request code
+        // crate::debug_boot::log("[boot: boottime_send 0.3]");
         buffer.0[2] = R::TAG_ID;   // Tag identifier
+        crate::debug_boot::log("[boot: boottime_send 0.4]");
         buffer.0[3] = R::TAG_VALUE_SIZE as u32; // Request value buffer size
+        crate::debug_boot::log("[boot: boottime_send 0.5]");
         buffer.0[4] = R::TAG_VALUE_SIZE as u32; // Response value buffer size
+        crate::debug_boot::log("[boot: boottime_send 1]");
         // Values
         let values_ptr = &mut buffer.0[5] as *mut _ as usize as *mut R;
         unsafe { ::core::ptr::write(values_ptr, request); }
+        // crate::debug_boot::log("[boot: boottime_send 2]");
         // End Tag
         buffer.0[5 + R::TAG_VALUE_SIZE >> 0b11] = 0;
+        // crate::debug_boot::log("[boot: boottime_send 3]");
         // Send buffer
         let buffer_address = &buffer as *const _ as usize;
+        // crate::debug_boot::log("[boot: boottime_send 3.1]");
         debug_assert!(buffer_address & 0xF == 0);
+        // crate::debug_boot::log("[boot: boottime_send 3.2]");
         debug_assert!(buffer_address == &buffer.0[0] as *const _ as usize);
+        // crate::debug_boot::log("[boot: boottime_send 3.3]");
         let message = (buffer_address & !0xF) as u32 | (channel as u8 & 0xF) as u32;
+        crate::debug_boot::log("[boot: boottime_send 4]");
         while unsafe { volatile_load(MAILBOX_STATUS) } == MailBoxStatus::Full {
             asm::nop();
         }
+        // crate::debug_boot::log("[boot: boottime_send 5]");
         unsafe { *MAILBOX_WRITE = message; }
+        // crate::debug_boot::log("[boot: boottime_send 6]");
         loop {
             while unsafe { volatile_load(MAILBOX_STATUS) } == MailBoxStatus::Empty {
                 asm::nop();
             }
             if unsafe { *MAILBOX_READ } == message {
+                // crate::debug_boot::log("[boot: boottime_send 7]");
                 return match buffer.0[1] {
                     Self::MAILBOX_RESPONSE_OK => {
+                        // crate::debug_boot::log("[boot: boottime_send OK]");
                         let ptr = &buffer.0[5] as *const _ as usize as *const R::Response;
+                        // crate::debug_boot::log("[boot: boottime_send got ptr]");
                         Ok(unsafe { ::core::ptr::read(ptr) })
                     },
-                    Self::MAILBOX_RESPONSE_ERR => Err(MailBoxError::ErrorParsingRequestBuffer(buffer.0[1])),
+                    Self::MAILBOX_RESPONSE_ERR => {
+                        // crate::debug_boot::log("[boot: boottime_send ErrorParsingRequestBuffer]");
+                        Err(MailBoxError::ErrorParsingRequestBuffer(buffer.0[1]))
+                    },
                     _ => Err(MailBoxError::Other(buffer.0[1])),
                 }
             }
         }
+    }
     }
 }
 

@@ -27,6 +27,8 @@ extern crate bitflags;
 extern crate alloc;
 extern crate goblin;
 #[macro_use]
+mod debug_boot;
+#[macro_use]
 mod debug;
 mod gpio;
 #[macro_use]
@@ -43,43 +45,83 @@ mod task;
 mod init_process;
 mod kernel_process;
 mod utils;
+mod gic;
 use cortex_a::regs::*;
 
 #[global_allocator]
 static ALLOCATOR: mm::heap::GlobalAllocator = mm::heap::GlobalAllocator::new();
 
 
-pub fn kmain() -> ! {
+pub extern fn kmain() -> ! {
+    
+    // crate::debug_boot::UART::init();
+    // crate::debug_boot::UART::init();
+    
+    // unsafe {  asm!("msr cpacr_el1, $0"::"r"(0xfffffff)); }
+    
+    // debug_boot::PL011UartInne();
+    // let el = (CurrentEL.get() & 0b1100) >> 2;
+    // loop {}
     println!("Hello, Raspberry PI!");
+    // boot_log!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
+    // loop {}
     ALLOCATOR.init();
-    // {
-    //     // // Test allocator
-    //     let v = vec![1, 1, 2, 3, 5, 7];
-    //     let b = box 233;
-    //     println!("Heap allocation: {:?}, {}", v, b);
-    // }
-    // {
-    //     let mut fb = fb::FRAME_BUFFER.lock();
-    //     fb.init();
-    //     fb.clear(fb::Color::rgba(0x0000FFFF));
-    // }
+    println!("Hello");
+    // debug_assert!(false);
     // println!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
+    // loop {}
     println!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
-    // Initialize & start timer
+    // // Initialize & start timer
+    interrupt::initialize();
     timer::init();
     println!("Timer init");
+    // println!("{}", interrupt::is_enabled());
     interrupt::enable();
     println!("Int init");
+    println!("{}", interrupt::is_enabled());
+    // unsafe { *(0xdeadbeef as *mut u8) = 0; }
+    // let mut i = 0;
+    // loop {
+        //                            0b10000
+        // 0b1101000000
+        // 0b1101000000
+        // if timer::timer_count() < 7000000 {
+            // println!("------------------------------- {}", i);
+            // i += 1;
+            // println!("SPSR_EL1 = 0b{:b}", DAIF.get());
+            // println!("IRQ_PENDING_1 = 0b{:b}", unsafe { *interrupt::IRQ_PENDING_1 });
+            // println!("IRQ_PENDING_2 = 0b{:b}", unsafe { *interrupt::IRQ_PENDING_2 });
+            // println!("IRQ_BASIC_PENDING = 0b{:b}", unsafe { *interrupt::IRQ_BASIC_PENDING });
+            // println!("TIMER_CS = 0b{:b}", unsafe { *timer::TIMER_CS });
+            // println!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
+            // println!("ENABLE_IRQS_1 = 0b{:b}", unsafe { *interrupt::ENABLE_IRQS_1 });
+            // println!("ENABLE_IRQS_2 = 0b{:b}", unsafe { *interrupt::ENABLE_IRQS_2 });
+            // println!("ENABLE_BASIC_IRQS = 0b{:b}", unsafe { *interrupt::ENABLE_BASIC_IRQS });
+            // println!("ARMTIMER_VALUE = {}", unsafe { *timer::ARMTIMER_VALUE });
+            // println!("GICC_IAR = {}", unsafe { *timer::GICC_IAR });
+            // println!("nIRQ = {}", unsafe { (*timer::GICC_IAR) & timer::GICC_IAR_INTERRUPT_ID__MASK });
+    //         u32 nIAR = read32 (GICC_IAR);
+
+	// unsigned nIRQ = nIAR & GICC_IAR_INTERRUPT_ID__MASK;
+            // if (unsafe { *timer::TIMER_CS }) != 0 {
+            //     unsafe { *timer::TIMER_CS = 0 };
+            // }
+            // unsafe { asm!("svc #0"); }
+            // for i in 0..10000000 {}
+
+            // unsafe { *timer::GICD_SGIR =  1 << (0 + timer::GICD_SGIR_CPU_TARGET_LIST__SHIFT) | 1; }
+        // }
+    // }
 
     let task = task::Task::create_kernel_task(kernel_process::main);
-    println!("Created kernel process: {:?}", task.id());
+    println!("Created kernel process: {:?} {:?}", task.id(), task.context.pc);
     let task = task::Task::create_kernel_task(init_process::entry);
     println!("Created init process: {:?}", task.id());
     let task = task::Task::create_kernel_task(kernel_process::idle);
     println!("Created idle process: {:?}", task.id());
 
-    // Manually trigger a page fault
-    // unsafe { *(0xdeadbeef as *mut u8) = 0; }
+    // // Manually trigger a page fault
+    // // unsafe { *(0xdeadbeef as *mut u8) = 0; }
     loop {
         task::GLOBAL_TASK_SCHEDULER.schedule();
     }

@@ -15,9 +15,9 @@ pub fn random(min: usize, max: usize) -> usize {
         *RNG_STATUS = 0x40000;
         *RNG_INT_MASK |= 1;
         *RNG_CTRL |= 1;
-        // while ((*RNG_STATUS) >> 24) == 0 {
-        //     asm!("nop"::::"volatile");
-        // }
+        while ((*RNG_STATUS) >> 24) == 0 {
+            asm!("nop"::::"volatile");
+        }
     });
     return (unsafe { *RNG_DATA } as usize % (max - min)) + min;
 }

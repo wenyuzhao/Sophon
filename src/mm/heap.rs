@@ -20,7 +20,7 @@ impl FreeListAllocator {
     fn init(&mut self) {
         let heap_start: Address = heap_constants::kernel_heap_start().into();
         let heap_limit: Address = heap_constants::kernel_heap_end().into();
-        // println!("Heap: {:?}..{:?}", heap_start, heap_limit);
+        println!("Heap: {:?}..{:?}", heap_start, heap_limit);
         let mut cursor = heap_start;
         while cursor < heap_limit {
             let align = cursor.as_usize().trailing_zeros();
@@ -116,7 +116,9 @@ impl GlobalAllocator {
 
 unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        self.fa.lock().alloc(&layout).as_ptr_mut()
+        let a = self.fa.lock().alloc(&layout).as_ptr_mut();
+        println!("alloc {:?}", a);
+        a
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {

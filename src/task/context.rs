@@ -3,6 +3,7 @@ use core::iter::Step;
 use crate::mm::*;
 use crate::mm::heap_constants::*;
 use crate::exception::ExceptionFrame;
+use cortex_a::regs::*;
 
 #[repr(C, align(4096))]
 pub struct KernelStack {
@@ -83,7 +84,10 @@ pub struct Context {
 
 impl Context {
     pub fn empty() -> Self {
-        unsafe { ::core::mem::zeroed() }
+        let mut c: Self = unsafe { ::core::mem::zeroed() };
+        // c.p4 = Frame::new((TTBR0_EL1.get() as usize).into());
+        // println!("p4 {:?}", c.p4);
+        c
     }
 
     /// Create a new context with empty regs, given kernel stack,
@@ -94,6 +98,9 @@ impl Context {
             let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
             let p4_page = crate::mm::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
             let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
+            for i in 0..512 {
+                p4.entries[i].clear();
+            }
             p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
             p4_frame
         };
