@@ -3,6 +3,7 @@ use spin::Mutex;
 use alloc::collections::{BTreeMap, LinkedList};
 use alloc::boxed::Box;
 use core::cell::UnsafeCell;
+use crate::arch::*;
 
 
 lazy_static! {
@@ -57,7 +58,7 @@ impl Scheduler {
     }
 
     pub fn register_new_task(&self, mut task: Box<Task>) -> &'static mut Task {
-        crate::interrupt::uninterruptable(|| {
+        Target::Interrupt::uninterruptable(|| {
             let id = task.id();
             let task_ref: &'static mut Task = unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
             self.tasks.lock().insert(id, task);
@@ -78,7 +79,7 @@ impl Scheduler {
     }
 
     pub fn get_task_by_id(&self, id: TaskId) -> Option<&'static mut Task> {
-        crate::interrupt::uninterruptable(|| {
+        Target::Interrupt::uninterruptable(|| {
             let tasks = self.tasks.lock();
             let task = tasks.get(&id)?;
             let task_ref: &'static mut Task = unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
@@ -97,7 +98,7 @@ impl Scheduler {
     }
     
     pub fn get_current_task(&self) -> Option<&'static mut Task> {
-        crate::interrupt::uninterruptable(|| {
+        Target::Interrupt::uninterruptable(|| {
             self.get_task_by_id(self.get_current_task_id()?)
         })
     }

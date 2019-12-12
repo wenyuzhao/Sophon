@@ -196,43 +196,12 @@ use core::sync::atomic::{Ordering, AtomicBool};
 static AB: AtomicBool = AtomicBool::new(false);
 
 pub fn alloc<S: PageSize>() -> Option<Frame<S>> {
-    // crate::debug_boot::log("alloc");
-    // if AB.load(Ordering::SeqCst) {
-    //     crate::debug_boot::log("!...AB is true");
-    // } else {
-    //     crate::debug_boot::log("!...AB is false");
-    // }
-    // AB.store(false, Ordering::SeqCst);
-    // if AB.load(Ordering::SeqCst) {
-    //     crate::debug_boot::log("@...AB is true");
-    // } else {
-    //     crate::debug_boot::log("@...AB is false");
-    // }
-    // boot_log!("ALLOCATOR: {:?}", &ALLOCATOR as *const _);
-    // while AB.compare_and_swap(false, true, Ordering::SeqCst) != false {
-    //     // if AB.load(Ordering::SeqCst) {
-    //     //     crate::debug_boot::log("...AB is true");
-    //     // } else {
-    //     //     crate::debug_boot::log("...AB is false");
-    //     // }
-    // }
-    // crate::debug_boot::log("FINAL: AB is true");
-    // AB.store(false, Ordering::SeqCst);
-    // crate::debug_boot::log("AB is false");
-    // unsafe { ALLOCATOR.force_unlock() };
-    // crate::debug_boot::log("force unlock");
-    // let mut allocator = ALLOCATOR.lock();
-    
     let mut allocator = ALLOCATOR.lock();
-    // let mut allocator = unsafe { &mut ALLOCATOR };
-    // crate::debug_boot::log("alloc locked");
     if S::LOG_SIZE == Size4K::LOG_SIZE {
         let addr = Address::<P>::new(allocator.alloc4k()? << Size4K::LOG_SIZE);
-        // boot_log!("alloc 4k -> {:?}", addr);
         Some(Frame::new(addr))
     } else {
         let addr = Address::<P>::new(allocator.alloc2m()? << Size2M::LOG_SIZE);
-        // boot_log!("alloc 2m -> {:?}", addr);
         Some(Frame::new(addr))
     }
 }

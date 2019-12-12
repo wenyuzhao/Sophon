@@ -1,17 +1,16 @@
-use crate::exception::ExceptionFrame;
 use crate::task::*;
 
-pub fn send(exception_frame: &mut ExceptionFrame) -> isize {
-    let mut msg = unsafe { *(exception_frame.x1 as *const Message) };
+pub fn send(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize {
+    let mut msg = unsafe { *(x1 as *const Message) };
     let current_task = Task::current().unwrap();
     msg.sender = current_task.id();
     Task::send_message(msg);
     0
 }
 
-pub fn receive(exception_frame: &mut ExceptionFrame) -> isize {
+pub fn receive(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize {
     let from_id = unsafe {
-        let id = ::core::mem::transmute::<_, isize>(exception_frame.x1);
+        let id = ::core::mem::transmute::<_, isize>(x1);
         if id < 0 {
             None
         } else {
@@ -19,8 +18,8 @@ pub fn receive(exception_frame: &mut ExceptionFrame) -> isize {
         }
     };
     println!("{:?} start receive from {:?}", Task::current().unwrap().id(), from_id);
-    Task::current().unwrap().context.exception_frame = exception_frame as _;
-    let msg_slot = unsafe { exception_frame.x2 as *mut Message };
-    Task::receive_message(from_id, unsafe { &mut *(exception_frame.x2 as *mut Message) });
+    // Task::current().unwrap().context.exception_frame = exception_frame as _;
+    let msg_slot = unsafe { x2 as *mut Message };
+    Task::receive_message(from_id, unsafe { &mut *(x2 as *mut Message) });
     0
 }

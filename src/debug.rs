@@ -4,6 +4,7 @@ use spin::Mutex;
 use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
 use crate::gpio::*;
+use crate::arch::*;
 
 use ::core::sync::atomic::{AtomicBool, Ordering};
 static AB: AtomicBool = AtomicBool::new(false);
@@ -11,43 +12,10 @@ static AB: AtomicBool = AtomicBool::new(false);
 #[doc(hidden)]
 #[inline(never)]
 pub fn _print(args: fmt::Arguments) {
-    crate::interrupt::uninterruptable(|| {
-        // boot_log!("uninterruptable start {:?}", &UART as *const _);
-        // {
-        //     let ab: AtomicBool = AtomicBool::new(false);
-        //     boot_log!("LOCK ab {:?}", &ab as *const _);
-        //     while ab.compare_and_swap(false, true, Ordering::SeqCst) != false {
-        //     }
-        //     boot_log!("LOCK ab {:?} end", &ab as *const _);
-        //     boot_log!("LOCK AB {:?}", &AB as *const _);
-        //     AB.store(false, Ordering::SeqCst);
-        //     boot_log!("LOCK AB {:?}", &AB as *const _);
-        //     while AB.compare_and_swap(false, true, Ordering::SeqCst) != false {
-        //     }
-        //     boot_log!("LOCK AB {:?} end", &AB as *const _);
-
-        // }
-        // {
-        //     match UART.try_lock() {
-        //         Some(l) => boot_log!("UART try lock ok"),
-        //         _ => boot_log!("UART try lock err"),
-        //     }
-        // }
-        // unsafe { UART.force_unlock(); }
-    //     unsafe {
-    //         asm!{"
-            
-    // tlbi vmalle1is
-    // DSB ISH
-    // isb
-    //         "}
-    //     }
+    Target::Interrupt::uninterruptable(|| {
         let mut write = UART.lock();
-        // boot_log!("UART locked");
         write.write_fmt(args).unwrap();
-        // boot_log!("uninterruptable end");
     });
-    // boot_log!("_print end");
 }
 
 #[macro_export]
@@ -75,9 +43,7 @@ macro_rules! println {
 //     unsafe { *UART_DR = '\n' as u32 };
 // }
 
-// lazy_static! {
-    pub static UART: Mutex<UART0> = Mutex::new(UART0);
-// }
+pub static UART: Mutex<UART0> = Mutex::new(UART0);
 
 pub struct UART0;
 /**

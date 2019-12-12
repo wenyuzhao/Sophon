@@ -1,16 +1,9 @@
-use crate::exception::ExceptionFrame;
 use crate::task::*;
 
-pub fn fork(exception_frame: &mut ExceptionFrame) -> TaskId {
+pub fn fork(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> TaskId {
     unimplemented!()
-    // let parent_task = crate::task::Task::current().unwrap();
-    // println!("Fork task start");
-    // let child_task = parent_task.fork(exception_frame as *const ExceptionFrame as usize);
-    // println!("Fork task");
-    // child_task.id()
 }
 
-pub fn exit(exception_frame: &mut ExceptionFrame) -> isize {
-    GLOBAL_TASK_SCHEDULER.remove_task(Task::current().unwrap().id());
-    0
+pub fn exit(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize {
+    unimplemented!()
 }

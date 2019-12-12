@@ -13,6 +13,7 @@
 #![feature(box_syntax)]
 #![feature(alloc_error_handler)]
 #![feature(new_uninit)]
+#![feature(type_alias_impl_trait)]
 #![allow(unused)]
 #![no_std]
 #![no_main]
@@ -35,83 +36,38 @@ mod gpio;
 mod syscall;
 mod mailbox;
 mod fb;
-mod random;
-mod exception;
-mod start;
+// mod random;
+// mod exception;
+// mod start;
 mod mm;
-mod interrupt;
+// mod interrupt;
 mod timer;
 mod task;
 mod init_process;
 mod kernel_process;
 mod utils;
 mod gic;
+mod arch;
 use cortex_a::regs::*;
-
+use arch::*;
 #[global_allocator]
 static ALLOCATOR: mm::heap::GlobalAllocator = mm::heap::GlobalAllocator::new();
 
 
 pub extern fn kmain() -> ! {
-    
-    // crate::debug_boot::UART::init();
-    // crate::debug_boot::UART::init();
-    
-    // unsafe {  asm!("msr cpacr_el1, $0"::"r"(0xfffffff)); }
-    
-    // debug_boot::PL011UartInne();
-    // let el = (CurrentEL.get() & 0b1100) >> 2;
-    // loop {}
     println!("Hello, Raspberry PI!");
-    // boot_log!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
-    // loop {}
-    ALLOCATOR.init();
-    println!("Hello");
-    // debug_assert!(false);
-    // println!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
-    // loop {}
     println!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
+    ALLOCATOR.init();
+    Target::Interrupt::initialize();
+
+    // println!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
     // // Initialize & start timer
-    interrupt::initialize();
+    // interrupt::initialize();
+    syscall::init();
     timer::init();
     println!("Timer init");
-    // println!("{}", interrupt::is_enabled());
-    interrupt::enable();
+    Target::Interrupt::enable();
     println!("Int init");
-    println!("{}", interrupt::is_enabled());
-    // unsafe { *(0xdeadbeef as *mut u8) = 0; }
-    // let mut i = 0;
-    // loop {
-        //                            0b10000
-        // 0b1101000000
-        // 0b1101000000
-        // if timer::timer_count() < 7000000 {
-            // println!("------------------------------- {}", i);
-            // i += 1;
-            // println!("SPSR_EL1 = 0b{:b}", DAIF.get());
-            // println!("IRQ_PENDING_1 = 0b{:b}", unsafe { *interrupt::IRQ_PENDING_1 });
-            // println!("IRQ_PENDING_2 = 0b{:b}", unsafe { *interrupt::IRQ_PENDING_2 });
-            // println!("IRQ_BASIC_PENDING = 0b{:b}", unsafe { *interrupt::IRQ_BASIC_PENDING });
-            // println!("TIMER_CS = 0b{:b}", unsafe { *timer::TIMER_CS });
-            // println!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
-            // println!("ENABLE_IRQS_1 = 0b{:b}", unsafe { *interrupt::ENABLE_IRQS_1 });
-            // println!("ENABLE_IRQS_2 = 0b{:b}", unsafe { *interrupt::ENABLE_IRQS_2 });
-            // println!("ENABLE_BASIC_IRQS = 0b{:b}", unsafe { *interrupt::ENABLE_BASIC_IRQS });
-            // println!("ARMTIMER_VALUE = {}", unsafe { *timer::ARMTIMER_VALUE });
-            // println!("GICC_IAR = {}", unsafe { *timer::GICC_IAR });
-            // println!("nIRQ = {}", unsafe { (*timer::GICC_IAR) & timer::GICC_IAR_INTERRUPT_ID__MASK });
-    //         u32 nIAR = read32 (GICC_IAR);
-
-	// unsigned nIRQ = nIAR & GICC_IAR_INTERRUPT_ID__MASK;
-            // if (unsafe { *timer::TIMER_CS }) != 0 {
-            //     unsafe { *timer::TIMER_CS = 0 };
-            // }
-            // unsafe { asm!("svc #0"); }
-            // for i in 0..10000000 {}
-
-            // unsafe { *timer::GICD_SGIR =  1 << (0 + timer::GICD_SGIR_CPU_TARGET_LIST__SHIFT) | 1; }
-        // }
-    // }
 
     let task = task::Task::create_kernel_task(kernel_process::main);
     println!("Created kernel process: {:?} {:?}", task.id(), task.context.pc);
@@ -119,6 +75,7 @@ pub extern fn kmain() -> ! {
     println!("Created init process: {:?}", task.id());
     let task = task::Task::create_kernel_task(kernel_process::idle);
     println!("Created idle process: {:?}", task.id());
+// loop {}
 
     // // Manually trigger a page fault
     // // unsafe { *(0xdeadbeef as *mut u8) = 0; }

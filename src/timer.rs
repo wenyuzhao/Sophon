@@ -1,7 +1,7 @@
 use crate::gpio::*;
-use crate::interrupt::*;
 use cortex_a::regs::*;
 use crate::gic::*;
+use crate::arch::*;
 
 const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz
 
@@ -47,9 +47,13 @@ pub fn init() {
         // CNTFRQ_EL0.set();
 
         let nCNTFRQ: usize = CNTFRQ_EL0.get() as _;
+        println!("nCNTFRQ = {}", nCNTFRQ);
         assert!(nCNTFRQ % TIMER_INTERRUPT_FREQUENCY == 0);
         let clock_ticks_per_timer_irq = nCNTFRQ / TIMER_INTERRUPT_FREQUENCY;
         let nCNTPCT: usize = CNTPCT_EL0.get() as _;
+        println!("nCNTPCT = {}", nCNTPCT);
+        println!("clock_ticks_per_timer_irq = {}", clock_ticks_per_timer_irq);
+        // loop {}
         asm!("msr CNTP_CVAL_EL0, $0" :: "r" (nCNTPCT + clock_ticks_per_timer_irq));
         CNTP_CTL_EL0.set(1);
 
@@ -59,6 +63,7 @@ pub fn init() {
         // asm("msr CNTP_TVAL_EL0, %0" :: "r" (interval));
         // asm!("cpsie i");
     }
+    Target::Interrupt::set_interrupt_handler(InterruptId::Timer, Some(handle_timer_irq));
 }
 
 static mut COUNT: u32 = 0;
@@ -92,6 +97,7 @@ pub fn init() {
         // *ENABLE_BASIC_IRQS = 0xFF;
         asm!("dmb SY":::"memory");
     }
+    Target::Interrupt::set_handler(InterruptId::Timer, Some(handle_timer_irq));
 }
 
 pub const ARMTIMER_VALUE: *mut u32     = (PERIPHERAL_BASE + 0xB404) as _;
@@ -112,8 +118,9 @@ pub fn pending_timer_irq() -> bool {
 }
 
 #[inline]
-pub fn handle_timer_irq() {
+pub fn handle_timer_irq(_: usize, _: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     // println!("Timer iterrupt received");
     update_compare_value();
     crate::task::GLOBAL_TASK_SCHEDULER.timer_tick();
+    0
 }

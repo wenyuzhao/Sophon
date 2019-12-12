@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use core::iter::Step;
 use crate::mm::*;
 use crate::mm::heap_constants::*;
-use crate::exception::ExceptionFrame;
+// use crate::exception::ExceptionFrame;
 use cortex_a::regs::*;
 
 #[repr(C, align(4096))]
@@ -70,16 +70,13 @@ pub struct Context {
     pub x27: usize,
     pub x28: usize,
     pub x29: usize, // FP
-    pub pc: *mut u8,  // x30
-    
-    pub q0:  u128, pub q1:  u128, pub q2:  u128, pub q3:  u128, pub q4:  u128, pub q5:  u128, pub q6:  u128, pub q7:  u128,
-    pub q8:  u128, pub q9:  u128, pub q10: u128, pub q11: u128, pub q12: u128, pub q13: u128, pub q14: u128, pub q15: u128,
-    pub q16: u128, pub q17: u128, pub q18: u128, pub q19: u128, pub q20: u128, pub q21: u128, pub q22: u128, pub q23: u128,
-    pub q24: u128, pub q25: u128, pub q26: u128, pub q27: u128, pub q28: u128, pub q29: u128, pub q30: u128, pub q31: u128,
+    pub pc: *mut u8, // x30
+
+    pub q: [u128; 32], // Neon registers
 
     pub p4: Frame,
     pub kernel_stack: Option<Box<KernelStack>>,
-    pub exception_frame: *mut ExceptionFrame,
+    // pub exception_frame: *mut ExceptionFrame,
 }
 
 impl Context {
@@ -104,6 +101,7 @@ impl Context {
             p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
             p4_frame
         };
+        println!("-");
         // Alloc kernel stack
         let kernel_stack = KernelStack::new();
         let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
@@ -121,21 +119,18 @@ impl Context {
             x23: self.x23, x24: self.x24, x25: self.x25, x26: self.x26,
             x27: self.x27, x28: self.x28, x29: self.x29,
             sp: self.sp, pc: self.pc, p4: self.p4,
-            q0:  self.q0,  q1:  self.q1,  q2:  self.q2,  q3:  self.q3,  q4:  self.q4,  q5:  self.q5,  q6:  self.q6,  q7:  self.q7,
-            q8:  self.q8,  q9:  self.q9,  q10: self.q10, q11: self.q11, q12: self.q12, q13: self.q13, q14: self.q14, q15: self.q15,
-            q16: self.q16, q17: self.q17, q18: self.q18, q19: self.q19, q20: self.q20, q21: self.q21, q22: self.q22, q23: self.q23,
-            q24: self.q24, q25: self.q25, q26: self.q26, q27: self.q27, q28: self.q28, q29: self.q29, q30: self.q30, q31: self.q31,
-            exception_frame: 0usize as _,
+            q: self.q.clone(),
+            // exception_frame: 0usize as _,
             kernel_stack: Some({
                 let mut kernel_stack = KernelStack::new();
                 kernel_stack.copy_from(self.kernel_stack.as_ref().unwrap());
                 kernel_stack
             }),
         };
-        ctx.exception_frame = {
-            let ef_offset = self.exception_frame as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
-            (ctx.kernel_stack.as_ref().unwrap().start_address() + ef_offset).as_ptr_mut()
-        };
+        // ctx.exception_frame = {
+        //     let ef_offset = self.exception_frame as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
+        //     (ctx.kernel_stack.as_ref().unwrap().start_address() + ef_offset).as_ptr_mut()
+        // };
         ctx.sp = {
             println!("Fork, sp = {:?}, kstack = {:?}", self.sp, self.kernel_stack.as_ref().unwrap().start_address());
             let sp_offset = self.sp as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
@@ -143,10 +138,10 @@ impl Context {
         };
         ctx.p4 = paging::fork_page_table(self.p4);
         // Set parent/child process return value
-        unsafe {
-            (*self.exception_frame).x0 = 0;
-            (*ctx.exception_frame).x0 = 0;
-        }
+        // unsafe {
+        //     (*self.exception_frame).x0 = 0;
+        //     (*ctx.exception_frame).x0 = 0;
+        // }
         ctx
     }
 

@@ -7,9 +7,10 @@ use alloc::vec::Vec;
 use super::scheduler::*;
 use core::cell::{RefMut, RefCell};
 use crate::mm::*;
-use crate::exception::ExceptionFrame;
+// use crate::exception::ExceptionFrame;
 use crate::mm::heap_constants::*;
 use crate::utils::atomic_queue::AtomicQueue;
+use crate::arch::*;
 
 use core::iter::Step;
 
@@ -141,6 +142,7 @@ impl Task {
         // Assign an id
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
         // Alloc task struct
+        println!("create_kernel_task 1");
         let mut task = box Task {
             id,
             context: Context::new(entry as _),
@@ -150,6 +152,7 @@ impl Task {
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
         };
+        println!("create_kernel_task 2");
         // Add this task to the schedular
         GLOBAL_TASK_SCHEDULER.register_new_task(task)
     }
@@ -164,7 +167,7 @@ impl Task {
 
     pub fn switch(from_task: Option<&'static mut Task>, to_task: &'static mut Task) {
         debug_assert!(from_task != Some(to_task), "{:?} {:?}", from_task.as_ref().map(|t| t.id), to_task.id);
-        crate::interrupt::enable();
+        Target::Interrupt::enable();
         unsafe {
             if let Some(from_task) = from_task {
                 from_task.context.switch_to(&to_task.context);

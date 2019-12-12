@@ -15,7 +15,7 @@ impl Message {
         let ret = unsafe {
             syscall(SysCall::Send, [message_ptr, 0, 0, 0, 0, 0])
         };
-        assert!(ret == 0);
+        // assert!(ret == 0);
     }
 
     pub fn receive(src: Option<usize>) -> Message {
@@ -31,7 +31,7 @@ impl Message {
         let ret = unsafe {
             syscall(SysCall::Receive, [::core::mem::transmute(src), message_ptr, 0, 0, 0, 0])
         };
-        assert!(ret == 0);
+        // assert!(ret == 0);
         m
     }
 
