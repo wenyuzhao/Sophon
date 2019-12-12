@@ -40,10 +40,17 @@ pub trait AbstractTimer: Sized {
     fn init();
 }
 
+pub trait AbstractContext: Sized {
+    fn empty() -> Self;
+    fn new(entry: *const extern fn() -> !) -> Self;
+    fn fork(&self) -> Self;
+    unsafe extern fn switch_to(&mut self, ctx: &Self);
+}
+
 pub trait AbstractArch: Sized {
-    // type MemoryManager: AbstractMemoryManager;
     type Interrupt: AbstractInterruptController;
     type Timer: AbstractTimer;
+    type Context: AbstractContext;
 
     /// Platform initialization code
     /// Initialize: VirtualMemory/ExceptionVectorTable/...
@@ -55,7 +62,7 @@ pub trait AbstractArch: Sized {
 #[cfg(target_arch="aarch64")]
 mod aarch64;
 #[cfg(target_arch="aarch64")]
-use aarch64::AArch64 as TargetArch;
+pub use aarch64::AArch64 as SelectedArch;
 
 static mut BOOTED: bool = false;
 fn set_booted() {
@@ -67,14 +74,16 @@ pub fn booted() -> bool {
 
 pub mod Target {
     use super::*;
-    pub type Arch = TargetArch;
-    pub type Interrupt = <TargetArch as AbstractArch>::Interrupt;
-    pub type Timer = <TargetArch as AbstractArch>::Timer;
+    pub type Arch = SelectedArch;
+    pub type Interrupt = <SelectedArch as AbstractArch>::Interrupt;
+    pub type Timer = <SelectedArch as AbstractArch>::Timer;
+    pub type Context = <SelectedArch as AbstractArch>::Context;
 }
+
 
 /// Entry point for the low-level boot code
 #[no_mangle]
 #[naked]
 pub unsafe extern fn _start() -> ! {
-    TargetArch::_start()
+    Target::Arch::_start()
 }

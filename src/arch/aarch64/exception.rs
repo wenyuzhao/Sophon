@@ -57,7 +57,7 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> i
     match exception {
         ExceptionClass::SVCAArch64 => {
             let r = super::interrupt::handle_interrupt(InterruptId::Soft, &mut *exception_frame);
-            unsafe { (*exception_frame).x0 = ::core::mem::transmute(r) };
+            // unsafe { (*exception_frame).x0 = ::core::mem::transmute(r) };
         },
         ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
             let far: usize;
@@ -68,7 +68,7 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> i
             println!("Data Abort {:?}, {:?}", far as *mut (), crate::task::Task::current().unwrap().id());
             crate::mm::handle_user_pagefault(far.into());
         },
-        v => println!("Unknown exception 0b{:b}", unsafe { ::core::mem::transmute::<_, u32>(v) }),
+        v => panic!("Unknown exception 0b{:b}", unsafe { ::core::mem::transmute::<_, u32>(v) }),
     }
     0
 }

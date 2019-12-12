@@ -10,11 +10,12 @@ static mut INTERRUPT_HANDLERS: [Option<InterruptHandler>; 256] = [None; 256];
 pub fn handle_interrupt(kind: InterruptId, exception_frame: &mut ExceptionFrame) -> isize {
     // println!("<int> {:?}", kind);
     if let Some(handler) = unsafe { INTERRUPT_HANDLERS[kind as usize] } {
-        let result = handler(
+        handler(
             exception_frame.x0, exception_frame.x1, exception_frame.x2,
             exception_frame.x3, exception_frame.x4, exception_frame.x5,
         );
-        result
+        0
+        // result
         // exception_frame.x0 = unsafe { ::core::mem::transmute(result) };
     } else {
         println!("Interrupt<{:?}> has no handler!", kind);

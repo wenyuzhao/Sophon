@@ -1,9 +1,11 @@
 use alloc::boxed::Box;
 use core::iter::Step;
+use cortex_a::regs::*;
 use crate::mm::*;
 use crate::mm::heap_constants::*;
-// use crate::exception::ExceptionFrame;
-use cortex_a::regs::*;
+use crate::arch::*;
+
+
 
 #[repr(C, align(4096))]
 pub struct KernelStack {
@@ -58,38 +60,34 @@ impl Drop for KernelStack {
 /// Represents the archtectural context (i.e. registers)
 #[repr(C)]
 pub struct Context {
-    pub sp: *mut u8,
-    pub x19: usize,
-    pub x20: usize,
-    pub x21: usize,
-    pub x22: usize,
-    pub x23: usize,
-    pub x24: usize,
-    pub x25: usize,
-    pub x26: usize,
-    pub x27: usize,
-    pub x28: usize,
-    pub x29: usize, // FP
-    pub pc: *mut u8, // x30
+    sp: *mut u8,
+    x19: usize,
+    x20: usize,
+    x21: usize,
+    x22: usize,
+    x23: usize,
+    x24: usize,
+    x25: usize,
+    x26: usize,
+    x27: usize,
+    x28: usize,
+    x29: usize, // FP
+    pc: *mut u8, // x30
 
-    pub q: [u128; 32], // Neon registers
+    q: [u128; 32], // Neon registers
 
-    pub p4: Frame,
-    pub kernel_stack: Option<Box<KernelStack>>,
-    // pub exception_frame: *mut ExceptionFrame,
+    p4: Frame,
+    kernel_stack: Option<Box<KernelStack>>,
 }
 
-impl Context {
-    pub fn empty() -> Self {
-        let mut c: Self = unsafe { ::core::mem::zeroed() };
-        // c.p4 = Frame::new((TTBR0_EL1.get() as usize).into());
-        // println!("p4 {:?}", c.p4);
-        c
+impl AbstractContext for Context {
+    fn empty() -> Self {
+        unsafe { ::core::mem::zeroed() }
     }
 
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
-    pub fn new(entry: *const extern fn() -> !) -> Self {
+    fn new(entry: *const extern fn() -> !) -> Self {
         // Alloc page table
         let p4 = unsafe {
             let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
@@ -112,7 +110,7 @@ impl Context {
         ctx
     }
  
-    pub fn fork(&self) -> Self {
+    fn fork(&self) -> Self {
         let mut ctx = Context {
             x19: self.x19, x20: self.x20, x21: self.x21, x22: self.x22,
             x23: self.x23, x24: self.x24, x25: self.x25, x26: self.x26,
@@ -144,7 +142,8 @@ impl Context {
         ctx
     }
 
-    pub unsafe extern fn switch_to(&mut self, ctx: &Context) {
+    unsafe extern fn switch_to(&mut self, ctx: &Self) {
+        // println!(" -> PC {:?}", ctx.pc);
         switch_context(self, ctx, ctx.p4.start().as_usize())
     }
 }

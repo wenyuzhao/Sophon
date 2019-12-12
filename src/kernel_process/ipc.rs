@@ -7,5 +7,6 @@ pub fn send(mut m: Message) {
 
 pub fn receive(from: Option<TaskId>) -> Message {
     let mut m = unsafe { ::core::mem::zeroed() };
-    Task::receive_message(from, &mut m)
+    Task::receive_message(from, &mut m);
+    m
 }

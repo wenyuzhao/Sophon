@@ -1,16 +1,15 @@
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet, LinkedList};
-use super::context::*;
 use spin::Mutex;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use alloc::vec::Vec;
 use super::scheduler::*;
 use core::cell::{RefMut, RefCell};
 use crate::mm::*;
-// use crate::exception::ExceptionFrame;
 use crate::mm::heap_constants::*;
 use crate::utils::atomic_queue::AtomicQueue;
 use crate::arch::*;
+use Target::Context;
 
 use core::iter::Step;
 
@@ -60,7 +59,7 @@ impl Task {
     }
 
     #[inline]
-    pub fn receive_message(from: Option<TaskId>, slot: &mut Message) -> Message {
+    pub fn receive_message(from: Option<TaskId>, slot: &mut Message) {
         let receiver = Task::current().unwrap();
         // println!("{:?} waiting for {:?}", receiver.id, from);
         // Search from blocked_senders
@@ -79,7 +78,8 @@ impl Task {
                 let m = sender.block_to_send.take().unwrap();
                 GLOBAL_TASK_SCHEDULER.unblock_sending_task(sender_id);
                 *slot = m;
-                return m;
+                return;
+                // return m;
             }
         }
         // Block receiver
@@ -87,7 +87,7 @@ impl Task {
         GLOBAL_TASK_SCHEDULER.block_current_task_as_receiving();
         let t = Task::current().unwrap();
         *slot = t.incoming_message.unwrap();
-        return t.incoming_message.unwrap();//t.incoming_message.take().unwrap();
+        return;//t.incoming_message.take().unwrap();
     }
     
     #[inline]

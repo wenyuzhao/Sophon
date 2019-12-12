@@ -66,7 +66,7 @@ pub extern fn kmain() -> ! {
     println!("[kernel: interrupt enabled]");
 
     let task = task::Task::create_kernel_task(kernel_process::main);
-    println!("Created kernel process: {:?} {:?}", task.id(), task.context.pc);
+    println!("Created kernel process: {:?}", task.id());
     let task = task::Task::create_kernel_task(init_process::entry);
     println!("Created init process: {:?}", task.id());
     let task = task::Task::create_kernel_task(kernel_process::idle);
