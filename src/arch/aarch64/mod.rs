@@ -2,6 +2,7 @@ mod start;
 mod gic;
 mod interrupt;
 mod exception;
+mod timer;
 
 use super::*;
 use crate::mm::paging;
@@ -11,6 +12,7 @@ pub struct AArch64;
 
 impl AbstractArch for AArch64 {
     type Interrupt = interrupt::InterruptController;
+    type Timer = timer::Timer;
 
     #[inline(always)]
     #[naked]

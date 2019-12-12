@@ -5,6 +5,7 @@ use super::address::*;
 use super::page::*;
 use super::page_table::*;
 use super::heap_constants::*;
+use crate::gpio::*;
 
 #[repr(C, align(4096))]
 struct TempFrames([usize; 512], [usize; 512], [usize; 512], [usize; 512]);
@@ -97,7 +98,7 @@ pub fn clear_temp_user_pagetable() {
     unsafe {
         asm!("
             tlbi vmalle1is
-            DSB ISH
+            DSB SY
             isb
         ")
     }
@@ -245,7 +246,7 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     // println!("xxx {:?} {:?}", vcm_start, vcm_end);
     crate::debug_boot::log("[boot: setup_kernel_pagetables 9]");
     // Mark ARM Generic Timer Mapped Memory
-    let arm_frame = Frame::<Size2M>::new(crate::timer::ARM_TIMER_BASE.into());
+    let arm_frame = Frame::<Size2M>::new(ARM_TIMER_BASE.into());
     crate::debug_boot::log("[boot: setup_kernel_pagetables 10]");
     p4.identity_map::<Size2M>(arm_frame, PageFlags::_DEVICE_MEMORY_FLAGS_2M);
     // boot_log!("arm_frame {:?} {:?}", arm_frame, arm_frame.start() + Size2M::SIZE);
@@ -289,7 +290,7 @@ pub fn invalidate_tlb() {
     unsafe {
         asm! {"
             tlbi vmalle1is
-            DSB ISH
+            DSB SY
             isb
         "}
     }

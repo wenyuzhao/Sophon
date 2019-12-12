@@ -11,7 +11,7 @@ pub enum InterruptId {
 pub type InterruptHandler = fn(a: usize, b: usize, c: usize, d: usize, e: usize, f: usize) -> isize;
 
 pub trait AbstractInterruptController: Sized {
-    fn initialize();
+    fn init();
     
     fn is_enabled() -> bool;
     fn enable();
@@ -33,17 +33,17 @@ pub trait AbstractInterruptController: Sized {
 }
 
 pub trait AbstractMemoryManager: Sized {
-    
+    fn init();
 }
 
 pub trait AbstractTimer: Sized {
-    
+    fn init();
 }
 
 pub trait AbstractArch: Sized {
     // type MemoryManager: AbstractMemoryManager;
     type Interrupt: AbstractInterruptController;
-    // type Timer: AbstractTimer;
+    type Timer: AbstractTimer;
 
     /// Platform initialization code
     /// Initialize: VirtualMemory/ExceptionVectorTable/...
@@ -69,6 +69,7 @@ pub mod Target {
     use super::*;
     pub type Arch = TargetArch;
     pub type Interrupt = <TargetArch as AbstractArch>::Interrupt;
+    pub type Timer = <TargetArch as AbstractArch>::Timer;
 }
 
 /// Entry point for the low-level boot code

@@ -8,6 +8,7 @@ pub enum SysCall {
 }
 
 pub unsafe fn syscall(id: SysCall, args: [usize; 6]) -> isize {
+    // loop {}
     let ret: isize;
     asm! {
         "svc #0"

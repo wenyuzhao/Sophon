@@ -142,7 +142,6 @@ impl Task {
         // Assign an id
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
         // Alloc task struct
-        println!("create_kernel_task 1");
         let mut task = box Task {
             id,
             context: Context::new(entry as _),
@@ -152,7 +151,6 @@ impl Task {
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
         };
-        println!("create_kernel_task 2");
         // Add this task to the schedular
         GLOBAL_TASK_SCHEDULER.register_new_task(task)
     }

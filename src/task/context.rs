@@ -101,7 +101,6 @@ impl Context {
             p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
             p4_frame
         };
-        println!("-");
         // Alloc kernel stack
         let kernel_stack = KernelStack::new();
         let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
@@ -194,11 +193,13 @@ switch_context:
     stp q30, q31, [x0], #32
 
     tlbi vmalle1is
-    DSB ISH
+    DSB SY
+    DMB SY
     isb
     msr	ttbr0_el1, x2
     tlbi vmalle1is
-    DSB ISH
+    DSB SY
+    DMB SY
     isb
 
     // Restore registers

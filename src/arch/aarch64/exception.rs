@@ -53,7 +53,7 @@ unsafe fn get_exception_class() -> ExceptionClass {
 #[no_mangle]
 pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> isize {
     let exception = get_exception_class();
-    println!("Exception received {:?}", exception);
+    // println!("Exception received {:?}", exception);
     match exception {
         ExceptionClass::SVCAArch64 => {
             let r = super::interrupt::handle_interrupt(InterruptId::Soft, &mut *exception_frame);
@@ -68,7 +68,7 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> i
             println!("Data Abort {:?}, {:?}", far as *mut (), crate::task::Task::current().unwrap().id());
             crate::mm::handle_user_pagefault(far.into());
         },
-        v => panic!("Unknown exception 0b{:b}", v as u32),
+        v => println!("Unknown exception 0b{:b}", unsafe { ::core::mem::transmute::<_, u32>(v) }),
     }
     0
 }
@@ -99,7 +99,7 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
         unimplemented!();
     }
 
-    if crate::timer::pending_timer_irq() {
+    if super::timer::pending_timer_irq() {
         super::interrupt::handle_interrupt(InterruptId::Timer, exception_frame);
     } else {
         println!("Unknown IRQ");

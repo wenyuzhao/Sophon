@@ -1,6 +1,6 @@
 
-pub const ARM_GICD_BASE: usize = crate::timer::ARM_TIMER_BASE + 0x41000;
-pub const ARM_GICC_BASE: usize = crate::timer::ARM_TIMER_BASE + 0x42000;
+pub const ARM_GICD_BASE: usize = super::timer::ARM_TIMER_BASE + 0x41000;
+pub const ARM_GICC_BASE: usize = super::timer::ARM_TIMER_BASE + 0x42000;
 
 
 pub const IRQ_LINES: usize = 256;

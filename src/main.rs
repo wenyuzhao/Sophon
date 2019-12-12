@@ -37,16 +37,11 @@ mod syscall;
 mod mailbox;
 mod fb;
 // mod random;
-// mod exception;
-// mod start;
 mod mm;
-// mod interrupt;
-mod timer;
 mod task;
 mod init_process;
 mod kernel_process;
 mod utils;
-mod gic;
 mod arch;
 use cortex_a::regs::*;
 use arch::*;
@@ -56,18 +51,19 @@ static ALLOCATOR: mm::heap::GlobalAllocator = mm::heap::GlobalAllocator::new();
 
 pub extern fn kmain() -> ! {
     println!("Hello, Raspberry PI!");
-    println!("Current execution level: {}", (CurrentEL.get() & 0b1100) >> 2);
+    println!("[kernel: current execution level = {}]", (CurrentEL.get() & 0b1100) >> 2);
+    // Initialize kernel heap
     ALLOCATOR.init();
-    Target::Interrupt::initialize();
-
     // println!("Random: {} {} {}", random::random(0, 100), random::random(0, 100), random::random(0, 100));
-    // // Initialize & start timer
-    // interrupt::initialize();
+    // Initialize & start timer
+    Target::Interrupt::init();
+    println!("[kernel: interrupt initialized]");
     syscall::init();
-    timer::init();
-    println!("Timer init");
+    println!("[kernel: syscall initialized]");
+    Target::Timer::init();
+    println!("[kernel: timer initialized]");
     Target::Interrupt::enable();
-    println!("Int init");
+    println!("[kernel: interrupt enabled]");
 
     let task = task::Task::create_kernel_task(kernel_process::main);
     println!("Created kernel process: {:?} {:?}", task.id(), task.context.pc);
@@ -75,10 +71,9 @@ pub extern fn kmain() -> ! {
     println!("Created init process: {:?}", task.id());
     let task = task::Task::create_kernel_task(kernel_process::idle);
     println!("Created idle process: {:?}", task.id());
-// loop {}
 
-    // // Manually trigger a page fault
-    // // unsafe { *(0xdeadbeef as *mut u8) = 0; }
+    // Manually trigger a page fault
+    // unsafe { *(0xdeadbeef as *mut u8) = 0; }
     loop {
         task::GLOBAL_TASK_SCHEDULER.schedule();
     }
