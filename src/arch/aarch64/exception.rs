@@ -66,7 +66,7 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> i
             asm!("mrs $0, elr_el1":"=r"(elr));
             println!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
             println!("Data Abort {:?}, {:?}", far as *mut (), crate::task::Task::current().unwrap().id());
-            crate::mm::handle_user_pagefault(far.into());
+            super::mm::handle_user_pagefault(far.into());
         },
         v => panic!("Unknown exception 0b{:b}", unsafe { ::core::mem::transmute::<_, u32>(v) }),
     }

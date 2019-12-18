@@ -1,5 +1,4 @@
 use super::*;
-use crate::mm::paging;
 use cortex_a::{asm, regs::*, barrier};
 
 #[inline(always)]
@@ -56,7 +55,7 @@ unsafe extern fn _start_el1() -> ! {
     zero_bss();
     // Setup paging
     crate::debug_boot::log("[boot: setup kernel pagetable]");
-    crate::mm::paging::setup_kernel_pagetables();
+    super::mm::paging::setup_kernel_pagetables();
     boot_log!("[boot: setup stack pointer]");
     SP.set(SP.get() | 0xffff0000_00000000);
     boot_log!("[boot: switch to high address space...]");
@@ -70,10 +69,9 @@ unsafe extern fn _start_el1() -> ! {
 /// Including SP, PC and other registers
 /// i.e. `address & 0xffff0000_00000000 == 0xffff0000_00000000`
 unsafe extern fn _start_el1_high_address_space() -> ! {
-    crate::mm::BOOTED = true;
     println!("[boot: _start_el1_high_address_space]");
     let ptr = _start_el1_high_address_space as *const unsafe extern fn() -> !;
-    crate::mm::paging::clear_temp_user_pagetable();
+    super::mm::paging::clear_temp_user_pagetable();
     // Set EL1 interrupt vector
     println!("[boot: set interrupt vector]");
     VBAR_EL1.set((&exception::exception_handlers as *const _ as usize | 0xffff0000_00000000) as _);

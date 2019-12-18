@@ -1,4 +1,5 @@
 // mod device;
+use crate::mm::*;
 
 #[repr(usize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -33,7 +34,12 @@ pub trait AbstractInterruptController: Sized {
 }
 
 pub trait AbstractMemoryManager: Sized {
-    fn init();
+    fn alloc_frame<S: PageSize>() -> Frame<S>;
+    fn dealloc_frame<S: PageSize>(frame: Frame<S>);
+    fn map<S: PageSize>(page: Page<S>, frame: Frame<S>, flags: PageFlags);
+    fn translate(address: Address<V>) -> Option<(Address<P>, PageFlags)>;
+    fn update_flags<S: PageSize>(page: Page<S>, flags: PageFlags);
+    fn unmap<S: PageSize>(page: Page<S>);
 }
 
 pub trait AbstractTimer: Sized {
@@ -50,6 +56,7 @@ pub trait AbstractContext: Sized {
 pub trait AbstractArch: Sized {
     type Interrupt: AbstractInterruptController;
     type Timer: AbstractTimer;
+    type MemoryManager: AbstractMemoryManager;
     type Context: AbstractContext;
 
     /// Platform initialization code
@@ -78,6 +85,7 @@ pub mod Target {
     pub type Interrupt = <SelectedArch as AbstractArch>::Interrupt;
     pub type Timer = <SelectedArch as AbstractArch>::Timer;
     pub type Context = <SelectedArch as AbstractArch>::Context;
+    pub type MemoryManager = <SelectedArch as AbstractArch>::MemoryManager;
 }
 
 

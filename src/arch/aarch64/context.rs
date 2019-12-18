@@ -4,7 +4,9 @@ use cortex_a::regs::*;
 use crate::mm::*;
 use crate::mm::heap_constants::*;
 use crate::arch::*;
-
+use super::mm::frame_allocator;
+use super::mm::page_table::*;
+use super::mm::page_table::PageFlags;
 
 
 #[repr(C, align(4096))]
@@ -22,11 +24,11 @@ impl KernelStack {
     }
     pub fn init(&self) {
         let guard_page = Page::<Size4K, V>::new(Address::from(&self.guard as *const [u8; Size4K::SIZE]));
-        update_kernel_page_flags(guard_page, PageFlags::_KERNEL_STACK_GUARD_FLAGS);
+        PageTable::<L4>::get(true).update_flags(guard_page, PageFlags::_KERNEL_STACK_GUARD_FLAGS);
         let stack_page_start = Page::<Size4K, V>::new(Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]));
         let stack_page_end = stack_page_start.add_usize(KERNEL_STACK_PAGES).unwrap();
         for stack_page in stack_page_start..stack_page_end {
-            update_kernel_page_flags(stack_page, PageFlags::_KERNEL_STACK_FLAGS);
+            PageTable::<L4>::get(true).update_flags(stack_page, PageFlags::_KERNEL_STACK_FLAGS);
         }
     }
     pub fn start_address(&self) -> Address {
@@ -48,11 +50,11 @@ impl Drop for KernelStack {
     // Unprotect stack pages
     fn drop(&mut self) {
         let guard_page = Page::<Size4K, V>::new(Address::from(&self.guard as *const [u8; Size4K::SIZE]));
-        update_kernel_page_flags(guard_page, PageFlags::_KERNEL_DATA_FLAGS_4K);
+        PageTable::<L4>::get(true).update_flags(guard_page, PageFlags::_KERNEL_DATA_FLAGS_4K);
         let stack_page_start = Page::<Size4K, V>::new(Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]));
         let stack_page_end = stack_page_start.add_usize(KERNEL_STACK_PAGES).unwrap();
         for stack_page in stack_page_start..stack_page_end {
-            update_kernel_page_flags(stack_page, PageFlags::_KERNEL_DATA_FLAGS_4K);
+            PageTable::<L4>::get(true).update_flags(stack_page, PageFlags::_KERNEL_DATA_FLAGS_4K);
         }
     }
 }
@@ -91,7 +93,7 @@ impl AbstractContext for Context {
         // Alloc page table
         let p4 = unsafe {
             let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
-            let p4_page = crate::mm::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
+            let p4_page = super::mm::page_table::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
             let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
             for i in 0..512 {
                 p4.entries[i].clear();
@@ -133,7 +135,7 @@ impl AbstractContext for Context {
             let sp_offset = self.sp as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
             (ctx.kernel_stack.as_ref().unwrap().start_address() + sp_offset).as_ptr_mut()
         };
-        ctx.p4 = paging::fork_page_table(self.p4);
+        ctx.p4 = super::mm::paging::fork_page_table(self.p4);
         // Set parent/child process return value
         // unsafe {
         //     (*self.exception_frame).x0 = 0;
