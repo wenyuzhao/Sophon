@@ -6,11 +6,14 @@ use Target::MemoryManager;
 
 bitflags! {
     pub struct PageFlags: usize {
-        const PRESENT     = 1 << 0;
-        const ACCESSED    = 1 << 1;
-        const KERNEL      = 1 << 2;
-        const NO_WRITE    = 1 << 3;
-        const NO_EXEC     = 1 << 4;
+        const PAGE_4K     = 0b00 << 0;
+        const PAGE_2M     = 0b01 << 0;
+        const PAGE_1G     = 0b10 << 0;
+        const PRESENT     = 0b1 << 2;
+        const ACCESSED    = 0b1 << 3;
+        const KERNEL      = 0b1 << 4;
+        const NO_WRITE    = 0b1 << 5;
+        const NO_EXEC     = 0b1 << 6;
     }
 }
 
@@ -25,6 +28,8 @@ impl PageFlags {
 
 /// Allocate a frame and map it to the given virtual address
 pub fn memory_map(address: Address, size: usize, mut flags: PageFlags) -> Result<Address, ()> {
+    debug_assert!(!flags.contains(PageFlags::PAGE_2M));
+    debug_assert!(!flags.contains(PageFlags::PAGE_1G));
     assert!(Page::<Size4K>::is_aligned(address));
     assert!(Page::<Size4K>::is_aligned(size.into()));
     let start_page = Page::<Size4K>::new(address);

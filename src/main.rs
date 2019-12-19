@@ -28,6 +28,8 @@ extern crate bitflags;
 extern crate alloc;
 extern crate goblin;
 #[macro_use]
+mod utils;
+#[macro_use]
 mod debug;
 #[macro_use]
 mod syscall;
@@ -36,7 +38,6 @@ mod heap;
 mod task;
 mod init_process;
 mod kernel_process;
-mod utils;
 mod arch;
 use cortex_a::regs::*;
 use arch::*;

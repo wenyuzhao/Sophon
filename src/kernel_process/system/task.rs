@@ -12,7 +12,7 @@ pub fn fork(m: &Message) {
         }
     }
     println!("Fork task start");
-    let child_task = parent_task.fork();
+    let child_task = Target::Interrupt::uninterruptable(|| parent_task.fork());
     println!("Fork task end");
 
     let mut reply_parent = *m;

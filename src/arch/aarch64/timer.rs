@@ -2,7 +2,7 @@ use super::constants::*;
 use cortex_a::regs::*;
 use crate::arch::*;
 
-const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 10000; // Hz
 
 // pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
 
