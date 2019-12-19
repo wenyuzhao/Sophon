@@ -59,7 +59,7 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
 
     #[inline]
     pub const fn align(a: Address<K>) -> Address<K> {
-        Address::new((a.as_usize() & !Self::MASK))
+        Address::new(a.as_usize() & !Self::MASK)
     }
 
     #[inline]

@@ -1,6 +1,3 @@
-use core::fmt;
-use core::fmt::Write;
-use spin::Mutex;
 use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
 use super::constants::*;

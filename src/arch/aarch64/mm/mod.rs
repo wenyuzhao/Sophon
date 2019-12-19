@@ -4,7 +4,6 @@ pub mod page_table;
 pub mod paging;
 use page_table::PageFlags as ArchPageFlags;
 use page_table::{PageTable, L4};
-use crate::mm::{PageFlags, page::*};
 
 pub struct MemoryManager;
 

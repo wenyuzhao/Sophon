@@ -1,5 +1,4 @@
-use super::address::*;
-use super::page::*;
+use crate::memory::*;
 
 pub const KERNEL_CORE0_STACK_START: usize = 0xffff0000_0007c000;
 pub const KERNEL_CORE0_STACK_END:   usize = 0xffff0000_00080000;

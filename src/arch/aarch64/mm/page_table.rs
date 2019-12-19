@@ -1,9 +1,7 @@
 use cortex_a::regs::*;
 use core::marker::PhantomData;
 use super::frame_allocator;
-use crate::mm::address::*;
-use crate::mm::page::*;
-use crate::mm::heap_constants::*;
+use crate::memory::*;
 
 
 bitflags! {

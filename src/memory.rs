@@ -1,10 +1,5 @@
-pub mod address;
-pub mod heap_constants;
-pub mod page;
-pub mod heap;
-
-pub use self::address::*;
-pub use self::page::*;
+pub use crate::utils::address::*;
+pub use crate::utils::page::*;
 
 use crate::arch::*;
 use Target::MemoryManager;

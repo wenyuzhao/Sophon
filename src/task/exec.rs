@@ -1,8 +1,6 @@
 use goblin::elf::{Elf, program_header};
-use crate::mm::*;
-use crate::mm::heap_constants::*;
-use core::iter::Step;
-use cortex_a::regs::*;
+use crate::memory::*;
+use crate::heap::constants::*;
 
 
 

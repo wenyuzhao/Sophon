@@ -1,8 +1,6 @@
 use spin::Mutex;
-use crate::mm::address::*;
-use crate::mm::page::*;
-use crate::mm::heap_constants::*;
-use core::ops::Index;
+use crate::memory::*;
+use crate::heap::constants::*;
 
 const SMALL_FRAMES_IN_HEAP: usize = MAX_HEAP_SIZE >> Size4K::LOG_SIZE;
 const LARGE_FRAMES_IN_HEAP: usize = MAX_HEAP_SIZE >> Size2M::LOG_SIZE;
@@ -38,7 +36,7 @@ impl BitMapAllocator {
         let bit_index = i & ((1 << LOG_BITS_IN_ENTRY) - 1);
         if v {
             debug_assert!(!self.get_4k(i));
-            self.map4k[entry_index] |= (1 << bit_index);
+            self.map4k[entry_index] |= 1 << bit_index;
         } else {
             debug_assert!(self.get_4k(i));
             self.map4k[entry_index] &= !(1 << bit_index);
@@ -55,7 +53,7 @@ impl BitMapAllocator {
         let bit_index = i & ((1 << LOG_BITS_IN_ENTRY) - 1);
         if v {
             debug_assert!(!self.get_2m(i));
-            self.map2m[entry_index] |= (1 << bit_index);
+            self.map2m[entry_index] |= 1 << bit_index;
         } else {
             debug_assert!(self.get_2m(i));
             self.map2m[entry_index] &= !(1 << bit_index);
@@ -169,9 +167,6 @@ pub fn mark_as_used<S: PageSize>(frame: Frame<S>) {
         allocator.set_2m(index_2m, true);
     }
 }
-
-use core::sync::atomic::{Ordering, AtomicBool};
-static AB: AtomicBool = AtomicBool::new(false);
 
 pub fn alloc<S: PageSize>() -> Option<Frame<S>> {
     let mut allocator = ALLOCATOR.lock();

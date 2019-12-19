@@ -14,7 +14,6 @@
 #![feature(alloc_error_handler)]
 #![feature(new_uninit)]
 #![feature(type_alias_impl_trait)]
-#![allow(unused)]
 #![no_std]
 #![no_main]
 
@@ -24,6 +23,7 @@ extern crate spin;
 extern crate cortex_a;
 #[macro_use]
 extern crate bitflags;
+#[allow(unused)]
 #[macro_use]
 extern crate alloc;
 extern crate goblin;
@@ -31,7 +31,8 @@ extern crate goblin;
 mod debug;
 #[macro_use]
 mod syscall;
-mod mm;
+mod memory;
+mod heap;
 mod task;
 mod init_process;
 mod kernel_process;
@@ -41,7 +42,7 @@ use cortex_a::regs::*;
 use arch::*;
 
 #[global_allocator]
-static ALLOCATOR: mm::heap::GlobalAllocator = mm::heap::GlobalAllocator::new();
+static ALLOCATOR: heap::GlobalAllocator = heap::GlobalAllocator::new();
 
 
 pub extern fn kmain() -> ! {

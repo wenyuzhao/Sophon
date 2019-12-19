@@ -1,5 +1,5 @@
 // mod device;
-use crate::mm::*;
+use crate::memory::*;
 
 #[repr(usize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -66,7 +66,7 @@ pub trait AbstractArch: Sized {
 
     /// Platform initialization code
     /// Initialize: VirtualMemory/ExceptionVectorTable/...
-    #[inline(always)]
+    /// Should be tagged with `#[inline(always)]`
     #[naked]
     unsafe fn _start() -> !;
 }

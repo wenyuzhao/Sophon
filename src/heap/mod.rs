@@ -1,8 +1,11 @@
+pub mod constants;
+
 use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
 use core::cmp::{max, min};
-use super::address::*;
-use super::heap_constants;
+use crate::memory::*;
+
+
 
 const MIN_SIZE: usize = 1 << 3;
 
@@ -18,8 +21,8 @@ impl FreeListAllocator {
     }
 
     fn init(&mut self) {
-        let heap_start: Address = heap_constants::kernel_heap_start().into();
-        let heap_limit: Address = heap_constants::kernel_heap_end().into();
+        let heap_start: Address = constants::kernel_heap_start().into();
+        let heap_limit: Address = constants::kernel_heap_end().into();
         println!("Heap: {:?}..{:?}", heap_start, heap_limit);
         let mut cursor = heap_start;
         while cursor < heap_limit {

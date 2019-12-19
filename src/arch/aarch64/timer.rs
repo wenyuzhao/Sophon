@@ -1,6 +1,5 @@
 use super::constants::*;
 use cortex_a::regs::*;
-use super::gic::*;
 use crate::arch::*;
 
 const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz

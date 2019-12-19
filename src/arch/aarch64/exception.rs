@@ -1,7 +1,4 @@
-use super::constants::*;
-use cortex_a::regs::*;
 use crate::arch::*;
-use super::gic::*;
 
 #[repr(usize)]
 #[derive(Debug)]

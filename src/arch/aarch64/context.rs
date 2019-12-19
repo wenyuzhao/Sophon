@@ -1,8 +1,7 @@
 use alloc::boxed::Box;
 use core::iter::Step;
-use cortex_a::regs::*;
-use crate::mm::*;
-use crate::mm::heap_constants::*;
+use crate::memory::*;
+use crate::heap::constants::*;
 use crate::arch::*;
 use super::mm::frame_allocator;
 use super::mm::page_table::*;
