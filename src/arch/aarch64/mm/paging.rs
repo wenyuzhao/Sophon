@@ -5,7 +5,8 @@ use crate::mm::address::*;
 use crate::mm::page::*;
 use super::page_table::*;
 use crate::mm::heap_constants::*;
-use crate::gpio::*;
+use super::super::constants::*;
+use super::super::uart::boot_time_log;
 
 #[repr(C, align(4096))]
 struct TempFrames([usize; 512], [usize; 512], [usize; 512], [usize; 512]);
@@ -45,7 +46,7 @@ unsafe fn setup_ttbr0_el1() {
     //     (*p2).entries[get_index(ptr as _, 2)].set(Frame::<Size2M>::new(ptr.into()), PageFlags::_DEVICE_MEMORY_FLAGS_2M);
     // }
     {
-        let ptr = crate::gpio::GPIO_BASE & !0xFFFF0000_00000000;
+        let ptr = GPIO_BASE & !0xFFFF0000_00000000;
         let p3 = &TEMP_FRAMES.0 as *const _ as usize as *mut PageTable<L3>;
         let p2 = &TEMP_FRAMES.1 as *const _ as usize as *mut PageTable<L2>;
         // Map p3 to p4
@@ -107,7 +108,7 @@ pub fn clear_temp_user_pagetable() {
 
 pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     // Get video-core occupied memory
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 0]");
+    boot_time_log("[boot: setup_kernel_pagetables 0]");
     // <0x3c000000 2M> <0x40000000 2M>
     let (vcm_start, vcm_end) = {
         // use crate::mailbox::*;
@@ -123,14 +124,14 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
         // let size = 0x100_0000usize;
         // let start = Address::<P>::new(base_address as _);
         // let end = start + size as usize;
-        let start = Address::<P>::new(crate::gpio::PERIPHERAL_BASE & !0xFFFF0000_00000000);
+        let start = Address::<P>::new(PERIPHERAL_BASE & !0xFFFF0000_00000000);
         let end = start + 0x1000000 as usize;
         (Frame::<Size2M>::new(start), Frame::<Size2M>::new(end))
     };
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 1]");
+    boot_time_log("[boot: setup_kernel_pagetables 1]");
     // Reserve frames for later identity mapping
     
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 2]");
+    boot_time_log("[boot: setup_kernel_pagetables 2]");
     // Set some extra MMU attributes
     // const T0SZ: u64 = 0x10 << 0;
     // const T1SZ: u64 = 0x10 << 16;
@@ -165,11 +166,11 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     );
 
     
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 3]");
+    boot_time_log("[boot: setup_kernel_pagetables 3]");
     setup_ttbr0_el1();
     setup_ttbr1_el1();
 
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 3.1]");
+    boot_time_log("[boot: setup_kernel_pagetables 3.1]");
     
     // let ips = ID_AA64MMFR0_EL1.read(ID_AA64MMFR0_EL1::PARange);
     TCR_EL1.write(
@@ -199,7 +200,7 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     //         + TCR_EL1::EPD0::EnableTTBR0Walks
     //         + TCR_EL1::T0SZ.val(32), // TTBR0 spans 4 GiB total.
     // );
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 4]");
+    boot_time_log("[boot: setup_kernel_pagetables 4]");
     // Enable MMU
     barrier::isb(barrier::SY);
     // Enable the MMU and turn on data and instruction caching.
@@ -210,7 +211,7 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     // SCTLR_EL1.set(SCTLR_EL1.get() | 0x1);
     // boot_log!("xxx");
     // loop {}
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 5]");
+    boot_time_log("[boot: setup_kernel_pagetables 5]");
     {
         // Stack + Kernel: 0x0 ~ KERNEL_HEAP_END
         let blocks = (kernel_heap_end() & 0x0000ffff_ffffffff) >> Size2M::LOG_SIZE;
@@ -219,25 +220,25 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
             mark_as_used::<Size2M>(f, 1);
         }
     }
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 5.1]");
+    boot_time_log("[boot: setup_kernel_pagetables 5.1]");
     // Map kernel code
     let kernel_code_start = KERNEL_START & 0x0000ffff_ffffffff;
     let kernel_code_end = kernel_end() & 0x0000ffff_ffffffff;
     let kernel_code_start_frame = Frame::<Size4K>::new(kernel_code_start.into());
     let frames = (kernel_code_end - kernel_code_start + Size4K::MASK) >> Size4K::LOG_SIZE;
     identity_map_kernel_memory_nomark::<Size4K>(kernel_code_start_frame, frames, PageFlags::_KERNEL_STACK_FLAGS);
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 6]");
+    boot_time_log("[boot: setup_kernel_pagetables 6]");
     // Map core 0 kernel stack
     let start_start = KERNEL_CORE0_STACK_START & 0x0000ffff_ffffffff;
     let pages = (KERNEL_CORE0_STACK_END - KERNEL_CORE0_STACK_START) >> Size4K::LOG_SIZE;
     identity_map_kernel_memory_nomark::<Size4K>(Frame::new(start_start.into()), pages, PageFlags::_KERNEL_STACK_FLAGS);
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 7]");
+    boot_time_log("[boot: setup_kernel_pagetables 7]");
     // Map kernel heap
     let kernel_heap_start = kernel_heap_start() & 0x0000ffff_ffffffff;
     let kernel_heap_start_frame = Frame::<Size4K>::new(kernel_heap_start.into());
     // boot_log!("{:?} {:?}", kernel_heap_start_frame, KERNEL_HEAP_PAGES);
     identity_map_kernel_memory_nomark::<Size4K>(kernel_heap_start_frame, KERNEL_HEAP_PAGES, PageFlags::_KERNEL_DATA_FLAGS_4K);
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 8]");
+    boot_time_log("[boot: setup_kernel_pagetables 8]");
     
     // Map VC Memory
     let p4 = PageTable::<L4>::get(true);
@@ -245,13 +246,13 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
         p4.identity_map::<Size2M>(f, PageFlags::_DEVICE_MEMORY_FLAGS_2M);
     }
     // println!("xxx {:?} {:?}", vcm_start, vcm_end);
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 9]");
+    boot_time_log("[boot: setup_kernel_pagetables 9]");
     // Mark ARM Generic Timer Mapped Memory
     let arm_frame = Frame::<Size2M>::new(ARM_TIMER_BASE.into());
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 10]");
+    boot_time_log("[boot: setup_kernel_pagetables 10]");
     p4.identity_map::<Size2M>(arm_frame, PageFlags::_DEVICE_MEMORY_FLAGS_2M);
     // boot_log!("arm_frame {:?} {:?}", arm_frame, arm_frame.start() + Size2M::SIZE);
-    crate::debug_boot::log("[boot: setup_kernel_pagetables 11]");
+    boot_time_log("[boot: setup_kernel_pagetables 11]");
     // boot_log!("xxx {:?} {:?}", vcm_start, vcm_end);
     // crate::debug_boot::log("[boot: setup_kernel_pagetables 10]");
 }

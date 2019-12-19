@@ -53,11 +53,16 @@ pub trait AbstractContext: Sized {
     unsafe extern fn switch_to(&mut self, ctx: &Self);
 }
 
+pub trait AbstractLogger: Sized {
+    fn put(c: char);
+}
+
 pub trait AbstractArch: Sized {
     type Interrupt: AbstractInterruptController;
     type Timer: AbstractTimer;
     type MemoryManager: AbstractMemoryManager;
     type Context: AbstractContext;
+    type Logger: AbstractLogger;
 
     /// Platform initialization code
     /// Initialize: VirtualMemory/ExceptionVectorTable/...
@@ -86,6 +91,7 @@ pub mod Target {
     pub type Timer = <SelectedArch as AbstractArch>::Timer;
     pub type Context = <SelectedArch as AbstractArch>::Context;
     pub type MemoryManager = <SelectedArch as AbstractArch>::MemoryManager;
+    pub type Logger = <SelectedArch as AbstractArch>::Logger;
 }
 
 

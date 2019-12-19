@@ -36,9 +36,6 @@ pub fn kernel_heap_end() -> usize {
     kernel_heap_start() + KERNEL_HEAP_SIZE
 }
 
-pub const MMIO_START: usize = crate::gpio::PERIPHERAL_BASE - 0x1000000;
-pub const MMIO_END: usize = MMIO_START + 0x1000000;
-
 pub const LOG_MAX_HEAP_SIZE: usize = 32; // 4G
 pub const MAX_HEAP_SIZE: usize = 1 << LOG_MAX_HEAP_SIZE; // 4G
 

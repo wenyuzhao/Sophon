@@ -1,5 +1,6 @@
 use super::*;
 use cortex_a::{asm, regs::*, barrier};
+use super::uart::boot_time_log;
 
 #[inline(always)]
 #[naked]
@@ -15,9 +16,9 @@ pub unsafe fn _start() -> ! {
     "};
     // Setup core 0 stack
     asm!("mov sp, $0"::"r"(0x80000));
-    crate::debug_boot::UART::init();
+    super::uart::UART0::init();
     assert!(CurrentEL.get() == CurrentEL::EL::EL2.value);
-    crate::debug_boot::log("[boot...]");
+    boot_time_log("[boot...]");
     CNTHCTL_EL2.write(CNTHCTL_EL2::EL1PCEN::SET + CNTHCTL_EL2::EL1PCTEN::SET);
     CNTVOFF_EL2.set(0);
     // Switch to EL1
@@ -49,16 +50,16 @@ unsafe fn zero_bss() {
 /// kernel code is running in Exception Level 1
 unsafe extern fn _start_el1() -> ! {
     // Enable all co-processors
-    crate::debug_boot::log("[boot: _start_el1]");
+    boot_time_log("[boot: _start_el1]");
     asm!("msr cpacr_el1, $0"::"r"(0xfffffff));
-    crate::debug_boot::log("[boot: zero bss]");
+    boot_time_log("[boot: zero bss]");
     zero_bss();
     // Setup paging
-    crate::debug_boot::log("[boot: setup kernel pagetable]");
+    boot_time_log("[boot: setup kernel pagetable]");
     super::mm::paging::setup_kernel_pagetables();
-    boot_log!("[boot: setup stack pointer]");
+    boot_time_log("[boot: setup stack pointer]");
     SP.set(SP.get() | 0xffff0000_00000000);
-    boot_log!("[boot: switch to high address space...]");
+    boot_time_log("[boot: switch to high address space...]");
     let fn_addr = _start_el1_high_address_space as usize | 0xffff0000_00000000;
     let func: unsafe extern fn() -> ! = ::core::mem::transmute(fn_addr);
     func()

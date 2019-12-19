@@ -1,4 +1,4 @@
-use crate::gpio::*;
+use super::constants::*;
 use cortex_a::regs::*;
 use super::gic::*;
 use crate::arch::*;

@@ -5,6 +5,8 @@ mod exception;
 mod timer;
 mod context;
 mod mm;
+mod uart;
+mod constants;
 
 use super::*;
 
@@ -15,6 +17,7 @@ impl AbstractArch for AArch64 {
     type Timer = timer::Timer;
     type Context = context::Context;
     type MemoryManager = mm::MemoryManager;
+    type Logger = uart::UART0;
 
     #[inline(always)]
     #[naked]

@@ -28,15 +28,9 @@ extern crate bitflags;
 extern crate alloc;
 extern crate goblin;
 #[macro_use]
-mod debug_boot;
-#[macro_use]
 mod debug;
-mod gpio;
 #[macro_use]
 mod syscall;
-mod mailbox;
-mod fb;
-// mod random;
 mod mm;
 mod task;
 mod init_process;
@@ -45,6 +39,7 @@ mod utils;
 mod arch;
 use cortex_a::regs::*;
 use arch::*;
+
 #[global_allocator]
 static ALLOCATOR: mm::heap::GlobalAllocator = mm::heap::GlobalAllocator::new();
 
