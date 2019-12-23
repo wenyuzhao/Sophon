@@ -119,12 +119,16 @@ impl GlobalAllocator {
 
 unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let a = self.fa.lock().alloc(&layout).as_ptr_mut();
+        let a = uninterruptable! {
+            self.fa.lock().alloc(&layout).as_ptr_mut()
+        };
         // println!("alloc {:?}", a);
         a
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        self.fa.lock().free(ptr.into(), &layout)
+        uninterruptable! {
+            self.fa.lock().free(ptr.into(), &layout)
+        }
     }
 }

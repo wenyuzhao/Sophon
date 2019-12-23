@@ -30,7 +30,9 @@ pub struct ExceptionFrame {
     pub q: [u128; 32],
     pub elr_el1: usize,
     pub spsr_el1: usize,
-    pub x_8_32: [u64; 32 - 8],
+    pub x30: usize,
+    pub x31: usize,
+    pub x8_to_x29: [u64; 29 - 8 + 1],
     pub x6: usize,
     pub x7: usize,
     pub x4: usize,
@@ -48,7 +50,10 @@ unsafe fn get_exception_class() -> ExceptionClass {
 }
 
 #[no_mangle]
-pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> isize {
+pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
+    // println!("EF = {:?}", exception_frame as *mut _);
+    debug_assert!(crate::task::Task::current().unwrap().context.exception_frame as usize == 0);
+    crate::task::Task::current().unwrap().context.exception_frame = exception_frame;
     let exception = get_exception_class();
     // println!("Exception received {:?}", exception);
     match exception {
@@ -67,12 +72,16 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) -> i
         },
         v => panic!("Unknown exception 0b{:b}", unsafe { ::core::mem::transmute::<_, u32>(v) }),
     }
-    0
+    
+    unsafe {
+        crate::task::Task::current().unwrap().context.return_to_user();
+    };
 }
 
 #[cfg(feature="device-raspi4")]
 #[no_mangle]
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
+    crate::task::Task::current().unwrap().context.exception_frame = exception_frame;
     let GICC = GICC::get();
     let iar = GICC.IAR;
     let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
@@ -87,11 +96,18 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
         }
         GICC.EOIR = iar;
     }
+    
+    unsafe {
+        crate::task::Task::current().unwrap().context.return_to_user();
+    }
 }
 
 #[cfg(feature="device-raspi3")]
 #[no_mangle]
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
+    // println!("EF = {:?}", exception_frame as *mut _);
+    debug_assert!(crate::task::Task::current().unwrap().context.exception_frame as usize == 0);
+    crate::task::Task::current().unwrap().context.exception_frame = exception_frame;
     if !cfg!(feature="qemu") {
         unimplemented!();
     }
@@ -102,17 +118,23 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
         println!("Unknown IRQ");
         loop {}
     }
+    unsafe {
+        crate::task::Task::current().unwrap().context.return_to_user();
+    }
 }
 
 extern {
     pub static exception_handlers: u8;
+    pub fn exit_exception() -> !;
 }
+
 
 // FIXME: We may need to switch stack after enter an exception,
 //        to avoid stack overflow.
 // Exception handlers table
 global_asm! {"
 .global exception_handlers
+.global exit_exception
 
 .macro push_all
     stp x0,  x1,  [sp, #-16]!
@@ -198,19 +220,21 @@ global_asm! {"
     b 0b
 .endm
 
+exit_exception:
+    pop_all
+    eret
+
 except:
     push_all
     mov x0, sp
     bl handle_exception
-    pop_all
-    eret
+    except_hang 0
 
 irq:
     push_all
     mov x0, sp
     bl handle_interrupt
-    pop_all
-    eret
+    except_hang 0
 
     .balign 4096
 exception_handlers:

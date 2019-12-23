@@ -50,7 +50,8 @@ pub trait AbstractContext: Sized {
     fn empty() -> Self;
     fn new(entry: *const extern fn() -> !) -> Self;
     fn fork(&self) -> Self;
-    unsafe extern fn switch_to(&mut self, ctx: &Self);
+    // unsafe extern fn switch_to(&mut self, ctx: &Self);
+    unsafe extern fn return_to_user(&mut self) -> !;
 }
 
 pub trait AbstractLogger: Sized {

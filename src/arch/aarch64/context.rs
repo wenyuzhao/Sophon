@@ -6,7 +6,9 @@ use crate::arch::*;
 use super::mm::frame_allocator;
 use super::mm::page_table::*;
 use super::mm::page_table::PageFlags;
-
+use super::exception::ExceptionFrame;
+use cortex_a::regs::*;
+use crate::task::Message;
 
 #[repr(C, align(4096))]
 pub struct KernelStack {
@@ -61,24 +63,28 @@ impl Drop for KernelStack {
 /// Represents the archtectural context (i.e. registers)
 #[repr(C)]
 pub struct Context {
-    sp: *mut u8,
-    x19: usize,
-    x20: usize,
-    x21: usize,
-    x22: usize,
-    x23: usize,
-    x24: usize,
-    x25: usize,
-    x26: usize,
-    x27: usize,
-    x28: usize,
-    x29: usize, // FP
-    pc: *mut u8, // x30
+    pub exception_frame: *mut ExceptionFrame,
+    // sp: *mut u8,
+    // x19_to_x29: [usize; 11],
+    // x19: usize,
+    // x20: usize,
+    // x21: usize,
+    // x22: usize,
+    // x23: usize,
+    // x24: usize,
+    // x25: usize,
+    // x26: usize,
+    // x27: usize,
+    // x28: usize,
+    // x29: usize, // FP
+    entry_pc: *mut u8, // x30
 
-    q: [u128; 32], // Neon registers
+    // q: [u128; 32], // Neon registers
 
     p4: Frame,
     kernel_stack: Option<Box<KernelStack>>,
+    kernel_stack_top: *mut u8,
+    pub response_message: Option<Message>,
 }
 
 impl AbstractContext for Context {
@@ -104,48 +110,99 @@ impl AbstractContext for Context {
         let kernel_stack = KernelStack::new();
         let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
         let mut ctx = Self::empty();
-        ctx.pc = unsafe { entry as _ };
-        ctx.sp = sp;
+        ctx.entry_pc = unsafe { entry as _ };
+        ctx.kernel_stack_top = sp;
         ctx.p4 = p4;
         ctx.kernel_stack = Some(kernel_stack);
         ctx
     }
  
     fn fork(&self) -> Self {
+        // unimplemented!();
         let mut ctx = Context {
-            x19: self.x19, x20: self.x20, x21: self.x21, x22: self.x22,
-            x23: self.x23, x24: self.x24, x25: self.x25, x26: self.x26,
-            x27: self.x27, x28: self.x28, x29: self.x29,
-            sp: self.sp, pc: self.pc, p4: self.p4,
-            q: self.q.clone(),
-            // exception_frame: 0usize as _,
+            // x19: self.x19, x20: self.x20, x21: self.x21, x22: self.x22,
+            // x23: self.x23, x24: self.x24, x25: self.x25, x26: self.x26,
+            // x27: self.x27, x28: self.x28, x29: self.x29,
+            // sp: self.sp, pc: self.pc,pub exception_frame: *mut ExceptionFrame,
+            exception_frame: 0usize as _,
+            entry_pc: 0usize as _, // x30
+            p4: self.p4,
+            // q: self.q.clone(),
             kernel_stack: Some({
                 let mut kernel_stack = KernelStack::new();
                 kernel_stack.copy_from(self.kernel_stack.as_ref().unwrap());
                 kernel_stack
             }),
+            kernel_stack_top: 0usize as _,
+            response_message: None,
         };
-        // ctx.exception_frame = {
-        //     let ef_offset = self.exception_frame as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
-        //     (ctx.kernel_stack.as_ref().unwrap().start_address() + ef_offset).as_ptr_mut()
-        // };
-        ctx.sp = {
-            println!("Fork, sp = {:?}, kstack = {:?}", self.sp, self.kernel_stack.as_ref().unwrap().start_address());
-            let sp_offset = self.sp as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
+        ctx.exception_frame = {
+            println!("Fork, sp = {:?}, kstack = {:?}", self.exception_frame, self.kernel_stack.as_ref().unwrap().start_address());
+            let sp_offset = self.exception_frame as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
             (ctx.kernel_stack.as_ref().unwrap().start_address() + sp_offset).as_ptr_mut()
         };
         ctx.p4 = super::mm::paging::fork_page_table(self.p4);
-        // Set parent/child process return value
-        // unsafe {
-        //     (*self.exception_frame).x0 = 0;
-        //     (*ctx.exception_frame).x0 = 0;
-        // }
         ctx
     }
 
-    unsafe extern fn switch_to(&mut self, ctx: &Self) {
-        // println!(" -> PC {:?}", ctx.pc);
-        switch_context(self, ctx, ctx.p4.start().as_usize())
+    // unsafe extern fn switch_to(&mut self, ctx: &Self) {
+    //     switch_context(self, ctx, ctx.p4.start().as_usize())
+    // }
+
+    #[inline(never)]
+    unsafe extern fn return_to_user(&mut self) -> ! {
+        debug_assert!(!Target::Interrupt::is_enabled());
+        // Switch page table
+        if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
+            // asm! {"
+            //     tlbi vmalle1is
+            //     DSB SY
+            //     DMB SY
+            //     isb
+            //     msr	ttbr0_el1, $0
+            //     tlbi vmalle1is
+            //     DSB SY
+            //     DMB SY
+            //     isb
+            // "
+            // ::   "r"(self.p4.start().as_usize())
+            // }
+            asm! {"
+                msr	ttbr0_el1, $0
+                tlbi vmalle1is
+                DSB ISH
+                isb
+            "
+            ::   "r"(self.p4.start().as_usize())
+            }
+        }
+        
+        let exception_frame = {
+            if self.exception_frame as usize == 0 {
+                let mut frame: *mut ExceptionFrame = (self.kernel_stack_top as usize - ::core::mem::size_of::<ExceptionFrame>()) as _;
+                (*frame).elr_el1 = self.entry_pc as _;
+                (*frame).spsr_el1 = 0b0101;
+                // println!("initial exception_frame {:?}", frame);
+                frame
+            } else {
+                // println!("with exception_frame {:?}", self.exception_frame);
+                let p = self.exception_frame;
+                debug_assert!(p as usize != 0);
+                self.exception_frame = 0usize as _;
+                p
+            }
+        };
+        if let Some(msg) = self.response_message {
+            let slot = Address::from((*exception_frame).x2 as *mut Message);
+            if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
+                super::mm::handle_user_pagefault(slot);
+            }
+            slot.store(msg);
+            self.response_message = None;
+        }
+        asm!("mov sp, $0"::"r"(exception_frame));
+        // Return from exception
+        super::exception::exit_exception();
     }
 }
 
@@ -157,7 +214,6 @@ impl Drop for Context {
 
 extern {
     fn switch_context(from: &mut Context, to: &Context, p4: usize);
-    pub fn start_task();
 }
 
 global_asm! {"
@@ -192,15 +248,20 @@ switch_context:
     stp q28, q29, [x0], #32
     stp q30, q31, [x0], #32
 
-    tlbi vmalle1is
-    DSB SY
-    DMB SY
-    isb
     msr	ttbr0_el1, x2
-    tlbi vmalle1is
-    DSB SY
-    DMB SY
+	tlbi vmalle1is
+  	DSB ISH              // ensure completion of TLB invalidation
     isb
+    
+    // tlbi vmalle1is
+    // DSB SY
+    // DMB SY
+    // isb
+    // msr	ttbr0_el1, x2
+    // tlbi vmalle1is
+    // DSB SY
+    // DMB SY
+    // isb
 
     // Restore registers
 

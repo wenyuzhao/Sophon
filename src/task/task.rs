@@ -34,7 +34,7 @@ pub struct Task {
     id: TaskId,
     scheduler_state: RefCell<SchedulerState>,
     pub context: Context,
-    pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
+    pub block_to_receive_from: Mutex<Option<(Option<TaskId>, *mut Message)>>,
     pub incoming_message: Option<Message>,
     block_to_send: Option<Message>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
@@ -76,10 +76,11 @@ impl Task {
             }
         }
         // Block receiver
-        *receiver.block_to_receive_from.lock() = Some(from);
+        *receiver.block_to_receive_from.lock() = Some((from, slot as _));
         GLOBAL_TASK_SCHEDULER.block_current_task_as_receiving();
-        let t = Task::current().unwrap();
-        *slot = t.incoming_message.unwrap();
+        // let t = Task::current().unwrap();
+        // println!("slot = {:?}", slot as *const _);
+        // *slot = t.incoming_message.unwrap();
         return;//t.incoming_message.take().unwrap();
     }
     
@@ -93,10 +94,11 @@ impl Task {
             let mut block_to_receive_from_guard = receiver.block_to_receive_from.lock();
             if let Some(block_to_receive_from) = *block_to_receive_from_guard {
                 // println!("Receiver is blocked");
-                if block_to_receive_from.is_none() || block_to_receive_from == Some(sender.id) {
+                if block_to_receive_from.0.is_none() || block_to_receive_from.0 == Some(sender.id) {
                     receiver.incoming_message = Some(m);
                     *block_to_receive_from_guard = None;
                     println!("Unblock {:?} for message {:?}", receiver.id, m);
+                    receiver.context.response_message = Some(m);
                     GLOBAL_TASK_SCHEDULER.unblock_receiving_task(receiver.id);
                     return
                 }
@@ -104,6 +106,7 @@ impl Task {
         }
         // Else, block the sender until message is delivered
         {
+            unreachable!();
             sender.block_to_send = Some(m);
             let mut blocked_senders = receiver.blocked_senders.lock();
             blocked_senders.insert(sender.id);
@@ -156,19 +159,19 @@ impl Task {
         GLOBAL_TASK_SCHEDULER.get_current_task()
     }
 
-    pub fn switch(from_task: Option<&'static mut Task>, to_task: &'static mut Task) {
-        debug_assert!(from_task != Some(to_task), "{:?} {:?}", from_task.as_ref().map(|t| t.id), to_task.id);
-        Target::Interrupt::enable();
-        unsafe {
-            if let Some(from_task) = from_task {
-                from_task.context.switch_to(&to_task.context);
-            } else {
-                let mut temp_ctx = Context::empty();
-                temp_ctx.switch_to(&to_task.context);
-            }
-        }
-        // crate::interrupt::disable();
-    }
+    // pub fn switch(from_task: Option<&'static mut Task>, to_task: &'static mut Task) {
+    //     debug_assert!(from_task != Some(to_task), "{:?} {:?}", from_task.as_ref().map(|t| t.id), to_task.id);
+    //     Target::Interrupt::enable();
+    //     unsafe {
+    //         if let Some(from_task) = from_task {
+    //             from_task.context.switch_to(&to_task.context);
+    //         } else {
+    //             let mut temp_ctx = Context::empty();
+    //             temp_ctx.switch_to(&to_task.context);
+    //         }
+    //     }
+    //     // crate::interrupt::disable();
+    // }
 }
 
 unsafe impl Send for Task {}

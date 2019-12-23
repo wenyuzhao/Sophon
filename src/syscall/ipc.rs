@@ -17,9 +17,8 @@ pub fn receive(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize)
             Some(::core::mem::transmute::<_, TaskId>(id))
         }
     };
-    println!("{:?} start receive from {:?}", Task::current().unwrap().id(), from_id);
-    // Task::current().unwrap().context.exception_frame = exception_frame as _;
+    println!("{:?} start receiving from {:?}", Task::current().unwrap().id(), from_id);
     let msg_slot = unsafe { x2 as *mut Message };
-    Task::receive_message(from_id, unsafe { &mut *(x2 as *mut Message) });
+    Task::receive_message(from_id, unsafe { &mut *msg_slot });
     0
 }

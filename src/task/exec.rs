@@ -1,13 +1,16 @@
 use goblin::elf::{Elf, program_header};
 use crate::memory::*;
 use crate::heap::constants::*;
+use crate::arch::*;
 
 
 
 pub fn exec_user(elf_data: &[u8]) -> ! {
+    println!("exec_user");
     let elf = Elf::parse(elf_data).unwrap();
+    println!("exec_user 1");
     let entry: extern fn(isize, *const *const u8) = unsafe { ::core::mem::transmute(elf.header.e_entry) };
-    // println!("entry: {:?}", entry as *mut ());
+    println!("entry: {:?}", entry as *mut ());
     for p in elf.program_headers {
         if p.p_type == program_header::PT_LOAD {
             // println!("pheader = {:?}", p);
@@ -45,6 +48,7 @@ pub fn exec_user(elf_data: &[u8]) -> ! {
 
 fn exit_to_user(entry: extern fn(_argc: isize, _argv: *const *const u8), sp: Address) -> ! {
     println!("ENTER USER MODE SP={:?}", USER_STACK_END);
+    Target::Interrupt::disable();
     unsafe {
         asm! {
             "

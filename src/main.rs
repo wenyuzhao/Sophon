@@ -59,8 +59,6 @@ pub extern fn kmain() -> ! {
     println!("[kernel: syscall initialized]");
     Target::Timer::init();
     println!("[kernel: timer initialized]");
-    Target::Interrupt::enable();
-    println!("[kernel: interrupt enabled]");
 
     let task = task::Task::create_kernel_task(kernel_process::main);
     println!("Created kernel process: {:?}", task.id());
@@ -71,9 +69,7 @@ pub extern fn kmain() -> ! {
 
     // Manually trigger a page fault
     // unsafe { *(0xdeadbeef as *mut u8) = 0; }
-    loop {
-        task::GLOBAL_TASK_SCHEDULER.schedule();
-    }
+    task::GLOBAL_TASK_SCHEDULER.try_schedule();
 }
 
 

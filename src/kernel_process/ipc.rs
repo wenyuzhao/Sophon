@@ -2,11 +2,15 @@ use crate::task::*;
 
 pub fn send(mut m: Message) {
     m.sender = Task::current().unwrap().id();
-    Task::send_message(m)
+    unsafe {
+        asm!("svc #0"::"{x0}"(1), "{x1}"(&mut m as *mut Message): "x0" "x1" "memory");
+    }
 }
 
 pub fn receive(from: Option<TaskId>) -> Message {
-    let mut m = unsafe { ::core::mem::zeroed() };
-    Task::receive_message(from, &mut m);
-    m
+    unsafe {
+        let mut msg: Message = unsafe { ::core::mem::zeroed() };
+        asm!("svc #0"::"{x0}"(2), "{x1}"(-1isize), "{x2}"(&mut msg as *mut Message):"x0" "x1" "x2" "memory");
+        msg
+    }
 }
