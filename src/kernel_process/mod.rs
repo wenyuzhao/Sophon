@@ -13,7 +13,7 @@ pub extern fn main() -> ! {
     println!("Kernel process start");
     loop {
         debug_assert!(Target::Interrupt::is_enabled());
-        let mut m = ipc::receive(None);
+        let m = ipc::receive(None);
         println!("Kernel received {:?}", m);
         HANDLERS[m.kind](&m);
     }

@@ -15,7 +15,7 @@ impl Message {
         let ret = unsafe {
             syscall(SysCall::Send, [message_ptr, 0, 0, 0, 0, 0])
         };
-        // assert!(ret == 0);
+        assert!(ret == 0, "{:?}", ret);
     }
 
     pub fn receive(src: Option<usize>) -> Message {
@@ -31,7 +31,7 @@ impl Message {
         let ret = unsafe {
             syscall(SysCall::Receive, [::core::mem::transmute(src), message_ptr, 0, 0, 0, 0])
         };
-        // assert!(ret == 0);
+        assert!(ret == 0);
         m
     }
 
@@ -49,7 +49,7 @@ pub mod kernel {
     const KERNEL_TASK_ID: usize = 0;
     // const PID: usize = 0;
     const FORK: usize = 0;
-    const EXIT: usize = 1;
+    // const EXIT: usize = 1;
 
     pub fn fork() -> isize {
         let msg = Message {

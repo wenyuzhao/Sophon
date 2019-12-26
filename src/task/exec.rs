@@ -18,7 +18,7 @@ pub fn exec_user(elf_data: &[u8]) -> ! {
             let size = (p.p_memsz as usize + Size4K::MASK) / Size4K::SIZE;
             let end = start + (size << Size4K::LOG_SIZE);
             // println!("{:?} {:?} {:?}", start, size, end);
-            memory_map(start, size << Size4K::LOG_SIZE, PageFlags::user_code_flags());
+            memory_map(start, size << Size4K::LOG_SIZE, PageFlags::user_code_flags()).unwrap();
             let ptr: *mut u8 = start.as_ptr_mut();
             let mut cursor = start;
             while cursor < end {
@@ -41,12 +41,12 @@ pub fn exec_user(elf_data: &[u8]) -> ! {
         }
     }
     // Alloc user stack
-    memory_map(USER_STACK_START, USER_STACK_PAGES << Size4K::LOG_SIZE, PageFlags::user_stack_flags());
+    memory_map(USER_STACK_START, USER_STACK_PAGES << Size4K::LOG_SIZE, PageFlags::user_stack_flags()).unwrap();
     // Enter usermode
     exit_to_user(entry, USER_STACK_START);
 }
 
-fn exit_to_user(entry: extern fn(_argc: isize, _argv: *const *const u8), sp: Address) -> ! {
+fn exit_to_user(entry: extern fn(_argc: isize, _argv: *const *const u8), _sp: Address) -> ! {
     println!("ENTER USER MODE SP={:?}", USER_STACK_END);
     Target::Interrupt::disable();
     unsafe {

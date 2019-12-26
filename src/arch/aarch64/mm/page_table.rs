@@ -139,7 +139,6 @@ impl <L: TableLevel> PageTable<L> {
     fn next_table_address(&self, index: usize) -> Option<usize> {
         debug_assert!(L::ID > 1);
         debug_assert!(index < 512);
-        let x = self.entries[index].present();
         if self.entries[index].present() && !self.entries[index].is_block() {
             let table_address = self as *const _ as usize;
             let mut a = (table_address << 9) | (index << 12);
@@ -226,7 +225,7 @@ impl PageTable<L4> {
 
     pub fn translate(&mut self, a: Address<V>) -> Option<(Address<P>, PageFlags)> {
         // crate::debug_boot::log("get_entry start");
-        let (level, entry) = self.get_entry(a)?;
+        let (_level, entry) = self.get_entry(a)?;
         // crate::debug_boot::log("get_entry finished");
         if entry.present() {
             let page_offset = a.as_usize() & 0xfff;
@@ -237,7 +236,6 @@ impl PageTable<L4> {
     }
 
     pub fn identity_map<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) -> Page<S> {
-        let u = frame.start().as_usize();
         self.map(Page::new(frame.start().as_usize().into()), frame, flags)
     }
 
@@ -307,7 +305,7 @@ impl PageTable<L4> {
     }
 
     pub fn with_temporary_low_table<R>(new_p4_frame: Frame, f: impl Fn(&'static mut PageTable<L4>) -> R) -> R {
-        let old_p4_frame = TTBR0_EL1.get();
+        let old_p4_frame = Frame::<Size4K>::new((TTBR0_EL1.get() as usize).into());
         TTBR0_EL1.set(new_p4_frame.start().as_usize() as u64);
         super::paging::invalidate_tlb();
         let r = f(Self::get(false));
@@ -349,8 +347,8 @@ impl <L: TableLevel> PageTable<L> {
                     new_table.entries[i].set(frame, flags);
                 } else {
                     // This entry points to a page, mark as copy-on-write
-                    let flags = self.entries[i].flags();
-                    let address = self.entries[i].address();
+                    // let flags = self.entries[i].flags();
+                    // let address = self.entries[i].address();
                     let page = map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
                     let new_table = unsafe { page.start().as_ref_mut::<Self>() };
 
@@ -433,7 +431,7 @@ impl <S: PageSize> Drop for TemporaryKernelPage<S> {
     }
 }
 
-pub fn map_kernel_temporarily<S: PageSize>(frame: Frame<S>, mut flags: PageFlags, p: Option<usize>) -> TemporaryKernelPage<S> {
+pub fn map_kernel_temporarily<S: PageSize>(frame: Frame<S>, flags: PageFlags, p: Option<usize>) -> TemporaryKernelPage<S> {
     const MAGIC_PAGE: usize = 0xffff_1234_5600_0000;
     let page = Page::new(p.unwrap_or(MAGIC_PAGE).into());
     PageTable::<L4>::get(true).map(page, frame, flags);

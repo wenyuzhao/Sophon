@@ -98,3 +98,19 @@ pub fn handle_user_pagefault(address: Address) {
     }
     unimplemented!()
 }
+
+pub fn is_copy_on_write_address(address: Address) -> bool {
+    let p4 = PageTable::<L4>::get(false);
+    if let Some((_, flags)) = p4.translate(address) {
+        flags.contains(ArchPageFlags::COPY_ON_WRITE)
+    } else {
+        false
+    }
+}
+
+pub fn fix_copy_on_write_address(address: Address) {
+    debug_assert!(is_copy_on_write_address(address));
+    let p4 = PageTable::<L4>::get(false);
+    let (_, flags) = p4.translate(address).unwrap();
+    p4.fix_copy_on_write(address, !flags.contains(ArchPageFlags::SMALL_PAGE));
+}

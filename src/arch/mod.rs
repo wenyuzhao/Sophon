@@ -1,4 +1,3 @@
-// mod device;
 use crate::memory::*;
 
 #[repr(usize)]
@@ -50,7 +49,8 @@ pub trait AbstractContext: Sized {
     fn empty() -> Self;
     fn new(entry: *const extern fn() -> !) -> Self;
     fn fork(&self) -> Self;
-    // unsafe extern fn switch_to(&mut self, ctx: &Self);
+    fn set_response_message(&mut self, m: crate::task::Message);
+    fn set_response_status(&mut self, s: isize);
     unsafe extern fn return_to_user(&mut self) -> !;
 }
 
@@ -85,6 +85,7 @@ pub fn booted() -> bool {
     unsafe { BOOTED }
 }
 
+#[allow(non_snake_case)]
 pub mod Target {
     use super::*;
     pub type Arch = SelectedArch;

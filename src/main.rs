@@ -7,13 +7,13 @@
 #![feature(naked_functions)]
 #![feature(const_fn)]
 #![feature(const_raw_ptr_to_usize_cast)]
-#![feature(never_type)]
 #![feature(step_trait)]
 #![feature(const_transmute)]
 #![feature(box_syntax)]
 #![feature(alloc_error_handler)]
 #![feature(new_uninit)]
 #![feature(type_alias_impl_trait)]
+#![allow(dead_code)]
 #![no_std]
 #![no_main]
 
@@ -31,8 +31,7 @@ extern crate goblin;
 mod utils;
 #[macro_use]
 mod debug;
-#[macro_use]
-mod syscall;
+mod ipc;
 mod memory;
 mod heap;
 mod task;
@@ -55,8 +54,8 @@ pub extern fn kmain() -> ! {
     // Initialize & start timer
     Target::Interrupt::init();
     println!("[kernel: interrupt initialized]");
-    syscall::init();
-    println!("[kernel: syscall initialized]");
+    ipc::init();
+    println!("[kernel: ipc initialized]");
     Target::Timer::init();
     println!("[kernel: timer initialized]");
 
@@ -66,10 +65,10 @@ pub extern fn kmain() -> ! {
     println!("Created init process: {:?}", task.id());
     let task = task::Task::create_kernel_task(kernel_process::idle);
     println!("Created idle process: {:?}", task.id());
-
+    
     // Manually trigger a page fault
     // unsafe { *(0xdeadbeef as *mut u8) = 0; }
-    task::GLOBAL_TASK_SCHEDULER.try_schedule();
+    task::GLOBAL_TASK_SCHEDULER.schedule();
 }
 
 

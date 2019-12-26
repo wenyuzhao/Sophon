@@ -71,7 +71,7 @@ unsafe extern fn _start_el1() -> ! {
 /// i.e. `address & 0xffff0000_00000000 == 0xffff0000_00000000`
 unsafe extern fn _start_el1_high_address_space() -> ! {
     println!("[boot: _start_el1_high_address_space]");
-    let ptr = _start_el1_high_address_space as *const unsafe extern fn() -> !;
+    // let _ptr = _start_el1_high_address_space as *const unsafe extern fn() -> !;
     super::mm::paging::clear_temp_user_pagetable();
     // Set EL1 interrupt vector
     println!("[boot: set interrupt vector]");

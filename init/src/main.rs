@@ -9,8 +9,6 @@ mod syscall;
 mod log;
 #[macro_use]
 mod ipc;
-use syscall::SysCall;
-use ipc::Message;
 
 #[no_mangle]
 pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
@@ -39,7 +37,7 @@ pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     let id = ipc::kernel::fork();
     log!("Fork return -> {}", id);
     loop {}
-    unreachable!();
+    // unreachable!();
     // let id = syscall!(SysCall::Fork);
     // log!("Hello from init process! <{}>", id);
     // // loop {}

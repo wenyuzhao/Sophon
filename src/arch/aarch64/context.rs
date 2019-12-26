@@ -61,6 +61,7 @@ impl Drop for KernelStack {
 }
 
 /// Represents the archtectural context (i.e. registers)
+#[allow(improper_ctypes)]
 #[repr(C)]
 pub struct Context {
     pub exception_frame: *mut ExceptionFrame,
@@ -84,7 +85,8 @@ pub struct Context {
     p4: Frame,
     kernel_stack: Option<Box<KernelStack>>,
     kernel_stack_top: *mut u8,
-    pub response_message: Option<Message>,
+    response_message: Option<Message>,
+    response_status: Option<isize>,
 }
 
 impl AbstractContext for Context {
@@ -110,7 +112,7 @@ impl AbstractContext for Context {
         let kernel_stack = KernelStack::new();
         let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
         let mut ctx = Self::empty();
-        ctx.entry_pc = unsafe { entry as _ };
+        ctx.entry_pc = entry as _;
         ctx.kernel_stack_top = sp;
         ctx.p4 = p4;
         ctx.kernel_stack = Some(kernel_stack);
@@ -118,16 +120,10 @@ impl AbstractContext for Context {
     }
  
     fn fork(&self) -> Self {
-        // unimplemented!();
         let mut ctx = Context {
-            // x19: self.x19, x20: self.x20, x21: self.x21, x22: self.x22,
-            // x23: self.x23, x24: self.x24, x25: self.x25, x26: self.x26,
-            // x27: self.x27, x28: self.x28, x29: self.x29,
-            // sp: self.sp, pc: self.pc,pub exception_frame: *mut ExceptionFrame,
             exception_frame: 0usize as _,
             entry_pc: 0usize as _, // x30
             p4: self.p4,
-            // q: self.q.clone(),
             kernel_stack: Some({
                 let mut kernel_stack = KernelStack::new();
                 kernel_stack.copy_from(self.kernel_stack.as_ref().unwrap());
@@ -135,6 +131,7 @@ impl AbstractContext for Context {
             }),
             kernel_stack_top: 0usize as _,
             response_message: None,
+            response_status: None,
         };
         ctx.exception_frame = {
             println!("Fork, sp = {:?}, kstack = {:?}", self.exception_frame, self.kernel_stack.as_ref().unwrap().start_address());
@@ -145,28 +142,18 @@ impl AbstractContext for Context {
         ctx
     }
 
-    // unsafe extern fn switch_to(&mut self, ctx: &Self) {
-    //     switch_context(self, ctx, ctx.p4.start().as_usize())
-    // }
+    fn set_response_message(&mut self, m: Message) {
+        self.response_message = Some(m);
+    }
 
-    #[inline(never)]
+    fn set_response_status(&mut self, s: isize) {
+        self.response_status = Some(s);
+    }
+
     unsafe extern fn return_to_user(&mut self) -> ! {
         debug_assert!(!Target::Interrupt::is_enabled());
         // Switch page table
         if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
-            // asm! {"
-            //     tlbi vmalle1is
-            //     DSB SY
-            //     DMB SY
-            //     isb
-            //     msr	ttbr0_el1, $0
-            //     tlbi vmalle1is
-            //     DSB SY
-            //     DMB SY
-            //     isb
-            // "
-            // ::   "r"(self.p4.start().as_usize())
-            // }
             asm! {"
                 msr	ttbr0_el1, $0
                 tlbi vmalle1is
@@ -182,10 +169,8 @@ impl AbstractContext for Context {
                 let mut frame: *mut ExceptionFrame = (self.kernel_stack_top as usize - ::core::mem::size_of::<ExceptionFrame>()) as _;
                 (*frame).elr_el1 = self.entry_pc as _;
                 (*frame).spsr_el1 = 0b0101;
-                // println!("initial exception_frame {:?}", frame);
                 frame
             } else {
-                // println!("with exception_frame {:?}", self.exception_frame);
                 let p = self.exception_frame;
                 debug_assert!(p as usize != 0);
                 self.exception_frame = 0usize as _;
@@ -195,10 +180,22 @@ impl AbstractContext for Context {
         if let Some(msg) = self.response_message {
             let slot = Address::from((*exception_frame).x2 as *mut Message);
             if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
-                super::mm::handle_user_pagefault(slot);
+                if super::mm::is_copy_on_write_address(slot) {
+                    super::mm::fix_copy_on_write_address(slot);
+                }
             }
             slot.store(msg);
             self.response_message = None;
+        }
+        if let Some(status) = self.response_status {
+            let slot = Address::from(&(*exception_frame).x0 as *const usize);
+            if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
+                if super::mm::is_copy_on_write_address(slot) {
+                    super::mm::fix_copy_on_write_address(slot);
+                }
+            }
+            slot.store(status);
+            self.response_status = None;
         }
         asm!("mov sp, $0"::"r"(exception_frame));
         // Return from exception
@@ -213,6 +210,7 @@ impl Drop for Context {
 }
 
 extern {
+    #[allow(improper_ctypes)]
     fn switch_context(from: &mut Context, to: &Context, p4: usize);
 }
 

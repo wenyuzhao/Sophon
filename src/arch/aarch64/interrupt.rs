@@ -28,7 +28,9 @@ impl AbstractInterruptController for InterruptController {
         if cfg!(feature="qemu") || cfg!(feature="device-raspi3") {
             return
         }
+        #[allow(non_snake_case)]
         let GICD = GICD::get();
+        #[allow(non_snake_case)]
         let GICC = GICC::get();
         unsafe { barrier::dsb(barrier::SY) };
         // Disable all interrupts

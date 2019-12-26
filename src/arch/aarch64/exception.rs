@@ -58,7 +58,7 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
     // println!("Exception received {:?}", exception);
     match exception {
         ExceptionClass::SVCAArch64 => {
-            let r = super::interrupt::handle_interrupt(InterruptId::Soft, &mut *exception_frame);
+            let _r = super::interrupt::handle_interrupt(InterruptId::Soft, &mut *exception_frame);
             // unsafe { (*exception_frame).x0 = ::core::mem::transmute(r) };
         },
         ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
@@ -70,12 +70,11 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
             println!("Data Abort {:?}, {:?}", far as *mut (), crate::task::Task::current().unwrap().id());
             super::mm::handle_user_pagefault(far.into());
         },
-        v => panic!("Unknown exception 0b{:b}", unsafe { ::core::mem::transmute::<_, u32>(v) }),
+        #[allow(unreachable_patterns)]
+        v => panic!("Unknown exception 0b{:b}", ::core::mem::transmute::<_, u32>(v)),
     }
     
-    unsafe {
-        crate::task::Task::current().unwrap().context.return_to_user();
-    };
+    crate::task::Task::current().unwrap().context.return_to_user();
 }
 
 #[cfg(feature="device-raspi4")]

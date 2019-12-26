@@ -21,6 +21,7 @@ macro_rules! pad {
 }
 
 #[repr(C)]
+#[allow(non_snake_case)]
 pub struct GICD {
     pub CTLR:       u32,    /* 0x0000 */          _0:  pad![0x0000 - 0x0080],
     pub IGROUPR:    u32_array![0x0080 - 0x00F8],  _1:  pad![bytes: 1],
@@ -56,6 +57,7 @@ impl GICD {
 }
 
 #[repr(C)]
+#[allow(non_snake_case)]
 pub struct GICC {
     pub CTLR: u32, // 0x000
     pub PMR: u32, // 0x004;

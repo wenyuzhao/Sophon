@@ -1,6 +1,5 @@
 use core::fmt;
 use core::fmt::Write;
-use core::ptr;
 use spin::Mutex;
 use crate::syscall::SysCall;
 
@@ -18,7 +17,7 @@ impl Write for Log {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     let mut writer = WRITER.lock();
-    writer.write_fmt(args);
+    writer.write_fmt(args).unwrap();
 }
 
 #[macro_export]

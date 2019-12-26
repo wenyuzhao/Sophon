@@ -84,11 +84,11 @@ impl AbstractTimer for Timer {
     #[cfg(feature="device-raspi3")]
     fn init() {
         unsafe {
-            let nCNTFRQ: usize = CNTFRQ_EL0.get() as _;
-            assert!(nCNTFRQ % TIMER_INTERRUPT_FREQUENCY == 0);
-            let clock_ticks_per_timer_irq = nCNTFRQ / TIMER_INTERRUPT_FREQUENCY;
-            let nCNTPCT: usize = CNTPCT_EL0.get() as _;
-            asm!("msr CNTP_CVAL_EL0, $0" :: "r" (nCNTPCT + clock_ticks_per_timer_irq));
+            let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
+            assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
+            let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;
+            let n_cntpct: usize = CNTPCT_EL0.get() as _;
+            asm!("msr CNTP_CVAL_EL0, $0" :: "r" (n_cntpct + clock_ticks_per_timer_irq));
             CNTP_CTL_EL0.set(1);
             *ARM_CORE_TIMER_INTERRUPT_CONTROL(0) = 1 << 1;
         }

@@ -27,7 +27,7 @@ impl PageFlags {
 }
 
 /// Allocate a frame and map it to the given virtual address
-pub fn memory_map(address: Address, size: usize, mut flags: PageFlags) -> Result<Address, ()> {
+pub fn memory_map(address: Address, size: usize, flags: PageFlags) -> Result<Address, ()> {
     debug_assert!(!flags.contains(PageFlags::PAGE_2M));
     debug_assert!(!flags.contains(PageFlags::PAGE_1G));
     assert!(Page::<Size4K>::is_aligned(address));

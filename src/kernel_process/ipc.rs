@@ -7,9 +7,9 @@ pub fn send(mut m: Message) {
     }
 }
 
-pub fn receive(from: Option<TaskId>) -> Message {
+pub fn receive(_from: Option<TaskId>) -> Message {
     unsafe {
-        let mut msg: Message = unsafe { ::core::mem::zeroed() };
+        let mut msg: Message = ::core::mem::zeroed();
         asm!("svc #0"::"{x0}"(2), "{x1}"(-1isize), "{x2}"(&mut msg as *mut Message):"x0" "x1" "x2" "memory");
         msg
     }
