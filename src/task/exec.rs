@@ -43,10 +43,10 @@ pub fn exec_user(elf_data: &[u8]) -> ! {
     // Alloc user stack
     memory_map(USER_STACK_START, USER_STACK_PAGES << Size4K::LOG_SIZE, PageFlags::user_stack_flags()).unwrap();
     // Enter usermode
-    exit_to_user(entry, USER_STACK_START);
+    exit_to_user(entry, USER_STACK_END);
 }
 
-fn exit_to_user(entry: extern fn(_argc: isize, _argv: *const *const u8), _sp: Address) -> ! {
+fn exit_to_user(entry: extern fn(_argc: isize, _argv: *const *const u8), sp: Address) -> ! {
     println!("ENTER USER MODE SP={:?}", USER_STACK_END);
     Target::Interrupt::disable();
     unsafe {
@@ -57,7 +57,7 @@ fn exit_to_user(entry: extern fn(_argc: isize, _argv: *const *const u8), _sp: Ad
             msr sp_el0, $2
             eret
             "
-            ::"r"(0), "r"(entry), "r"(USER_STACK_END.as_usize())
+            ::"r"(0), "r"(entry), "r"(sp.as_usize())
         }
     }
     unreachable!()

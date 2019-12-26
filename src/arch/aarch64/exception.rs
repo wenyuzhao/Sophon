@@ -1,4 +1,6 @@
 use crate::arch::*;
+#[cfg(feature="device-raspi4")]
+use super::gic::*;
 
 #[repr(usize)]
 #[derive(Debug)]
@@ -81,19 +83,19 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
 #[no_mangle]
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     crate::task::Task::current().unwrap().context.exception_frame = exception_frame;
+    #[allow(non_snake_case)]
     let GICC = GICC::get();
     let iar = GICC.IAR;
     let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
+    GICC.EOIR = iar; // FIXME: End of Interrupt ??? here ???
     if irq < 256 {
         if irq == 30 {
-            // FIXME: End of Interrupt ??? here ???
             GICC.EOIR = iar;
             super::interrupt::handle_interrupt(InterruptId::Timer, &mut *exception_frame);
             return;
         } else {
             panic!("Unknown IRQ");
         }
-        GICC.EOIR = iar;
     }
     
     unsafe {
