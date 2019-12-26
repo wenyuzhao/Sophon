@@ -309,7 +309,7 @@ impl PageTable<L4> {
         TTBR0_EL1.set(new_p4_frame.start().as_usize() as u64);
         super::paging::invalidate_tlb();
         let r = f(Self::get(false));
-        TTBR0_EL1.set(new_p4_frame.start().as_usize() as u64);
+        TTBR0_EL1.set(old_p4_frame.start().as_usize() as u64);
         super::paging::invalidate_tlb();
         r
     }
