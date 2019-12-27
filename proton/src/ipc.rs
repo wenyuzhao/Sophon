@@ -8,12 +8,14 @@ pub enum IPC {
 }
 
 impl IPC {
+    #[inline]
     pub fn log(message: &str) {
         unsafe {
             asm!("svc #0"::"{x0}"(Self::Log as usize), "{x1}"(&message as *const &str): "x0" "x1" "memory");
         }
     }
 
+    #[inline]
     pub fn send(mut m: Message) {
         let ret: isize;
         unsafe {
@@ -21,7 +23,8 @@ impl IPC {
         }
         assert!(ret == 0, "{:?}", ret);
     }
-    
+
+    #[inline]
     pub fn receive(from: Option<TaskId>) -> Message {
         unsafe {
             let mut msg: Message = ::core::mem::zeroed();

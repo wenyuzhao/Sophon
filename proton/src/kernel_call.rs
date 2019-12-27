@@ -15,6 +15,7 @@ pub enum KernelCall {
 impl KernelCall {
     pub const COUNT: usize = Self::__MAX_COUNT as u64 as _;
 
+    #[inline]
     pub fn fork() -> Result<Option<TaskId>, ()> {
         let message = Message::new(TaskId::NULL, TaskId::KERNEL, KernelCall::Fork as _);
         message.send();

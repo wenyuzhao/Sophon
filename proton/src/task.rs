@@ -18,13 +18,18 @@ pub struct Message {
 }
 
 impl Message {
+    #[inline]
     pub fn new(sender: TaskId, receiver: TaskId, kind: usize) -> Self {
         Self { sender, receiver, kind, data: [0; 5] }
     }
+
+    #[inline]
     pub fn with_data<T>(mut self, data: T) -> Self {
         self.set_data(data);
         self
     }
+
+    #[inline]
     pub fn set_data<T>(&mut self, data: T) {
         debug_assert!(::core::mem::size_of::<T>() <= ::core::mem::size_of::<[u64; 5]>());
         unsafe {
@@ -32,20 +37,24 @@ impl Message {
             data_ptr.write(data);
         }
     }
+
+    #[inline]
     pub fn get_data<T>(&self) -> &T {
         debug_assert!(::core::mem::size_of::<T>() <= ::core::mem::size_of::<[u64; 5]>());
         unsafe { ::core::mem::transmute(&self.data) }
     }
 
-
+    #[inline]
     pub fn send(self) {
         IPC::send(self);
     }
 
+    #[inline]
     pub fn receive(src: Option<TaskId>) -> Message {
         IPC::receive(src)
     }
 
+    #[inline]
     pub fn reply<T>(&self, data: T) {
         let n = Message::new(self.receiver, self.sender, self.kind).with_data(data);
         IPC::send(n);

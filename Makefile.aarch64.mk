@@ -12,7 +12,7 @@ debug_interrupts = $(if $(dint),-d int)
 
 
 
-_output_elf = ./target/$(target)/$(profile)/proton
+_output_elf = ./target/$(target)/$(profile)/proton_kernel
 _output_init_elf = ./init/target/$(target)/$(profile)/init
 _output_img = ./target/$(target)/$(profile)/kernel8.img
 _qemu_command = qemu-system-aarch64 -display none -M raspi3 -serial stdio
