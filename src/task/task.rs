@@ -46,6 +46,7 @@ impl Message {
         }
     }
     pub fn get_data<T>(&self) -> &T {
+        debug_assert!(::core::mem::size_of::<T>() <= ::core::mem::size_of::<[u64; 5]>());
         unsafe { ::core::mem::transmute(&self.data) }
     }
 }
