@@ -21,13 +21,33 @@ pub enum TaskState {
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub struct TaskId(usize);
 
-
-#[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
+#[repr(C, align(64))]
+#[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub struct Message {
     pub sender: TaskId,
     pub receiver: TaskId, // None for all tasks
     pub kind: usize,
-    pub data: [u64; 16],
+    data: [u64; 5],
+}
+
+impl Message {
+    pub fn new(sender: TaskId, receiver: TaskId, kind: usize) -> Self {
+        Self { sender, receiver, kind, data: [0; 5] }
+    }
+    pub fn with_data<T>(mut self, data: T) -> Self {
+        self.set_data(data);
+        self
+    }
+    pub fn set_data<T>(&mut self, data: T) {
+        debug_assert!(::core::mem::size_of::<T>() <= ::core::mem::size_of::<[u64; 5]>());
+        unsafe {
+            let data_ptr: *mut T = &mut self.data as *mut [u64; 5] as usize as *mut T;
+            data_ptr.write(data);
+        }
+    }
+    pub fn get_data<T>(&self) -> &T {
+        unsafe { ::core::mem::transmute(&self.data) }
+    }
 }
 
 pub struct Task {
@@ -35,7 +55,6 @@ pub struct Task {
     scheduler_state: RefCell<SchedulerState>,
     pub context: Context,
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
-    pub incoming_message: Option<Message>,
     block_to_send: Option<Message>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
 }
@@ -90,9 +109,8 @@ impl Task {
             let mut block_to_receive_from_guard = receiver.block_to_receive_from.lock();
             if let Some(block_to_receive_from) = *block_to_receive_from_guard {
                 if block_to_receive_from.is_none() || block_to_receive_from == Some(sender.id) {
-                    receiver.incoming_message = Some(m);
-                    *block_to_receive_from_guard = None;
                     println!("Unblock {:?} for message {:?}", receiver.id, m);
+                    *block_to_receive_from_guard = None;
                     GLOBAL_TASK_SCHEDULER.unblock_receiving_task(receiver.id, 0, m);
                     // Succesfully send the message, return to user
                     sender.context.set_response_status(0);
@@ -121,7 +139,6 @@ impl Task {
             context: self.context.fork(),
             scheduler_state: self.scheduler_state.clone(),
             block_to_receive_from: Mutex::new(*self.block_to_receive_from.lock()),
-            incoming_message: None,
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
         };
@@ -140,7 +157,6 @@ impl Task {
             context: Context::new(entry as _),
             scheduler_state: RefCell::new(SchedulerState::new()),
             block_to_receive_from: Mutex::new(None),
-            incoming_message: None,
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
         };

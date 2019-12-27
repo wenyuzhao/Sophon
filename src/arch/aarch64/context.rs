@@ -177,15 +177,14 @@ impl AbstractContext for Context {
                 p
             }
         };
-        if let Some(msg) = self.response_message {
+        if let Some(msg) = self.response_message.take() {
             let slot = Address::from((*exception_frame).x2 as *mut Message);
             if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
                 if super::mm::is_copy_on_write_address(slot) {
                     super::mm::fix_copy_on_write_address(slot);
                 }
             }
-            slot.store(msg);
-            self.response_message = None;
+            ::core::ptr::write(slot.as_ptr_mut(), msg);
         }
         if let Some(status) = self.response_status {
             let slot = Address::from(&(*exception_frame).x0 as *const usize);

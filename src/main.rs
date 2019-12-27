@@ -13,6 +13,7 @@
 #![feature(alloc_error_handler)]
 #![feature(new_uninit)]
 #![feature(type_alias_impl_trait)]
+#![feature(internal_uninit_const)]
 #![allow(dead_code)]
 #![no_std]
 #![no_main]

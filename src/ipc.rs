@@ -48,7 +48,7 @@ pub fn log(_x0: usize, x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize
 }
 
 fn send(_x0: usize, x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize) -> isize {
-    let mut msg = unsafe { *(x1 as *const Message) };
+    let mut msg = unsafe { (*(x1 as *const Message)).clone() };
     let current_task = Task::current().unwrap();
     msg.sender = current_task.id();
     Task::send_message(msg)

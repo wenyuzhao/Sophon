@@ -16,16 +16,13 @@ pub fn fork(m: &Message) {
     let child_task = Target::Interrupt::uninterruptable(|| parent_task.fork());
     println!("Fork task end");
 
-    let mut reply_parent = *m;
-    reply_parent.receiver = parent_task.id();
-    reply_parent.data[0] = unsafe { ::core::mem::transmute(child_task.id()) };
+    let reply_parent = Message::new(m.receiver, parent_task.id(), 0)
+        .with_data(child_task.id());
     println!("Start send to {:?}", parent_task.id());
     ipc::send(reply_parent);
     println!("Finish send to {:?}", parent_task.id());
     
-    let mut reply_child = *m;
-    reply_child.receiver = child_task.id();
-    reply_child.data[0] = 0;
+    let reply_child = Message::new(m.receiver, child_task.id(), 0);
     ipc::send(reply_child);
 }
 
