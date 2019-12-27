@@ -11,7 +11,7 @@
   "linker": "rust-lld",
   "pre-link-args": {
     "ld.lld": [
-      "-T./src/arch/aarch64/linker.ld"
+      "-Tkernel/aarch64.ld"
     ]
   },
   "panic-strategy": "abort",

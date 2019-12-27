@@ -3,6 +3,7 @@ name = "proton"
 version = "0.1.0"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
+description = "Common types and APIs, used for both kernel and user programs."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

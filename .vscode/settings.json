@@ -1,4 +1,4 @@
 {
-    "rust.features": ["rls", "device-raspi3-qemu"],
-    "rust.target": "aarch64-unknown-linux-gnu"
+    "rust.target": "aarch64-unknown-linux-gnu",
+    "rust.unstable_features": true
 }
