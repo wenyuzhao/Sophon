@@ -1,4 +1,4 @@
-# A Raspberry PI Kernel Written in Rust
+# A Raspberry Pi Kernel Written in Rust
 
 ## Pre-requests
 
@@ -25,7 +25,7 @@ BTW, it is almost impossible to take care of performance for now...
 
 ## TODO
 
-- [ ] Make the kernel boot on a real Raspberry PI
+- [x] Make the kernel boot on a real Raspberry Pi
 - [x] Start kernel at Exception Level 2
 - [x] Setup kernel virtual memory
 - [x] Basic interrupt handler support
@@ -48,6 +48,13 @@ BTW, it is almost impossible to take care of performance for now...
 - [ ] Basic FAT32 FS support (to load init.d from /boot)
 - [ ] Virtual File System
 - [ ] *Other necessary components for a kernel?*
+
+**Supported architectures:**
+
+- [x] AArch64
+- [ ] Cortex-M0 (RTOS)
+- [ ] X86
+- [ ] X86_64
 
 ## References
 
