@@ -1,7 +1,7 @@
 use core::fmt;
 use core::fmt::Write;
 use spin::Mutex;
-use crate::syscall::SysCall;
+use proton::IPC;
 
 static WRITER: Mutex<Log> = Mutex::new(Log);
 
@@ -9,7 +9,7 @@ struct Log;
 
 impl Write for Log {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        syscall!(SysCall::Log, &s);
+        IPC::log(s);
         Ok(())
     }
 }

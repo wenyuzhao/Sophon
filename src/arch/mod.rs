@@ -1,3 +1,4 @@
+use core::ops::*;
 use crate::memory::*;
 
 #[repr(usize)]
@@ -32,6 +33,21 @@ pub trait AbstractInterruptController: Sized {
     }
 }
 
+pub struct TemporaryPage<S: PageSize>(Page<S>);
+
+impl <S: PageSize> Deref for TemporaryPage<S> {
+    type Target = Page<S>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl <S: PageSize> Drop for TemporaryPage<S> {
+    fn drop(&mut self) {
+        Target::MemoryManager::unmap(self.0);
+    }
+}
+
 pub trait AbstractMemoryManager: Sized {
     fn alloc_frame<S: PageSize>() -> Frame<S>;
     fn dealloc_frame<S: PageSize>(frame: Frame<S>);
@@ -39,6 +55,10 @@ pub trait AbstractMemoryManager: Sized {
     fn translate(address: Address<V>) -> Option<(Address<P>, PageFlags)>;
     fn update_flags<S: PageSize>(page: Page<S>, flags: PageFlags);
     fn unmap<S: PageSize>(page: Page<S>);
+    fn map_temporarily<S: PageSize>(page: Page<S>, frame: Frame<S>, flags: PageFlags) -> TemporaryPage<S> {
+        Target::MemoryManager::map(page, frame, flags);
+        TemporaryPage(page)
+    }
 }
 
 pub trait AbstractTimer: Sized {

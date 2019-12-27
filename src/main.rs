@@ -22,6 +22,7 @@
 extern crate lazy_static;
 extern crate spin;
 extern crate cortex_a;
+extern crate proton;
 #[macro_use]
 extern crate bitflags;
 #[allow(unused)]

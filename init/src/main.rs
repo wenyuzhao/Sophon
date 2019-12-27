@@ -3,12 +3,11 @@
 #![no_std]
 #![no_main]
 
-#[macro_use]
-mod syscall;
+extern crate proton;
+
 #[macro_use]
 mod log;
-#[macro_use]
-mod ipc;
+use proton::*;
 
 #[no_mangle]
 pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
@@ -34,8 +33,8 @@ pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     //     }
     // }
 
-    let id = ipc::kernel::fork();
-    log!("Fork return -> {}", id);
+    let id = KernelCall::fork().unwrap();
+    log!("Fork return -> {:?}", id);
     loop {}
     // unreachable!();
     // let id = syscall!(SysCall::Fork);

@@ -1,4 +1,3 @@
-use super::super::ipc;
 use crate::task::*;
 use crate::arch::*;
 
@@ -19,11 +18,11 @@ pub fn fork(m: &Message) {
     let reply_parent = Message::new(m.receiver, parent_task.id(), 0)
         .with_data(child_task.id());
     println!("Start send to {:?}", parent_task.id());
-    ipc::send(reply_parent);
+    reply_parent.send();
     println!("Finish send to {:?}", parent_task.id());
     
     let reply_child = Message::new(m.receiver, child_task.id(), 0);
-    ipc::send(reply_child);
+    reply_child.send();
 }
 
 

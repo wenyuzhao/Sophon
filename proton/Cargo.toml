@@ -1,18 +1,9 @@
 [package]
-name = "init"
+name = "proton"
 version = "0.1.0"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-lto = true
-
 [dependencies]
-spin = "0.5.2"
-proton = { path = "../proton" }

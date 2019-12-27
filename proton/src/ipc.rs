@@ -1,0 +1,38 @@
+use crate::*;
+
+#[repr(usize)]
+pub enum IPC {
+    Log = 0,
+    Send,
+    Receive,
+}
+
+impl IPC {
+    pub fn log(message: &str) {
+        unsafe {
+            asm!("svc #0"::"{x0}"(Self::Log as usize), "{x1}"(&message as *const &str): "x0" "x1" "memory");
+        }
+    }
+
+    pub fn send(mut m: Message) {
+        let ret: isize;
+        unsafe {
+            asm!("svc #0":"={x0}"(ret):"{x0}"(Self::Send as usize), "{x1}"(&mut m as *mut Message): "x0" "x1" "memory");
+        }
+        assert!(ret == 0, "{:?}", ret);
+    }
+    
+    pub fn receive(from: Option<TaskId>) -> Message {
+        unsafe {
+            let mut msg: Message = ::core::mem::zeroed();
+            let from_task: isize = match from {
+                Some(t) => ::core::mem::transmute(t),
+                None => -1,
+            };
+            let ret: isize;
+            asm!("svc #0":"={x0}"(ret):"{x0}"(Self::Receive as usize), "{x1}"(from_task), "{x2}"(&mut msg as *mut Message):"x0" "x1" "x2" "memory");
+            assert!(ret == 0, "{:?}", ret);
+            msg
+        }
+    }
+}
