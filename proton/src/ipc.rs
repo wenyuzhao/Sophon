@@ -5,9 +5,14 @@ pub enum IPC {
     Log = 0,
     Send,
     Receive,
+
+    #[allow(non_camel_case_types)]
+    __MAX_COUNT,
 }
 
 impl IPC {
+    pub const COUNT: usize = Self::__MAX_COUNT as _;
+    
     #[inline]
     pub fn log(message: &str) {
         unsafe {

@@ -1,14 +1,8 @@
 use crate::arch::*;
 use crate::task::*;
+use proton::IPC;
 
-#[repr(usize)]
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-enum IPCCall {
-    Log = 0x0,
-    Send,
-    Receive,
-    #[allow(non_camel_case_types)] __MAX_SYSCALLS,
-}
+
 
 type Handler = fn (x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize;
 
@@ -19,7 +13,7 @@ macro_rules! handlers {
     ]};
 }
 
-static IPC_CALL_HANDLERS: [Handler; IPCCall::__MAX_SYSCALLS as usize] = handlers![
+static IPC_CALL_HANDLERS: [Handler; IPC::COUNT] = handlers![
     log,
     send,
     receive,
@@ -30,7 +24,7 @@ pub fn init() {
 }
 
 fn handle_syscall(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize {
-    let syscall_id: IPCCall = unsafe { ::core::mem::transmute(x0) };
+    let syscall_id: IPC = unsafe { ::core::mem::transmute(x0) };
     let handler = IPC_CALL_HANDLERS[syscall_id as usize];
     handler(x0, x1, x2, x3, x4, x5)
 }
