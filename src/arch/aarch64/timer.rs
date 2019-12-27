@@ -8,7 +8,7 @@ const TIMER_INTERRUPT_FREQUENCY: usize = 10000; // Hz
 
 // pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
 
-#[cfg(feature="device-raspi3")]
+#[cfg(feature="device-raspi3-qemu")]
 pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
 #[cfg(feature="device-raspi4")]
 pub const ARM_TIMER_BASE: usize = 0xFFFF0000_FF800000;
@@ -83,7 +83,7 @@ impl AbstractTimer for Timer {
         Target::Interrupt::set_handler(InterruptId::Timer, Some(handle_timer_irq));
     }
 
-    #[cfg(feature="device-raspi3")]
+    #[cfg(feature="device-raspi3-qemu")]
     fn init() {
         unsafe {
             let n_cntfrq: usize = CNTFRQ_EL0.get() as _;

@@ -1,6 +1,4 @@
 {
-    "rust.all_features": false,
-    "rust.features": ["rls", "device-raspi3"],
-    "rust.all_targets": false,
+    "rust.features": ["rls", "device-raspi3-qemu"],
     "rust.target": "aarch64-unknown-linux-gnu"
 }

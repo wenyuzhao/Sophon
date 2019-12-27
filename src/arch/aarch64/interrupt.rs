@@ -25,7 +25,7 @@ pub fn handle_interrupt(kind: InterruptId, exception_frame: &mut ExceptionFrame)
 
 impl AbstractInterruptController for InterruptController {
     fn init() {
-        if cfg!(feature="qemu") || cfg!(feature="device-raspi3") {
+        if cfg!(feature="device-raspi3-qemu") {
             return
         }
         #[allow(non_snake_case)]

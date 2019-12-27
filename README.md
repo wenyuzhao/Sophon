@@ -10,7 +10,7 @@
 ## Build & Run
 
 ```bash
-make build # This will produce a `kernel8.img` under project root directory
+make kernel # This will produce `target/aarch64-proton/debug/kernel8.img`
 make run # Test the kernel with QEMU
 ```
 

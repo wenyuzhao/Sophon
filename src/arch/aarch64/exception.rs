@@ -103,15 +103,12 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     }
 }
 
-#[cfg(feature="device-raspi3")]
+#[cfg(feature="device-raspi3-qemu")]
 #[no_mangle]
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     // println!("EF = {:?}", exception_frame as *mut _);
     debug_assert!(crate::task::Task::current().unwrap().context.exception_frame as usize == 0);
     crate::task::Task::current().unwrap().context.exception_frame = exception_frame;
-    if !cfg!(feature="qemu") {
-        unimplemented!();
-    }
 
     if super::timer::pending_timer_irq() {
         super::interrupt::handle_interrupt(InterruptId::Timer, exception_frame);

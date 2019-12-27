@@ -23,8 +23,7 @@ lto = true
 [features]
 default = []
 rls = []
-qemu = []
 
 # Devices
-device-raspi3 = []
+device-raspi3-qemu = []
 device-raspi4 = []

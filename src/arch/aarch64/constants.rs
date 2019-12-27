@@ -1,6 +1,6 @@
 
 
-#[cfg(feature="device-raspi3")]
+#[cfg(feature="device-raspi3-qemu")]
 pub const PERIPHERAL_BASE: usize = 0xFFFF0000_3F000000;
 #[cfg(feature="device-raspi4")]
 pub const PERIPHERAL_BASE: usize = 0xFFFF0000_FE000000;
@@ -26,7 +26,7 @@ pub const GPPUD:     *mut u32 = (GPIO_BASE + 0x94) as _;
 pub const GPPUDCLK0: *mut u32 = (GPIO_BASE + 0x98) as _;
 pub const GPPUDCLK1: *mut u32 = (GPIO_BASE + 0x9C) as _;
 
-#[cfg(feature="device-raspi3")]
+#[cfg(feature="device-raspi3-qemu")]
 pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
 #[cfg(feature="device-raspi4")]
 pub const ARM_TIMER_BASE: usize = 0xFFFF0000_FF800000;
