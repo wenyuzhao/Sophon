@@ -1,4 +1,5 @@
 {
+    "rust.all_targets": false,
     "rust.target": "aarch64-unknown-linux-gnu",
     "rust.unstable_features": true
 }
