@@ -52,7 +52,7 @@ BTW, it is almost impossible to take care of performance for now...
 **Supported architectures:**
 
 - [x] AArch64
-- [ ] Cortex-M0 (RTOS)
+- [ ] ARMv6-M (RTOS)
 - [ ] X86
 - [ ] X86_64
 
