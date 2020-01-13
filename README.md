@@ -2,15 +2,20 @@
 
 ## Pre-requests
 
-1. `qemu-system-aarch64` >= 2.12
-2. Rustup nightly channel
+**Build**
+1. Rustup nightly channel
+2. Rustup target `aarch64-unknown-linux-gnu`
 3. [cargo-xbuild](https://github.com/rust-osdev/cargo-xbuild)
-4. [cargo-binutils](https://github.com/rust-embedded/cargo-binutils)
+4. LLVM Tools (`llvm-objcopy` and `llvm-objdump`)
+
+**Test/debug with QEMU**
+1. `qemu-system-aarch64` >= 2.12
+2. `gdb-multiarch`
 
 ## Build & Run
 
 ```bash
-make kernel # This will produce `target/aarch64-proton/debug/kernel8.img`
+make kernel # This will produce `target/aarch64-kernel/debug/kernel8.img`
 make run # Test the kernel with QEMU
 ```
 
