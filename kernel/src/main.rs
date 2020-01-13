@@ -14,6 +14,7 @@
 #![feature(new_uninit)]
 #![feature(type_alias_impl_trait)]
 #![feature(internal_uninit_const)]
+#![feature(never_type)]
 #![allow(dead_code)]
 #![no_std]
 #![no_main]

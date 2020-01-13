@@ -12,7 +12,7 @@ pub struct EMMC;
 
 impl EMMC {
     unsafe fn wait_for(mask: u32) {
-        let emmc = &mut *emmc::BASE;
+        let emmc = &mut *EMMCData::BASE;
         while (emmc.status & mask) != 0 && (emmc.interrupt & emmc::INT_ERROR_MASK) == 0 {}
         // println!("EMMC_INTERRUPT {:?} {:?}", *EMMC_INTERRUPT, *EMMC_INTERRUPT & INT_ERROR_MASK);
         if emmc.interrupt & emmc::INT_ERROR_MASK != 0 {
@@ -22,7 +22,7 @@ impl EMMC {
     }
 
     unsafe fn int(mask: u32) {
-        let emmc = &mut *emmc::BASE;
+        let emmc = &mut *EMMCData::BASE;
         let m = mask | emmc::INT_ERROR_MASK;
         while emmc.interrupt & m == 0 {}
         let r = emmc.interrupt;
@@ -34,7 +34,7 @@ impl EMMC {
     }
 
     unsafe fn cmd(mut code: u32, arg: u32) -> Result<u32, E> {
-        let emmc = &mut *emmc::BASE;
+        let emmc = &mut *EMMCData::BASE;
         if code & cmd::NEED_APP != 0 {
             let r = Self::cmd(cmd::APP_CMD | if RCA != 0 { cmd::RSPNS_48 } else { 0 }, RCA).unwrap();
             if RCA != 0 && r == 0 {
@@ -71,7 +71,7 @@ impl EMMC {
     }
 
     unsafe fn set_clk(f: u32) {
-        let emmc = &mut *emmc::BASE;
+        let emmc = &mut *EMMCData::BASE;
         let mut d: u32 = 0;
         let mut c = 41666666 / f;
         let mut x: u32;
@@ -130,7 +130,7 @@ impl EMMC {
 
     pub fn read_block(lba: u32, buffer: &mut [u8], mut num: u32) -> Result<u32, E> {
         unsafe {
-            let emmc = &mut *emmc::BASE;
+            let emmc = &mut *EMMCData::BASE;
             if num == 0 { num = 1 }
             Self::wait_for(emmc::SR_DAT_INHIBIT);
             if SCR[0] & emmc::SCR_SUPP_CCS != 0 {
@@ -166,7 +166,7 @@ impl EMMC {
     pub fn init() -> Result<(), ()> {
         let mut ccs = 0u32;
         unsafe {
-            let emmc = &mut *emmc::BASE;
+            let emmc = &mut *EMMCData::BASE;
             // GPIO_CD
             *GPFSEL4 &= !(7 << (7 * 3));
             *GPPUD=2;
@@ -291,8 +291,11 @@ struct EMMCData {
     slotisr_ver: u32, // 0x3000FC
 }
 
+impl EMMCData {
+    pub const BASE: *mut Self = (MMIO_BASE + 0x300000) as _;
+}
+
 mod emmc {
-    pub const BASE: *mut super::EMMCData = (super::MMIO_BASE + 0x300000) as _;
     pub const SR_READ_AVAILABLE: u32 =   0x00000800;
     pub const SR_DAT_INHIBIT: u32 =      0x00000002;
     pub const SR_CMD_INHIBIT: u32 =      0x00000001;

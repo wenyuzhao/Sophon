@@ -6,5 +6,4 @@ pub trait KernelDriver {
 }
 
 pub mod fat;
-pub mod sd_card;
 pub mod emmc;
