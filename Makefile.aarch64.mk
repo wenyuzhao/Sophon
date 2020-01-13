@@ -14,7 +14,7 @@ debug_interrupts = $(if $(dint),-d int)
 output_elf = target/$(kernel_target)/$(profile)/proton
 output_img = target/$(kernel_target)/$(profile)/kernel8.img
 output_init_elf = target/$(user_target)/$(profile)/init
-qemu_command = qemu-system-aarch64 -display none -M raspi3 -serial stdio
+qemu_command = qemu-system-aarch64 -display none -M raspi3 -serial stdio -drive file=test.dd,if=sd,format=raw
 qemu_debug_interrupts = $(if $(dint),-d int)
 qemu_gdb_server = $(if $(gdb),-s -S)
 
@@ -32,7 +32,8 @@ init: FORCE
 
 run: device=raspi3-qemu
 run: kernel
-	@$(qemu_command) $(qemu_debug_interrupts) $(qemu_gdb_server) -kernel $(output_img)
+	@mkdir -p ./target/fat
+	$(qemu_command) $(qemu_debug_interrupts) $(qemu_gdb_server) -kernel $(output_img)
 
 gdb:
 	@gdb-multiarch -quiet "$(output_elf)" -ex "set arch aarch64" -ex "target remote :1234"

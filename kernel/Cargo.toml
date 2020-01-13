@@ -17,11 +17,12 @@ spin = "0.5.2"
 cortex-a = "2.7.0"
 bitflags = "1.2.1"
 goblin = { version = "0.1.0", default-features = false, features = ["elf32", "elf64", "endian_fd"] }
+# device_tree = "1.1.0"
+device_tree = { git = "https://github.com/rcore-os/device_tree-rs" }
 
 [features]
 default = [ "rls", "device-raspi3-qemu" ]
 rls = []
-
 # Devices
 device-raspi3-qemu = []
 device-raspi4 = []

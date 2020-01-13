@@ -96,4 +96,15 @@ impl AbstractTimer for Timer {
         }
         Target::Interrupt::set_handler(InterruptId::Timer, Some(handle_timer_irq));
     }
+
+    fn wait(ms: usize) {
+        let freq: usize = CNTFRQ_EL0.get() as _;
+        let target_count: usize = CNTPCT_EL0.get() as usize + ((freq / 1000) * ms) / 1000;
+        loop {
+            let count: usize = CNTPCT_EL0.get() as usize;
+            if count >= target_count {
+                break
+            }
+        }
+    }
 }

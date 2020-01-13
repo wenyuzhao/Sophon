@@ -1,12 +1,12 @@
-mod start;
-mod gic;
-mod interrupt;
-mod exception;
-mod timer;
-mod context;
-mod mm;
-mod uart;
-mod constants;
+pub mod start;
+pub mod gic;
+pub mod interrupt;
+pub mod exception;
+pub mod timer;
+pub mod context;
+pub mod mm;
+pub mod uart;
+pub mod constants;
 
 use super::*;
 

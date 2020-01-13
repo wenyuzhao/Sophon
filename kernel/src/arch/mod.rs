@@ -63,6 +63,7 @@ pub trait AbstractMemoryManager: Sized {
 
 pub trait AbstractTimer: Sized {
     fn init();
+    fn wait(ms: usize);
 }
 
 pub trait AbstractContext: Sized {
@@ -93,7 +94,7 @@ pub trait AbstractArch: Sized {
 }
 
 #[cfg(target_arch="aarch64")]
-mod aarch64;
+pub mod aarch64;
 #[cfg(target_arch="aarch64")]
 pub use aarch64::AArch64 as SelectedArch;
 

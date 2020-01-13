@@ -26,6 +26,6 @@ SECTIONS {
     __kernel_end = .;
 
     /DISCARD/ : {
-        *(.comment*)
+        *(.comment) *(.gnu*) *(.note*) *(.eh_frame*)
     }
 }

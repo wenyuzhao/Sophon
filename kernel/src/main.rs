@@ -29,6 +29,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate alloc;
 extern crate goblin;
+extern crate device_tree;
 #[macro_use]
 mod utils;
 #[macro_use]
@@ -40,12 +41,15 @@ mod task;
 mod init_process;
 mod kernel_process;
 mod arch;
+mod drivers;
 use cortex_a::regs::*;
 use arch::*;
 
 #[global_allocator]
 static ALLOCATOR: heap::GlobalAllocator = heap::GlobalAllocator::new();
 
+// static DEVICE_TREE: &'static [u8] = include_bytes!("../bcm2711-rpi-4-b.dtb");
+static DEVICE_TREE: &'static [u8] = include_bytes!("../bcm2710-rpi-3-b.dtb");
 
 pub extern fn kmain() -> ! {
     println!("Hello, Raspberry PI!");
@@ -61,16 +65,26 @@ pub extern fn kmain() -> ! {
     Target::Timer::init();
     println!("[kernel: timer initialized]");
 
-    let task = task::Task::create_kernel_task(kernel_process::main);
-    println!("Created kernel process: {:?}", task.id());
-    let task = task::Task::create_kernel_task(init_process::entry);
-    println!("Created init process: {:?}", task.id());
-    let task = task::Task::create_kernel_task(kernel_process::idle);
-    println!("Created idle process: {:?}", task.id());
+    // let dt = device_tree::DeviceTree::load(DEVICE_TREE).unwrap();
+    // println!("{:#?}", dt);
+
+    drivers::emmc::EMMC::init().unwrap();
     
-    // Manually trigger a page fault
-    // unsafe { *(0xdeadbeef as *mut u8) = 0; }
-    task::GLOBAL_TASK_SCHEDULER.schedule();
+    drivers::fat::FAT::init().unwrap();
+    drivers::fat::FAT::ls_root();
+
+    println!("FINISH"); loop {}
+
+    // let task = task::Task::create_kernel_task(kernel_process::main);
+    // println!("Created kernel process: {:?}", task.id());
+    // let task = task::Task::create_kernel_task(init_process::entry);
+    // println!("Created init process: {:?}", task.id());
+    // let task = task::Task::create_kernel_task(kernel_process::idle);
+    // println!("Created idle process: {:?}", task.id());
+    
+    // // Manually trigger a page fault
+    // // unsafe { *(0xdeadbeef as *mut u8) = 0; }
+    // task::GLOBAL_TASK_SCHEDULER.schedule();
 }
 
 

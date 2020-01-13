@@ -2,6 +2,7 @@
 members = [
     "kernel",
     "proton",
+    "drivers/emmc",
     "init"
 ]
 
