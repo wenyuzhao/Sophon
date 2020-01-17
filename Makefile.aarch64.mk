@@ -10,29 +10,35 @@ device ?= raspi3-qemu
 # Optional: dint=1
 
 # Derived configurations
+user_target_json = $(PWD)/proton/$(user_target).json
 debug_interrupts = $(if $(dint),-d int)
 output_elf = target/$(kernel_target)/$(profile)/proton
 output_img = target/$(kernel_target)/$(profile)/kernel8.img
 output_init_elf = target/$(user_target)/$(profile)/init
-qemu_command = qemu-system-aarch64 -display none -M raspi3 -serial stdio
+qemu_command = qemu-system-aarch64 -display none -M raspi3 -serial stdio -drive file=test.img,if=sd,format=raw
 qemu_debug_interrupts = $(if $(dint),-d int)
 qemu_gdb_server = $(if $(gdb),-s -S)
 
 
 
-kernel: init FORCE
+kernel: init drivers FORCE
 	@cd kernel && $(cargo_xbuild) --target $(kernel_target).json --features device-$(device)
 	@llvm-objcopy --strip-all $(output_elf) -O binary $(output_img)
 	@llvm-objdump --source -d $(output_elf) > $(output_elf).s
 
+user_process: FORCE
+	cd $(process_path) && $(cargo_xbuild) --target $(user_target_json)
+	@llvm-objdump --source -d target/$(user_target)/$(profile)/$(process_name) > target/$(user_target)/$(profile)/$(process_name).s
+
+drivers: FORCE
+	@make user_process process_path=drivers/emmc process_name=emmc
+
 init: FORCE
-	@cd init && $(cargo_xbuild) --target $(user_target).json
-	@cp target/$(user_target)/$(profile)/init target/init
-	@llvm-objdump --source -d $(output_init_elf) > $(output_init_elf).s
+	@make user_process process_path=init process_name=init
 
 run: device=raspi3-qemu
 run: kernel
-	@$(qemu_command) $(qemu_debug_interrupts) $(qemu_gdb_server) -kernel $(output_img)
+	$(qemu_command) $(qemu_debug_interrupts) $(qemu_gdb_server) -kernel $(output_img)
 
 gdb:
 	@gdb-multiarch -quiet "$(output_elf)" -ex "set arch aarch64" -ex "target remote :1234"

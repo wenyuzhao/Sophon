@@ -16,17 +16,20 @@ pub unsafe fn _start() -> ! {
     "};
     // Setup core 0 stack
     asm!("mov sp, $0"::"r"(0x80000));
+    asm!("mov fp, $0"::"r"(0x80000));
+    // loop {}
     super::uart::UART0::init();
     assert!(CurrentEL.get() == CurrentEL::EL::EL2.value);
     boot_time_log("[boot...]");
     CNTHCTL_EL2.write(CNTHCTL_EL2::EL1PCEN::SET + CNTHCTL_EL2::EL1PCTEN::SET);
-    CNTVOFF_EL2.set(0);
+    CNTVOFF_EL2.set(0);boot_time_log("[boot...]");
     // Switch to EL1
     SCTLR_EL1.set((3 << 28) | (3 << 22) | (1 << 20) | (1 << 11)); // Disable MMU
     HCR_EL2.write(HCR_EL2::RW::EL1IsAarch64); // Set execution mode = AArch64
     SPSR_EL2.write(SPSR_EL2::D::Masked + SPSR_EL2::A::Masked + SPSR_EL2::I::Masked + SPSR_EL2::F::Masked + SPSR_EL2::M::EL1h);
     ELR_EL2.set(_start_el1 as *const () as u64); // EL1 PC after return from `eret`
     SP_EL1.set(0x80000); // EL1 stack
+    // boot_time_log("[boot...]");
     asm::eret();
 }
 
