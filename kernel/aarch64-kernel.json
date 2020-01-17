@@ -6,7 +6,6 @@
   "target-pointer-width": "64",
   "target-c-int-width": "32",
   "os": "none",
-  "executables": true,
   "linker-flavor": "ld.lld",
   "linker": "rust-lld",
   "pre-link-args": {
@@ -15,5 +14,15 @@
     ]
   },
   "panic-strategy": "abort",
-  "disable-redzone": true
+  "dynamic-linking": false,
+  "executables": true,
+  "relocation-model": "pic",
+  "disable-redzone": true,
+  "eliminate-frame-pointer": false,
+  "exe-suffix": "",
+  "has-rpath": false,
+  "no-compiler-rt": true,
+  "no-default-libraries": true,
+  "position-independent-executables": true,
+  "has-elf-tls": true
 }

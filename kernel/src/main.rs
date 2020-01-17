@@ -69,19 +69,18 @@ pub extern fn kmain() -> ! {
     // let dt = device_tree::DeviceTree::load(DEVICE_TREE).unwrap();
     // println!("{:#?}", dt);
 
-    drivers::emmc::EMMC::init().unwrap();
-    
-    drivers::fat::FAT::init().unwrap();
-    drivers::fat::FAT::ls_root();
+    // drivers::emmc::EMMC::init().unwrap();
+    // drivers::fat::FAT::init().unwrap();
+    // drivers::fat::FAT::ls_root();
 
-    println!("FINISH"); loop {}
+    // println!("FINISH"); loop {}
 
-    // let task = task::Task::create_kernel_task(kernel_process::main);
-    // println!("Created kernel process: {:?}", task.id());
-    // let task = task::Task::create_kernel_task(init_process::entry);
-    // println!("Created init process: {:?}", task.id());
-    // let task = task::Task::create_kernel_task(kernel_process::idle);
-    // println!("Created idle process: {:?}", task.id());
+    let task = task::Task::create_kernel_task(kernel_process::main);
+    println!("Created kernel process: {:?}", task.id());
+    let task = task::Task::create_kernel_task(kernel_process::idle);
+    println!("Created idle process: {:?}", task.id());
+    let task = task::Task::create_kernel_task(init_process::entry);
+    println!("Created init process: {:?}", task.id());
     
     // // Manually trigger a page fault
     // // unsafe { *(0xdeadbeef as *mut u8) = 0; }

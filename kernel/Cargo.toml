@@ -5,13 +5,19 @@ authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
 
 [[bin]]
+# crate-type = ["dylib"]
 name = "proton"
 path = "src/main.rs"
+
+# [lib]
+# name = "proton"
+# path = "src/lib.rs"
+# crate-type = ["dylib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-proton = { path = "../proton" }
+proton = { path = "../proton", features = ["kernel"] }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 spin = "0.5.2"
 cortex-a = "2.7.0"

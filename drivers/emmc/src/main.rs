@@ -3,14 +3,12 @@
 #![no_std]
 #![no_main]
 
-extern crate proton;
-
 #[macro_use]
-mod log;
-use proton::*;
+extern crate proton;
 
 #[no_mangle]
 pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
+    log!("EMMC Driver Started");
     loop {}
 }
 

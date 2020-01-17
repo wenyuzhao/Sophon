@@ -2,8 +2,8 @@
 members = [
     "kernel",
     "proton",
-    "drivers/emmc",
-    "init"
+    "init",
+    "drivers/emmc"
 ]
 
 [profile.dev]

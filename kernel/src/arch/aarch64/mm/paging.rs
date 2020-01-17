@@ -172,10 +172,11 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
 
     boot_time_log("[boot: setup_kernel_pagetables 3.1]");
     
+    assert!(TCR_EL1.get() == 0);
     // let ips = ID_AA64MMFR0_EL1.read(ID_AA64MMFR0_EL1::PARange);
     TCR_EL1.write(
-          TCR_EL1::IPS.val(0b101)
-        + TCR_EL1::TG0::KiB_4
+        //   TCR_EL1::IPS.val(0b101)
+        TCR_EL1::TG0::KiB_4
         + TCR_EL1::TG1::KiB_4
         + TCR_EL1::SH0::Inner
         + TCR_EL1::SH1::Inner
@@ -185,21 +186,12 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
         + TCR_EL1::IRGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
         + TCR_EL1::EPD0::EnableTTBR0Walks
         + TCR_EL1::EPD1::EnableTTBR1Walks
-        + TCR_EL1::T0SZ.val(0x10)
-        + TCR_EL1::T1SZ.val(0x10)
+        // + TCR_EL1::T0SZ.val(0x10)
+        // + TCR_EL1::T1SZ.val(0x10)
     );
 
-    // let ips = ID_AA64MMFR0_EL1.read(ID_AA64MMFR0_EL1::PARange);
-    // TCR_EL1.write(
-    //     TCR_EL1::TBI0::Ignored
-    //         + TCR_EL1::IPS.val(ips)
-    //         + TCR_EL1::TG0::KiB_64
-    //         + TCR_EL1::SH0::Inner
-    //         + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-    //         + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-    //         + TCR_EL1::EPD0::EnableTTBR0Walks
-    //         + TCR_EL1::T0SZ.val(32), // TTBR0 spans 4 GiB total.
-    // );
+    TCR_EL1.set(TCR_EL1.get());
+
     boot_time_log("[boot: setup_kernel_pagetables 4]");
     // Enable MMU
     barrier::isb(barrier::SY);
@@ -214,18 +206,37 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
     boot_time_log("[boot: setup_kernel_pagetables 5]");
     {
         // Stack + Kernel: 0x0 ~ KERNEL_HEAP_END
+            boot_time_log("mau 1");
         let blocks = (kernel_heap_end() & 0x0000ffff_ffffffff) >> Size2M::LOG_SIZE;
+        boot_time_log("mau 2");
         mark_as_used::<Size2M>(Frame::new(0x0.into()), blocks);
-        for f in vcm_start..vcm_end {
+        boot_time_log("mau 3");
+        for f in vcm_start..=vcm_end {
+            boot_time_log("mau 4");
             mark_as_used::<Size2M>(f, 1);
         }
+        boot_time_log("mau 5");
     }
     boot_time_log("[boot: setup_kernel_pagetables 5.1]");
     // Map kernel code
     let kernel_code_start = KERNEL_START & 0x0000ffff_ffffffff;
-    let kernel_code_end = kernel_end() & 0x0000ffff_ffffffff;
+    boot_time_log("[boot: setup_kernel_pagetables 5.1]");
+    let kernel_code_end = kernel_end() * 0x0000ffff_ffffffff;
+    boot_time_log("[boot: setup_kernel_pagetables 5.1]");
     let kernel_code_start_frame = Frame::<Size4K>::new(kernel_code_start.into());
-    let frames = (kernel_code_end - kernel_code_start + Size4K::MASK) >> Size4K::LOG_SIZE;
+    boot_time_log("[boot: setup_kernel_pagetables 5.1]");
+    if kernel_code_end >= kernel_code_start {
+        boot_time_log(">=");
+    } else {
+        boot_time_log("<");
+        if kernel_code_end == 0 {
+            boot_time_log("herlen_end == 0");
+        }
+    }
+    let a = kernel_code_end - kernel_code_start;
+    boot_time_log("[boot: setup_kernel_pagetables 5.1==]");
+    let frames = (a + Size4K::MASK) >> Size4K::LOG_SIZE;
+    boot_time_log("[boot: setup_kernel_pagetables 5.1]");
     identity_map_kernel_memory_nomark::<Size4K>(kernel_code_start_frame, frames, PageFlags::_KERNEL_STACK_FLAGS);
     boot_time_log("[boot: setup_kernel_pagetables 6]");
     // Map core 0 kernel stack
@@ -258,10 +269,21 @@ pub unsafe fn setup_kernel_pagetables() {// Query VC memory
 }
 
 fn mark_as_used<S: PageSize>(start_frame: Frame<S>, n_frames: usize) {
+    boot_time_log("mark_as_used 2");
     let limit_frame = start_frame.add_usize(n_frames).unwrap();
     // Mark frames as used
-    for frame in start_frame..limit_frame {
+    boot_time_log("mark_as_used");
+    let mut frame = start_frame;
+    boot_time_log("mark_as_used");
+    while frame < limit_frame {
+        boot_time_log("mark_as_used");
+
+    // for frame in start_frame..limit_frame {
+        boot_time_log("mark_as_used a");
         super::frame_allocator::mark_as_used(frame);
+        boot_time_log("mark_as_used b");
+
+        frame = frame.add_one();
     }
 }
 
