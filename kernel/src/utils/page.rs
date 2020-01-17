@@ -42,6 +42,22 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
     pub const MASK: usize = Self::SIZE - 1;
     pub const ZERO: Self = Self(Address::ZERO, PhantomData);
 
+    pub fn range(start: Self, end: Self, mut f: impl FnMut(Self)) {
+        let mut p = start;
+        while p.start().as_usize() < end.start().as_usize() {
+            f(p);
+            p = Self(p.start() + Self::SIZE, PhantomData);
+        }
+    }
+
+    pub fn range_inclusive(start: Self, end: Self, mut f: impl FnMut(Self)) {
+        let mut p = start;
+        while p.start().as_usize() <= end.start().as_usize() {
+            f(p);
+            p = Self(p.start() + Self::SIZE, PhantomData);
+        }
+    }
+
     #[inline]
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()

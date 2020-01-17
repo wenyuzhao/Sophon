@@ -25,22 +25,6 @@ pub fn kernel_end() -> usize {
     (unsafe { &__kernel_end as *const _ as usize }) | 0xffff0000_00000000
 }
 
-
-
-// pub fn kernel_end_raw() -> usize {
-//     let start = unsafe { &__kernel_end as *const () as usize };
-//     if start == 0x80000 {  }
-//     unsafe { &__kernel_end as *const () as usize }
-//     // unsafe { (&__kernel_end) as *const usize as usize }
-// }
-
-// pub fn kernel_end_raw() -> usize {
-//     let start = unsafe { &__kernel_end as *const () as usize };
-//     if start == 0x80000 {  }
-//     unsafe { &__kernel_end as *const () as usize }
-//     // unsafe { (&__kernel_end) as *const usize as usize }
-// }
-
 #[inline]
 pub fn kernel_heap_start() -> usize {
     Frame::<Size2M>::align_up::<P>(kernel_end().into()).as_usize()
@@ -56,5 +40,5 @@ pub const MAX_HEAP_SIZE: usize = 1 << LOG_MAX_HEAP_SIZE; // 4G
 
 extern {
     static __kernel_start: usize;
-    static __kernel_end: ();
+    static __kernel_end: usize;
 }

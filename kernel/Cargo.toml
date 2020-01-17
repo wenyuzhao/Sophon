@@ -5,14 +5,16 @@ authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
 
 [[bin]]
-# crate-type = ["dylib"]
 name = "proton"
 path = "src/main.rs"
 
-# [lib]
-# name = "proton"
-# path = "src/lib.rs"
-# crate-type = ["dylib"]
+[profile.dev]
+opt-level = 1
+panic = "abort"
+
+[profile.release]
+lto = true
+panic = "abort"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,7 +25,6 @@ spin = "0.5.2"
 cortex-a = "2.7.0"
 bitflags = "1.2.1"
 goblin = { version = "0.1.0", default-features = false, features = ["elf32", "elf64", "endian_fd"] }
-# device_tree = "1.1.0"
 device_tree = { git = "https://github.com/rcore-os/device_tree-rs" }
 
 [features]

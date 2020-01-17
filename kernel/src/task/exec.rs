@@ -6,11 +6,11 @@ use crate::arch::*;
 
 
 pub fn exec_user(elf_data: &[u8]) -> ! {
-    println!("exec_user");
+    println!("Execute use program");
     let elf = Elf::parse(elf_data).unwrap();
-    println!("exec_user 1");
+    println!("Parsed ELF file");
     let entry: extern fn(isize, *const *const u8) = unsafe { ::core::mem::transmute(elf.header.e_entry) };
-    println!("entry: {:?}", entry as *mut ());
+    println!("Entry: {:?}", entry as *mut ());
     for p in elf.program_headers {
         if p.p_type == program_header::PT_LOAD {
             // println!("pheader = {:?}", p);
@@ -27,11 +27,7 @@ pub fn exec_user(elf_data: &[u8]) -> ! {
                     break;
                 }
                 let v = elf_data[(p.p_offset as usize) + offset];
-                // unsafe {
-                //     cursor.store(v);
-                // }
                 if offset < p.p_filesz as usize {
-                    // unsafe { println!("ptr {:?}", ptr.add(offset)); }
                     unsafe { *ptr.add(offset) = v };
                 } else {
                     unsafe { *ptr.add(offset) = 0 };

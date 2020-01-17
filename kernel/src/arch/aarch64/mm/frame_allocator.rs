@@ -150,9 +150,6 @@ impl BitMapAllocator {
 static ALLOCATOR: Mutex<BitMapAllocator> = Mutex::new(BitMapAllocator::new());
 
 pub fn mark_as_used<S: PageSize>(frame: Frame<S>) {
-    use super::super::uart::boot_time_log;;
-    boot_time_log("mau0");
-    unsafe {  ALLOCATOR.force_unlock(); };
     let mut allocator = ALLOCATOR.lock();
     if S::LOG_SIZE == Size4K::LOG_SIZE {
         let index_2m = frame.start().as_usize() >> Size2M::LOG_SIZE;

@@ -16,20 +16,19 @@ pub unsafe fn _start() -> ! {
     "};
     // Setup core 0 stack
     asm!("mov sp, $0"::"r"(0x80000));
-    asm!("mov fp, $0"::"r"(0x80000));
-    // loop {}
+    
     super::uart::UART0::init();
     assert!(CurrentEL.get() == CurrentEL::EL::EL2.value);
     boot_time_log("[boot...]");
     CNTHCTL_EL2.write(CNTHCTL_EL2::EL1PCEN::SET + CNTHCTL_EL2::EL1PCTEN::SET);
-    CNTVOFF_EL2.set(0);boot_time_log("[boot...]");
+    CNTVOFF_EL2.set(0);
     // Switch to EL1
+    boot_time_log("[boot: switch to exception level 1...]");
     SCTLR_EL1.set((3 << 28) | (3 << 22) | (1 << 20) | (1 << 11)); // Disable MMU
     HCR_EL2.write(HCR_EL2::RW::EL1IsAarch64); // Set execution mode = AArch64
     SPSR_EL2.write(SPSR_EL2::D::Masked + SPSR_EL2::A::Masked + SPSR_EL2::I::Masked + SPSR_EL2::F::Masked + SPSR_EL2::M::EL1h);
     ELR_EL2.set(_start_el1 as *const () as u64); // EL1 PC after return from `eret`
     SP_EL1.set(0x80000); // EL1 stack
-    // boot_time_log("[boot...]");
     asm::eret();
 }
 
@@ -53,16 +52,15 @@ unsafe fn zero_bss() {
 /// kernel code is running in Exception Level 1
 unsafe extern fn _start_el1() -> ! {
     // Enable all co-processors
-    boot_time_log("[boot: _start_el1]");
+    boot_time_log("[boot: enable all co-processors]");
     asm!("msr cpacr_el1, $0"::"r"(0xfffffff));
     boot_time_log("[boot: zero bss]");
     zero_bss();
     // Setup paging
     boot_time_log("[boot: setup kernel pagetable]");
     super::mm::paging::setup_kernel_pagetables();
-    boot_time_log("[boot: setup stack pointer]");
+    boot_time_log("[boot: switch to high address space]");
     SP.set(SP.get() | 0xffff0000_00000000);
-    boot_time_log("[boot: switch to high address space...]");
     let fn_addr = _start_el1_high_address_space as usize | 0xffff0000_00000000;
     let func: unsafe extern fn() -> ! = ::core::mem::transmute(fn_addr);
     func()
@@ -73,11 +71,10 @@ unsafe extern fn _start_el1() -> ! {
 /// Including SP, PC and other registers
 /// i.e. `address & 0xffff0000_00000000 == 0xffff0000_00000000`
 unsafe extern fn _start_el1_high_address_space() -> ! {
-    println!("[boot: _start_el1_high_address_space]");
-    // let _ptr = _start_el1_high_address_space as *const unsafe extern fn() -> !;
+    println!("[boot: clear temporary user page table]");
     super::mm::paging::clear_temp_user_pagetable();
     // Set EL1 interrupt vector
-    println!("[boot: set interrupt vector]");
+    println!("[boot: setup interrupt vector]");
     VBAR_EL1.set((&exception::exception_handlers as *const _ as usize | 0xffff0000_00000000) as _);
     barrier::isb(barrier::SY);
     // Call kmain

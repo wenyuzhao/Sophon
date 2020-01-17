@@ -81,12 +81,11 @@ pub extern fn kmain() -> ! {
     println!("Created idle process: {:?}", task.id());
     let task = task::Task::create_kernel_task(init_process::entry);
     println!("Created init process: {:?}", task.id());
-
-    loop {}
     
-    // // Manually trigger a page fault
-    // // unsafe { *(0xdeadbeef as *mut u8) = 0; }
-    // task::GLOBAL_TASK_SCHEDULER.schedule();
+    // Manually trigger a page fault
+    // unsafe { *(0xdeadbeef as *mut u8) = 0; }
+    
+    task::GLOBAL_TASK_SCHEDULER.schedule();
 }
 
 

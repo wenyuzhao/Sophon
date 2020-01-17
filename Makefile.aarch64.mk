@@ -14,7 +14,6 @@ user_target_json = $(PWD)/proton/$(user_target).json
 debug_interrupts = $(if $(dint),-d int)
 output_elf = target/$(kernel_target)/$(profile)/proton
 output_img = target/$(kernel_target)/$(profile)/kernel8.img
-output_init_elf = target/$(user_target)/$(profile)/init
 qemu_command = qemu-system-aarch64 -display none -M raspi3 -serial stdio -drive file=test.img,if=sd,format=raw
 qemu_debug_interrupts = $(if $(dint),-d int)
 qemu_gdb_server = $(if $(gdb),-s -S)
@@ -28,7 +27,7 @@ kernel: init drivers FORCE
 
 user_process: FORCE
 	cd $(process_path) && $(cargo_xbuild) --target $(user_target_json)
-	@llvm-objdump --source -d target/$(user_target)/$(profile)/$(process_name) > target/$(user_target)/$(profile)/$(process_name).s
+	@llvm-objdump --source -D target/$(user_target)/$(profile)/$(process_name) > target/$(user_target)/$(profile)/$(process_name).s
 
 drivers: FORCE
 	@make user_process process_path=drivers/emmc process_name=emmc

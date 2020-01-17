@@ -182,7 +182,7 @@ impl Scheduler {
                 let state = next_task.scheduler_state().borrow_mut();
                 state.run_state == RunState::Ready
             });
-            println!("Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
+            // println!("Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
             
             // Run next task
             {
