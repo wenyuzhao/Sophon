@@ -6,7 +6,8 @@ use proton::KernelCall;
 const HANDLERS: [fn (m: &Message); KernelCall::COUNT] = [
     system::task::fork,
     system::task::exit,
-    system::mem::physical_memory,
+    system::task::sleep,
+    system::mem::map_physical_memory,
 ];
 
 

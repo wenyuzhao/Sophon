@@ -57,7 +57,6 @@ pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
 }
 
 #[panic_handler]
-#[cfg(not(feature="rls"))]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     log!("{}", info);
     loop {}

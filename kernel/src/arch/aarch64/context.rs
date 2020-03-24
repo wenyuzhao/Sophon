@@ -82,7 +82,7 @@ pub struct Context {
 
     // q: [u128; 32], // Neon registers
 
-    p4: Frame,
+    pub p4: Frame,
     kernel_stack: Option<Box<KernelStack>>,
     kernel_stack_top: *mut u8,
     response_message: Option<Message>,

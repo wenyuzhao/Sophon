@@ -1,5 +1,7 @@
 use crate::*;
 
+pub use super::Message;
+
 #[repr(usize)]
 pub enum IPC {
     Log = 0,

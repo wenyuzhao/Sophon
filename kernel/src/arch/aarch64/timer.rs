@@ -4,7 +4,7 @@ use crate::arch::*;
 #[cfg(feature="device-raspi4")]
 use super::gic::*;
 
-const TIMER_INTERRUPT_FREQUENCY: usize = 10000; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz
 
 // pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
 

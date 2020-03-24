@@ -1,5 +1,4 @@
 pub mod atomic_queue;
-pub mod address;
-pub mod page;
+pub use ::proton::{address, page};
 #[macro_use]
 pub mod macros;

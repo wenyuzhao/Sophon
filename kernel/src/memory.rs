@@ -14,6 +14,7 @@ bitflags! {
         const KERNEL      = 0b1 << 4;
         const NO_WRITE    = 0b1 << 5;
         const NO_EXEC     = 0b1 << 6;
+        const NO_CACHE    = 0b1 << 7; 
     }
 }
 

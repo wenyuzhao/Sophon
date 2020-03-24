@@ -25,6 +25,9 @@ pub fn fork(m: &Message) {
     reply_child.send();
 }
 
+pub fn sleep(m: &Message) {
+    unimplemented!()
+}
 
 pub fn exit(_m: &Message) {
     unimplemented!()

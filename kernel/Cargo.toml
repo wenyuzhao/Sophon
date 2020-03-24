@@ -8,14 +8,6 @@ edition = "2018"
 name = "proton"
 path = "src/main.rs"
 
-[profile.dev]
-opt-level = 1
-panic = "abort"
-
-[profile.release]
-lto = true
-panic = "abort"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -28,8 +20,7 @@ goblin = { version = "0.1.0", default-features = false, features = ["elf32", "el
 device_tree = { git = "https://github.com/rcore-os/device_tree-rs" }
 
 [features]
-default = [ "rls", "device-raspi3-qemu" ]
-rls = []
+default = [ "device-raspi3-qemu" ]
 # Devices
 device-raspi3-qemu = []
 device-raspi4 = []

@@ -7,6 +7,9 @@ use page_table::{PageTable, L4};
 
 pub struct MemoryManager;
 
+impl MemoryManager {
+}
+
 impl AbstractMemoryManager for MemoryManager {
     fn alloc_frame<S: PageSize>() -> Frame<S> {
         frame_allocator::alloc().unwrap()
@@ -96,6 +99,7 @@ pub fn handle_user_pagefault(address: Address) {
             return
         }
     }
+    println!("Page Fault at {:?}", address);
     unimplemented!()
 }
 

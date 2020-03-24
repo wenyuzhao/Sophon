@@ -1,4 +1,6 @@
 use crate::*;
+use super::page::{Page, Frame};
+use super::address::Address;
 
 
 
@@ -6,7 +8,8 @@ use crate::*;
 pub enum KernelCall {
     Fork = 0,
     Exit,
-    PhysicalMemory,
+    Sleep,
+    MapPhysicalMemory,
 
     #[allow(non_camel_case_types)]
     __MAX_COUNT,
@@ -30,5 +33,30 @@ impl KernelCall {
                 Err(())
             }
         }
+    }
+
+    #[inline]
+    pub fn map_physical_memory(page: Page, frame: Frame) -> Result<Page, ()> {
+        let message = Message::new(TaskId::NULL, TaskId::KERNEL, KernelCall::MapPhysicalMemory as _)
+            .with_data((frame, page));
+        message.send();
+        let reply = Message::receive(Some(TaskId::KERNEL));
+        let addr = reply.get_data::<Address>();
+        if addr.is_zero() || *addr != page.start() {
+            // use super::log::log;
+            #[cfg(feature="user")]
+            log!("Return {:?}, page = {:?}", addr, page);
+            Err(())
+        } else {
+            Ok(page)
+        }
+    }
+
+    #[inline]
+    pub fn sleep() -> Result<(), ()> {
+        let message = Message::new(TaskId::NULL, TaskId::KERNEL, KernelCall::Sleep as _);
+        message.send();
+        let _reply = Message::receive(Some(TaskId::KERNEL));
+        Ok(())
     }
 }

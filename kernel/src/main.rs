@@ -90,14 +90,12 @@ pub extern fn kmain() -> ! {
 
 
 
-#[cfg(not(feature="rls"))]
 #[panic_handler]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     println!("{}", info);
     loop {}
 }
 
-#[cfg(not(feature="rls"))]
 #[alloc_error_handler]
 fn alloc_error_handler(layout: ::alloc::alloc::Layout) -> ! {
     panic!("Allocation error: {:?}", layout)

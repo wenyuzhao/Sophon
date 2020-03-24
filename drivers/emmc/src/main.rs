@@ -5,15 +5,33 @@
 
 #[macro_use]
 extern crate proton;
+mod emmc;
+mod constants;
 
-#[no_mangle]
-pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
-    log!("EMMC Driver Started");
-    loop {}
+use proton::Message;
+use proton::driver::Driver;
+
+pub struct EMMCDriver;
+
+driver_entry!(EMMCDriver);
+
+impl Driver for EMMCDriver {
+    fn new() -> Self {
+        emmc::EMMC::init();
+        Self
+    }
+    fn handle_message(&mut self, m: &Message) {
+        unimplemented!()
+    }
+}
+
+impl EMMCDriver {
+    fn init(&mut self) {
+
+    }
 }
 
 #[panic_handler]
-#[cfg(not(feature="rls"))]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     log!("{}", info);
     loop {}
