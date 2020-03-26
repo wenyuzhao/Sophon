@@ -4,6 +4,10 @@
 #![feature(format_args_nl)]
 #![no_std]
 
+
+#[macro_use]
+extern crate bitflags;
+
 #[cfg(feature="user")]
 #[macro_use]
 pub mod log;
@@ -11,9 +15,10 @@ pub mod log;
 pub mod task;
 pub mod kernel_call;
 pub mod ipc;
-pub mod address;
-pub mod page;
-
+mod address;
+mod page;
+pub mod memory;
+pub mod lazy;
 
 #[cfg(feature="user")]
 #[macro_use]

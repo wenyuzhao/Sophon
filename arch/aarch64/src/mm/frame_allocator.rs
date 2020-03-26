@@ -1,5 +1,5 @@
 use spin::Mutex;
-use crate::memory::*;
+use proton::memory::*;
 use crate::heap::constants::*;
 
 const SMALL_FRAMES_IN_HEAP: usize = MAX_HEAP_SIZE >> Size4K::LOG_SIZE;

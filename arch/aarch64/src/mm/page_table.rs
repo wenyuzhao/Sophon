@@ -1,7 +1,7 @@
 use cortex_a::regs::*;
 use core::marker::PhantomData;
 use super::frame_allocator;
-use crate::memory::*;
+use proton::memory::*;
 
 
 bitflags! {

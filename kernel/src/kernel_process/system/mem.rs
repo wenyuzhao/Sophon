@@ -1,7 +1,6 @@
 use crate::task::*;
 use crate::arch::*;
-use crate::utils::address::*;
-use crate::utils::page::*;
+use proton::memory::*;
 use crate::memory::PageFlags;
 
 pub fn map_physical_memory(m: &Message) {

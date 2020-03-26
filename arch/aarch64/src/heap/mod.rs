@@ -3,9 +3,9 @@ pub mod constants;
 use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
 use core::cmp::{max, min};
-use crate::memory::*;
-
-
+use proton::memory::*;
+use proton_kernel::arch::*;
+use crate::arch::*;
 
 const MIN_SIZE: usize = 1 << 3;
 
@@ -119,16 +119,27 @@ impl GlobalAllocator {
 
 unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let a = uninterruptable! {
+        let a = <AArch64 as AbstractArch>::Interrupt::uninterruptable(|| {
             self.fa.lock().alloc(&layout).as_ptr_mut()
-        };
-        // println!("alloc {:?}", a);
+        });
+        // debug!(crate::AArch64Kernel: "alloc {:?}", a);
         a
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        uninterruptable! {
+        <AArch64 as AbstractArch>::Interrupt::uninterruptable(|| {
             self.fa.lock().free(ptr.into(), &layout)
-        }
+        });
+    }
+}
+
+pub struct KernelHeap {
+
+}
+
+impl AbstractKernelHeap for KernelHeap {
+    // const RANGE: (Address, Address) = constants::kernel_heap_start()
+    fn init() {
+        crate::ALLOCATOR.init()
     }
 }

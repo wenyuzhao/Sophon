@@ -1,7 +1,7 @@
 use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
 use super::constants::*;
-use crate::arch::*;
+use proton_kernel::arch::*;
 
 pub fn boot_time_log(s: &str) {
     fn putc(c: char) {

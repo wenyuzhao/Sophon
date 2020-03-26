@@ -1,9 +1,10 @@
-use crate::arch::*;
 pub mod frame_allocator;
 pub mod page_table;
 pub mod paging;
 use page_table::PageFlags as ArchPageFlags;
 use page_table::{PageTable, L4};
+use proton::memory::*;
+use proton_kernel::arch::*;
 
 pub struct MemoryManager;
 
@@ -99,7 +100,7 @@ pub fn handle_user_pagefault(address: Address) {
             return
         }
     }
-    println!("Page Fault at {:?}", address);
+    // println!("Page Fault at {:?}", address);
     unimplemented!()
 }
 

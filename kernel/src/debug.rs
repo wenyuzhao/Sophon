@@ -2,41 +2,37 @@ use core::fmt;
 use core::fmt::Write;
 use spin::Mutex;
 use crate::arch::*;
+use crate::AbstractKernel;
+use core::marker::PhantomData;
 
 #[doc(hidden)]
 #[inline(never)]
-pub fn _print(args: fmt::Arguments) {
-    Target::Interrupt::uninterruptable(|| {
-        let mut write = LOGGER.lock();
+pub fn _print<K: AbstractKernel>(args: fmt::Arguments) {
+    <K::Arch as AbstractArch>::Interrupt::uninterruptable(|| {
+        let _guard = LOGGER_LOCK.lock();
+        let mut write = Logger::<K::Arch>(PhantomData);
         write.write_fmt(args).unwrap();
     });
 }
 
 #[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => {{
-        $crate::debug::_print(format_args!($($arg)*))
+macro_rules! debug {
+    ($arch: ty: $($arg:tt)*) => {{
+        $crate::debug::_print::<$arch>(format_args_nl!($($arg)*))
     }};
 }
 
-#[macro_export]
-macro_rules! println {
-    ($($arg:tt)*) => {{
-        $crate::debug::_print(format_args_nl!($($arg)*))
-    }};
-}
+static LOGGER_LOCK: Mutex<()> = Mutex::new(());
 
-static LOGGER: Mutex<Logger> = Mutex::new(Logger);
+struct Logger<Arch: AbstractArch>(PhantomData<Arch>);
 
-struct Logger;
-
-impl Logger {
+impl <Arch: AbstractArch> Logger<Arch> {
     fn putc(&self, c: char) {
-        Target::Logger::put(c)
+        Arch::Logger::put(c)
     }
 }
 
-impl Write for Logger {
+impl <Arch: AbstractArch> Write for Logger<Arch> {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         for c in s.chars() {
             if c == '\n' {

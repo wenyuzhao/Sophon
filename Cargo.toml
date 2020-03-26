@@ -2,8 +2,9 @@
 members = [
     "kernel",
     "proton",
+    "arch/aarch64",
     "init",
-    "drivers/emmc"
+    # "drivers/emmc"
 ]
 
 [profile.dev]

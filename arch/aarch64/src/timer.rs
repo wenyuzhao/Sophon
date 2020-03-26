@@ -1,8 +1,10 @@
 use super::constants::*;
 use cortex_a::regs::*;
-use crate::arch::*;
+use proton_kernel::arch::*;
+use proton_kernel::scheduler::AbstractScheduler;
 #[cfg(feature="device-raspi4")]
 use super::gic::*;
+use crate::*;
 
 const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz
 
@@ -56,7 +58,7 @@ pub fn handle_timer_irq(_: usize, _: usize, _: usize, _: usize, _: usize, _: usi
             asm!("msr cntp_cval_el0, $0":: "r"(CNTPCT_EL0.get() + step));
         }
     }
-    crate::task::GLOBAL_TASK_SCHEDULER.timer_tick();
+    Kernel::global().scheduler.timer_tick();
     0
 }
 
@@ -80,7 +82,7 @@ impl AbstractTimer for Timer {
             CNTP_CTL_EL0.set(1);
             asm!("dmb SY":::"memory");
         }
-        Target::Interrupt::set_handler(InterruptId::Timer, Some(handle_timer_irq));
+        Target::Interrupt::set_handler(InterruptId::Timer, Some(box handle_timer_irq));
     }
 
     #[cfg(feature="device-raspi3-qemu")]
@@ -94,7 +96,7 @@ impl AbstractTimer for Timer {
             CNTP_CTL_EL0.set(1);
             *ARM_CORE_TIMER_INTERRUPT_CONTROL(0) = 1 << 1;
         }
-        Target::Interrupt::set_handler(InterruptId::Timer, Some(handle_timer_irq));
+        <AArch64 as AbstractArch>::Interrupt::set_handler(InterruptId::Timer, Some(box handle_timer_irq));
     }
 
     fn wait(ms: usize) {

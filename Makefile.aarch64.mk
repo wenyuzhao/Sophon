@@ -10,7 +10,7 @@ device ?= raspi3-qemu
 # Optional: dint=1
 
 # Derived configurations
-user_target_json = $(PWD)/proton/$(user_target).json
+user_target_json = $(CURDIR)/proton/$(user_target).json
 debug_interrupts = $(if $(dint),-d int)
 output_elf = target/$(kernel_target)/$(profile)/proton
 output_img = target/$(kernel_target)/$(profile)/kernel8.img
@@ -20,8 +20,8 @@ qemu_gdb_server = $(if $(gdb),-s -S)
 
 
 
-kernel: init drivers FORCE
-	@cd kernel && $(cargo_xbuild) --target $(kernel_target).json --features device-$(device)
+kernel: init FORCE
+	@cd arch/aarch64 && $(cargo_xbuild) --target $(kernel_target).json --features device-$(device)
 	@llvm-objcopy --strip-all $(output_elf) -O binary $(output_img)
 	@llvm-objdump --source -d $(output_elf) > $(output_elf).s
 

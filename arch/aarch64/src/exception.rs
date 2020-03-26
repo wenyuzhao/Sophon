@@ -1,6 +1,8 @@
-use crate::arch::*;
 #[cfg(feature="device-raspi4")]
 use super::gic::*;
+use proton_kernel::task::Task;
+use proton_kernel::arch::*;
+use crate::*;
 
 #[repr(usize)]
 #[derive(Debug)]
@@ -54,8 +56,8 @@ unsafe fn get_exception_class() -> ExceptionClass {
 #[no_mangle]
 pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
     // println!("EF = {:?}", exception_frame as *mut _);
-    debug_assert!(crate::task::Task::current().unwrap().context.exception_frame as usize == 0);
-    crate::task::Task::current().unwrap().context.exception_frame = exception_frame;
+    debug_assert!(Task::<Kernel>::current().unwrap().context.exception_frame as usize == 0);
+    Task::<Kernel>::current().unwrap().context.exception_frame = exception_frame;
     let exception = get_exception_class();
     // println!("Exception received {:?}", exception);
     match exception {
@@ -66,17 +68,17 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
         ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
             let far: usize;
             asm!("mrs $0, far_el1":"=r"(far));
-            let elr: usize;
-            asm!("mrs $0, elr_el1":"=r"(elr));
-            println!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
-            println!("Data Abort {:?}, {:?}", far as *mut (), crate::task::Task::current().unwrap().id());
+            // let elr: usize;
+            // asm!("mrs $0, elr_el1":"=r"(elr));
+            // println!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
+            // println!("Data Abort {:?}, {:?}", far as *mut (), crate::task::Task::current().unwrap().id());
             super::mm::handle_user_pagefault(far.into());
         },
         #[allow(unreachable_patterns)]
         v => panic!("Unknown exception 0b{:b}", ::core::mem::transmute::<_, u32>(v)),
     }
     
-    crate::task::Task::current().unwrap().context.return_to_user();
+    Task::<Kernel>::current().unwrap().context.return_to_user();
 }
 
 #[cfg(feature="device-raspi4")]
@@ -107,17 +109,17 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
 #[no_mangle]
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     // println!("EF = {:?}", exception_frame as *mut _);
-    debug_assert!(crate::task::Task::current().unwrap().context.exception_frame as usize == 0);
-    crate::task::Task::current().unwrap().context.exception_frame = exception_frame;
+    debug_assert!(Task::<Kernel>::current().unwrap().context.exception_frame as usize == 0);
+    Task::<Kernel>::current().unwrap().context.exception_frame = exception_frame;
 
     if super::timer::pending_timer_irq() {
         super::interrupt::handle_interrupt(InterruptId::Timer, exception_frame);
     } else {
-        println!("Unknown IRQ");
+        // println!(AArch64: "Unknown IRQ");
         loop {}
     }
     unsafe {
-        crate::task::Task::current().unwrap().context.return_to_user();
+        Task::<Kernel>::current().unwrap().context.return_to_user();
     }
 }
 

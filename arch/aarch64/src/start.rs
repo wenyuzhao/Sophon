@@ -1,8 +1,9 @@
 use super::*;
 use cortex_a::{asm, regs::*, barrier};
 use super::uart::boot_time_log;
+use proton_kernel::*;
 
-#[inline(always)]
+#[no_mangle]
 #[naked]
 pub unsafe fn _start() -> ! {
     // Halt non-promary processors
@@ -71,13 +72,15 @@ unsafe extern fn _start_el1() -> ! {
 /// Including SP, PC and other registers
 /// i.e. `address & 0xffff0000_00000000 == 0xffff0000_00000000`
 unsafe extern fn _start_el1_high_address_space() -> ! {
-    println!("[boot: clear temporary user page table]");
+    // println!("[boot: clear temporary user page table]");
     super::mm::paging::clear_temp_user_pagetable();
     // Set EL1 interrupt vector
-    println!("[boot: setup interrupt vector]");
+    // println!("[boot: setup interrupt vector]");
     VBAR_EL1.set((&exception::exception_handlers as *const _ as usize | 0xffff0000_00000000) as _);
     barrier::isb(barrier::SY);
     // Call kmain
-    set_booted();
-    crate::kmain()
+    // set_booted();
+    
+    debug!(Kernel: "[boot: current execution level = {}]", (CurrentEL.get() & 0b1100) >> 2);
+    <Kernel as AbstractKernel>::start();
 }

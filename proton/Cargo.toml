@@ -9,6 +9,7 @@ description = "Common types and APIs, used for both kernel and user programs."
 
 [dependencies]
 spin = "0.5.2"
+bitflags = "1.2.1"
 
 [features]
 default = []

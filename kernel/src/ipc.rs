@@ -1,33 +1,55 @@
-use crate::arch::*;
 use crate::task::*;
 use proton::IPC;
+use crate::*;
+use crate::arch::*;
+use core::marker::PhantomData;
 
-
-
-type Handler = fn (x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize;
-
-macro_rules! handlers {
-    ($($f: expr,)*) => { handlers![$($f),*] };
-    ($($f: expr),*) => {[
-        $(|x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize| unsafe { ::core::mem::transmute($f(x0, x1, x2, x3, x4, x5)) }),*
-    ]};
+pub struct IPCController<K: AbstractKernel> {
+    phantom: PhantomData<K>,
 }
 
-static IPC_CALL_HANDLERS: [Handler; IPC::COUNT] = handlers![
-    log,
-    send,
-    receive,
-];
+impl <K: AbstractKernel> IPCController<K> {
+    pub const fn new() -> Self {
+        Self { phantom: PhantomData }
+    }
 
-pub fn init() {
-    Target::Interrupt::set_handler(InterruptId::Soft, Some(handle_syscall));
+    fn handle(&self, ipc: IPC, args: [usize; 5]) -> isize {
+        let [a, b, c, d, e] = args;
+        match ipc {
+            IPC::Log => log::<K>(a, b, c, d, e),
+            IPC::Send => send::<K>(a, b, c, d, e),
+            IPC::Receive => receive::<K>(a, b, c, d, e),
+        }
+    }
 }
 
-fn handle_syscall(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize {
-    let syscall_id: IPC = unsafe { ::core::mem::transmute(x0) };
-    let handler = IPC_CALL_HANDLERS[syscall_id as usize];
-    handler(x0, x1, x2, x3, x4, x5)
+// type Handler = fn (x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize;
+
+// macro_rules! handlers {
+//     ($($f: expr,)*) => { handlers![$($f),*] };
+//     ($($f: expr),*) => {[
+//         $(|x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize| unsafe { ::core::mem::transmute($f(x0, x1, x2, x3, x4, x5)) }),*
+//     ]};
+// }
+
+// static IPC_CALL_HANDLERS: [Handler; IPC::COUNT] = handlers![
+//     log,
+//     send,
+//     receive,
+// ];
+
+pub fn init<K: AbstractKernel>() {
+    <K::Arch as AbstractArch>::Interrupt::set_handler(InterruptId::Soft, Some(box |a, b, c, d, e, f| {
+        let ipc: IPC = unsafe { ::core::mem::transmute(a) };
+        K::global().ipc.handle(ipc, [b, c, d, e, f])
+    }));
 }
+
+// fn handle_syscall<K: AbstractKernel>(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usize) -> isize {
+//     let syscall_id: IPC = unsafe { ::core::mem::transmute(x0) };
+//     let handler = IPC_CALL_HANDLERS[syscall_id as usize];
+//     handler(x0, x1, x2, x3, x4, x5)
+// }
 
 
 
@@ -35,20 +57,20 @@ fn handle_syscall(x0: usize, x1: usize, x2: usize, x3: usize, x4: usize, x5: usi
 // ===   IPC Calls   ===
 // =====================
 
-pub fn log(_x0: usize, x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize) -> isize {
+pub fn log<K: AbstractKernel>(x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize) -> isize {
     let string_pointer = x1 as *const &str;
-    print!("{}", unsafe { *string_pointer });
+    debug!(K: "{}", unsafe { *string_pointer });
     0
 }
 
-fn send(_x0: usize, x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize) -> isize {
+fn send<K: AbstractKernel>(x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize) -> isize {
     let mut msg = unsafe { (*(x1 as *const Message)).clone() };
-    let current_task = Task::current().unwrap();
+    let current_task = Task::<K>::current().unwrap();
     msg.sender = current_task.id();
-    Task::send_message(msg)
+    Task::<K>::send_message(msg)
 }
 
-fn receive(_x0: usize, x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize) -> isize {
+fn receive<K: AbstractKernel>(x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize) -> isize {
     let from_id = unsafe {
         let id = ::core::mem::transmute::<_, isize>(x1);
         if id < 0 {
@@ -57,6 +79,6 @@ fn receive(_x0: usize, x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize
             Some(::core::mem::transmute::<_, TaskId>(id))
         }
     };
-    println!("{:?} start receiving from {:?}", Task::current().unwrap().id(), from_id);
-    Task::receive_message(from_id)
+    debug!(K: "{:?} start receiving from {:?}", Task::<K>::current().unwrap().id(), from_id);
+    Task::<K>::receive_message(from_id)
 }

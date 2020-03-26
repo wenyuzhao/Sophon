@@ -2,7 +2,7 @@ use core::iter::Step;
 use cortex_a::regs::*;
 use cortex_a::barrier;
 use super::page_table::*;
-use crate::memory::*;
+use proton::memory::*;
 use crate::heap::constants::*;
 use super::super::constants::*;
 use super::super::uart::boot_time_log;

@@ -1,6 +1,6 @@
 use alloc::boxed::Box;
 use core::iter::Step;
-use crate::memory::*;
+use proton::memory::*;
 use crate::heap::constants::*;
 use crate::arch::*;
 use super::mm::frame_allocator;
@@ -8,7 +8,9 @@ use super::mm::page_table::*;
 use super::mm::page_table::PageFlags;
 use super::exception::ExceptionFrame;
 use cortex_a::regs::*;
-use crate::task::Message;
+use proton::task::Message;
+use proton_kernel::arch::*;
+// use 
 
 #[repr(C, align(4096))]
 pub struct KernelStack {
@@ -96,7 +98,7 @@ impl AbstractContext for Context {
 
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
-    fn new(entry: *const extern fn() -> !) -> Self {
+    fn new(entry: *const extern fn(a: isize) -> !, args: [usize; 2]) -> Self {
         // Alloc page table
         let p4 = unsafe {
             let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
@@ -116,31 +118,32 @@ impl AbstractContext for Context {
         ctx.kernel_stack_top = sp;
         ctx.p4 = p4;
         ctx.kernel_stack = Some(kernel_stack);
+        ctx.set_response_status(23356);
         ctx
     }
  
-    fn fork(&self) -> Self {
-        let mut ctx = Context {
-            exception_frame: 0usize as _,
-            entry_pc: 0usize as _, // x30
-            p4: self.p4,
-            kernel_stack: Some({
-                let mut kernel_stack = KernelStack::new();
-                kernel_stack.copy_from(self.kernel_stack.as_ref().unwrap());
-                kernel_stack
-            }),
-            kernel_stack_top: 0usize as _,
-            response_message: None,
-            response_status: None,
-        };
-        ctx.exception_frame = {
-            println!("Fork, sp = {:?}, kstack = {:?}", self.exception_frame, self.kernel_stack.as_ref().unwrap().start_address());
-            let sp_offset = self.exception_frame as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
-            (ctx.kernel_stack.as_ref().unwrap().start_address() + sp_offset).as_ptr_mut()
-        };
-        ctx.p4 = super::mm::paging::fork_page_table(self.p4);
-        ctx
-    }
+    // fn fork(&self) -> Self {
+    //     let mut ctx = Context {
+    //         exception_frame: 0usize as _,
+    //         entry_pc: 0usize as _, // x30
+    //         p4: self.p4,
+    //         kernel_stack: Some({
+    //             let mut kernel_stack = KernelStack::new();
+    //             kernel_stack.copy_from(self.kernel_stack.as_ref().unwrap());
+    //             kernel_stack
+    //         }),
+    //         kernel_stack_top: 0usize as _,
+    //         response_message: None,
+    //         response_status: None,
+    //     };
+    //     ctx.exception_frame = {
+    //         println!("Fork, sp = {:?}, kstack = {:?}", self.exception_frame, self.kernel_stack.as_ref().unwrap().start_address());
+    //         let sp_offset = self.exception_frame as usize - self.kernel_stack.as_ref().unwrap().start_address().as_usize();
+    //         (ctx.kernel_stack.as_ref().unwrap().start_address() + sp_offset).as_ptr_mut()
+    //     };
+    //     ctx.p4 = super::mm::paging::fork_page_table(self.p4);
+    //     ctx
+    // }
 
     fn set_response_message(&mut self, m: Message) {
         self.response_message = Some(m);
@@ -151,7 +154,7 @@ impl AbstractContext for Context {
     }
 
     unsafe extern fn return_to_user(&mut self) -> ! {
-        debug_assert!(!Target::Interrupt::is_enabled());
+        debug_assert!(!<AArch64 as AbstractArch>::Interrupt::is_enabled());
         // Switch page table
         if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
             asm! {"
@@ -204,7 +207,7 @@ impl AbstractContext for Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        println!("Context drop");
+        // println!("Context drop");
     }
 }
 

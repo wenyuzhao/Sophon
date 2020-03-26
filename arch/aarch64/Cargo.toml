@@ -1,25 +1,26 @@
 [package]
-name = "proton_kernel"
+name = "proton_aarch64"
 version = "0.1.0"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
 
-# [[bin]]
-# name = "proton"
-# path = "src/main.rs"
+[[bin]]
+name = "proton"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-proton = { path = "../proton", features = ["kernel"] }
+proton = { path = "../../proton", features = ["kernel"] }
+proton_kernel = { path = "../../kernel" }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 spin = "0.5.2"
+cortex-a = "2.7.0"
 bitflags = "1.2.1"
-# goblin = { version = "0.1.0", default-features = false, features = ["elf32", "elf64", "endian_fd"] }
 device_tree = { git = "https://github.com/rcore-os/device_tree-rs" }
 
 [features]
 default = [ "device-raspi3-qemu" ]
 # Devices
-device-raspi3-qemu = []
+device-raspi3-qemu = [ "proton_kernel/device-raspi3-qemu" ]
 device-raspi4 = []
