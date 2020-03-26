@@ -98,7 +98,7 @@ impl AbstractContext for Context {
 
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
-    fn new(entry: *const extern fn(a: isize) -> !, args: [usize; 2]) -> Self {
+    fn new(entry: *const extern fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
         // Alloc page table
         let p4 = unsafe {
             let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
@@ -118,7 +118,7 @@ impl AbstractContext for Context {
         ctx.kernel_stack_top = sp;
         ctx.p4 = p4;
         ctx.kernel_stack = Some(kernel_stack);
-        ctx.set_response_status(23356);
+        ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
         ctx
     }
  

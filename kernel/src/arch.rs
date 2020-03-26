@@ -1,7 +1,9 @@
 use core::ops::*;
 use proton::memory::*;
 use alloc::boxed::Box;
-use alloc::vec::Vec;
+use crate::kernel_process::KernelTask;
+
+
 
 #[repr(usize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -69,7 +71,7 @@ pub trait AbstractTimer: Sized {
 
 pub trait AbstractContext: Sized + 'static {
     fn empty() -> Self;
-    fn new(entry: *const extern fn(a: isize) -> !, args: [usize; 2]) -> Self;
+    fn new(entry: *const extern fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
     // fn fork(&self) -> Self;
     fn set_response_message(&mut self, m: crate::task::Message);
     fn set_response_status(&mut self, s: isize);
@@ -92,4 +94,6 @@ pub trait AbstractArch: Sized + 'static {
     type Context: AbstractContext;
     type Logger: AbstractLogger;
     type Heap: AbstractKernelHeap;
+    
+    fn create_idle_task() -> Box<dyn KernelTask>;
 }

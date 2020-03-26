@@ -1,19 +1,13 @@
 #![feature(asm)]
 #![feature(format_args_nl)]
 #![feature(global_asm)]
-#![feature(panic_info_message)]
 #![feature(core_intrinsics)]
-#![feature(stmt_expr_attributes)]
 #![feature(naked_functions)]
-#![feature(const_fn)]
-#![feature(const_raw_ptr_to_usize_cast)]
 #![feature(step_trait)]
 #![feature(const_transmute)]
 #![feature(box_syntax)]
 #![feature(alloc_error_handler)]
 #![feature(new_uninit)]
-#![feature(type_alias_impl_trait)]
-#![feature(internal_uninit_const)]
 #![feature(never_type)]
 #![feature(const_in_array_repeat_expressions)]
 #![allow(dead_code)]
@@ -32,17 +26,18 @@ extern crate device_tree;
 #[macro_use]
 extern crate proton_kernel;
 
-pub mod start;
-pub mod gic;
-pub mod interrupt;
-pub mod exception;
-pub mod timer;
-pub mod context;
-pub mod mm;
+mod start;
+mod gic;
+mod interrupt;
+mod exception;
+mod timer;
+mod context;
+mod mm;
 mod heap;
-pub mod uart;
-pub mod constants;
+mod uart;
+mod constants;
 mod arch;
+mod idle;
 
 use proton_kernel::AbstractKernel;
 use proton_kernel::scheduler::round_robin::RoundRobinScheduler;

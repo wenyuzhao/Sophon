@@ -5,7 +5,8 @@ use super::scheduler::*;
 use core::cell::RefCell;
 use crate::*;
 pub use proton::{IPC, TaskId, Message};
-
+use alloc::boxed::Box;
+use crate::kernel_process::KernelTask;
 
 static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -112,13 +113,18 @@ impl <K: AbstractKernel> Task<K> {
     //     GLOBAL_TASK_SCHEDULER.register_new_task(task)
     // }
     /// Create a init task with empty p4 table
-    pub fn create_kernel_task(entry: extern fn(x: isize) -> !) -> &'static mut Self {
+    pub fn create_kernel_task(t: Box<dyn KernelTask>) -> &'static mut Self {
+        extern fn entry(t: *mut Box<dyn KernelTask>) -> ! {
+            let mut t: Box<Box<dyn KernelTask>> = unsafe { Box::from_raw(t) };
+            t.run()
+        }
+        let t = box t;
         // Assign an id
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
         // Alloc task struct
         let task = box Task {
             id,
-            context: <K::Arch as AbstractArch>::Context::new(entry as _, [0, 0]),
+            context: <K::Arch as AbstractArch>::Context::new(entry as _, Box::into_raw(t) as usize as *mut ()),
             scheduler_state: RefCell::new(Default::default()),
             block_to_receive_from: Mutex::new(None),
             block_to_send: None,

@@ -1,10 +1,7 @@
 #![feature(const_fn)]
-#![feature(core_intrinsics)]
 #![feature(format_args_nl)]
 #![feature(associated_type_defaults)]
 #![feature(box_syntax)]
-#![feature(never_type)]
-#![feature(type_ascription)]
 #![no_std]
 
 extern crate alloc;
@@ -17,14 +14,15 @@ pub mod debug;
 pub mod task;
 pub mod scheduler;
 pub mod ipc;
-mod kernel_process;
+pub mod kernel_process;
 // mod user_process;
 
 use arch::*;
 use scheduler::AbstractScheduler;
 use proton::lazy::Lazy;
 use ipc::IPCController;
-use kernel_process::KernelProcess;
+use kernel_process::system::System;
+use task::Task;
 
 
 
@@ -59,12 +57,13 @@ pub trait AbstractKernel: Sized + 'static {
         debug!(Self: "[kernel: timer initialized]");
 
         
-        let task = KernelProcess::<Self>::spawn();
+        // let task = KernelProcess::<Self>::spawn();
+        let task = Task::<Self>::create_kernel_task(box System::<Self>::new());
         debug!(Self: "Created kernel process: {:?}", task.id());
         // let task = Task::<Self>::create_kernel_task(kernel_process::idle);
         // debug!("Created idle process: {:?}", task.id());
-        // let task = Task::<Self>::create_kernel_task(init_process::entry);
-        // debug!("Created init process: {:?}", task.id());
+        let task = Task::<Self>::create_kernel_task(Self::Arch::create_idle_task());
+        debug!(Self: "Created init process: {:?}", task.id());
 
         Self::global().scheduler.schedule();
     }

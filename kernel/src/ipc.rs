@@ -59,7 +59,8 @@ pub fn init<K: AbstractKernel>() {
 
 pub fn log<K: AbstractKernel>(x1: usize, _x2: usize, _x3: usize, _x4: usize, _x5: usize) -> isize {
     let string_pointer = x1 as *const &str;
-    debug!(K: "{}", unsafe { *string_pointer });
+    let s: &str = unsafe { &*string_pointer };
+    crate::debug::_print::<K>(format_args!("{}", s));
     0
 }
 

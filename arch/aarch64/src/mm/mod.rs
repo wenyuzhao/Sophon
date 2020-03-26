@@ -100,7 +100,7 @@ pub fn handle_user_pagefault(address: Address) {
             return
         }
     }
-    // println!("Page Fault at {:?}", address);
+    debug!(crate::Kernel: "Page Fault at {:?}", address);
     unimplemented!()
 }
 

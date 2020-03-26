@@ -81,6 +81,7 @@ unsafe extern fn _start_el1_high_address_space() -> ! {
     // Call kmain
     // set_booted();
     
+    TTBR0_EL1.set(0);
     debug!(Kernel: "[boot: current execution level = {}]", (CurrentEL.get() & 0b1100) >> 2);
     <Kernel as AbstractKernel>::start();
 }
