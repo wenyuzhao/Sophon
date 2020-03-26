@@ -23,7 +23,7 @@
   "panic-strategy": "abort",
   "pre-link-args": {
     "ld.lld": [
-      "-T./kernel/aarch64.ld"
+      "-T./arch/aarch64/aarch64.ld"
     ]
   },
   "relocation-model": "static",
