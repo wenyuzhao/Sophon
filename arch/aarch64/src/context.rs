@@ -203,6 +203,20 @@ impl AbstractContext for Context {
         // Return from exception
         super::exception::exit_exception();
     }
+
+    unsafe fn enter_usermode(entry: extern fn(_argc: isize, _argv: *const *const u8), sp: Address) -> ! {
+        <AArch64 as AbstractArch>::Interrupt::disable();
+        asm! {
+            "
+            msr spsr_el1, $0
+            msr elr_el1, $1
+            msr sp_el0, $2
+            eret
+            "
+            ::"r"(0), "r"(entry), "r"(sp.as_usize())
+        }
+        unreachable!()
+    }
 }
 
 impl Drop for Context {

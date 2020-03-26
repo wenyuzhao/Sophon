@@ -5,6 +5,7 @@
 #![no_std]
 
 extern crate alloc;
+extern crate elf_rs;
 
 pub mod arch;
 pub mod memory;
@@ -15,16 +16,18 @@ pub mod task;
 pub mod scheduler;
 pub mod ipc;
 pub mod kernel_process;
-// mod user_process;
 
 use arch::*;
 use scheduler::AbstractScheduler;
 use proton::lazy::Lazy;
 use ipc::IPCController;
 use kernel_process::system::System;
+use kernel_process::user::UserTask;
 use task::Task;
 
 
+
+static INIT_ELF: &'static [u8] = include_bytes!("../../target/aarch64-proton/debug/init");
 
 pub struct KernelGlobal<K: AbstractKernel> {
     pub scheduler: Lazy<K::Scheduler>,
@@ -60,10 +63,10 @@ pub trait AbstractKernel: Sized + 'static {
         // let task = KernelProcess::<Self>::spawn();
         let task = Task::<Self>::create_kernel_task(box System::<Self>::new());
         debug!(Self: "Created kernel process: {:?}", task.id());
-        // let task = Task::<Self>::create_kernel_task(kernel_process::idle);
-        // debug!("Created idle process: {:?}", task.id());
-        let task = Task::<Self>::create_kernel_task(Self::Arch::create_idle_task());
+        let task = Task::<Self>::create_kernel_task(box UserTask::<Self>::new(INIT_ELF));
         debug!(Self: "Created init process: {:?}", task.id());
+        let task = Task::<Self>::create_kernel_task(Self::Arch::create_idle_task());
+        debug!(Self: "Created idle process: {:?}", task.id());
 
         Self::global().scheduler.schedule();
     }

@@ -7,7 +7,6 @@ extern crate proton;
 
 #[macro_use]
 mod log;
-use proton::*;
 
 #[no_mangle]
 pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {

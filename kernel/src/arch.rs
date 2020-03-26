@@ -76,6 +76,7 @@ pub trait AbstractContext: Sized + 'static {
     fn set_response_message(&mut self, m: crate::task::Message);
     fn set_response_status(&mut self, s: isize);
     unsafe extern fn return_to_user(&mut self) -> !;
+    unsafe fn enter_usermode(entry: extern fn(_argc: isize, _argv: *const *const u8), sp: Address) -> !;
 }
 
 pub trait AbstractLogger: Sized + 'static {
