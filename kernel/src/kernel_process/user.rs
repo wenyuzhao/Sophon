@@ -2,7 +2,6 @@ use core::marker::PhantomData;
 use super::KernelTask;
 use crate::AbstractKernel;
 use crate::arch::*;
-use crate::task::*;
 use crate::memory::*;
 use proton::memory::*;
 use elf_rs::*;

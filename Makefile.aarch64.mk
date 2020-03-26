@@ -20,7 +20,7 @@ qemu_gdb_server = $(if $(gdb),-s -S)
 
 
 
-kernel: init FORCE
+kernel: init drivers FORCE
 	@cd arch/aarch64 && $(cargo_xbuild) --target $(kernel_target).json --features device-$(device)
 	@llvm-objcopy --strip-all $(output_elf) -O binary $(output_img)
 	@llvm-objdump --source -d $(output_elf) > $(output_elf).s

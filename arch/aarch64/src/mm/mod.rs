@@ -5,6 +5,9 @@ use page_table::PageFlags as ArchPageFlags;
 use page_table::{PageTable, L4};
 use proton::memory::*;
 use proton_kernel::arch::*;
+use proton_kernel::task::*;
+use crate::Kernel;
+use crate::arch::*;
 
 pub struct MemoryManager;
 
@@ -33,6 +36,24 @@ impl AbstractMemoryManager for MemoryManager {
     fn unmap<S: PageSize>(page: Page<S>) {
         let p4 = PageTable::<L4>::get(page.start().as_usize() & 0xffff_0000_0000_0000 != 0);
         p4.unmap(page);
+    }
+    fn map_user<S: PageSize>(task: TaskId, page: Page<S>, frame: Frame<S>, flags: PageFlags) {
+        <AArch64 as AbstractArch>::Interrupt::uninterruptable(|| {
+            let ctx = &Task::<Kernel>::by_id(task).unwrap().context;
+            // Set pagetable
+            unsafe {
+                asm! {"
+                    msr	ttbr0_el1, $0
+                    tlbi vmalle1is
+                    DSB ISH
+                    isb
+                "
+                ::   "r"(ctx.p4.start().as_usize())
+                }
+            }
+            let p4 = PageTable::<L4>::get(false);
+            p4.map(page, frame, to_arch_flags::<S>(flags));
+        })
     }
 }
 

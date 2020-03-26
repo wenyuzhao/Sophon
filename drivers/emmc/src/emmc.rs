@@ -1,5 +1,6 @@
 use crate::constants::*;
-use proton::{KernelCall, address::Address, page::{Page, Frame}};
+use proton::KernelCall;
+use proton::memory::*;
 
 static mut HV: u32 = 0;
 static mut RCA: u32 = 0;
@@ -55,7 +56,7 @@ impl EMMC {
             }
         }
         Self::int(emmc::INT_CMD_DONE);
-        let mut r = emmc.resp[0];
+        let r = emmc.resp[0];
         match code {
             x if x == cmd::GO_IDLE || x == cmd::APP_CMD => Ok(0),
             x if x == cmd::APP_CMD | cmd::RSPNS_48 => Ok(r & emmc::SR_APP_CMD),
@@ -72,9 +73,9 @@ impl EMMC {
 
     unsafe fn set_clk(f: u32) {
         let emmc = &mut *EMMCData::BASE;
-        let mut d: u32 = 0;
-        let mut c = 41666666 / f;
-        let mut x: u32;
+        let mut d: u32;
+        let c = 41666666 / f;
+        // let mut x: u32;
         let mut s = 32u32;
         let mut h = 0u32;
         // int cnt = 100000;
@@ -85,15 +86,15 @@ impl EMMC {
         emmc.control1 &= !emmc::C1_CLK_EN;
         sleep(10);
         // wait_cycles(1000);
-        x = c - 1;
+        let x = c - 1;
         if x == 0 {
             s = 0;
         } else {
-            if x & 0xffff0000 == 0 { x <<= 16; s -= 16; }
-            if x & 0xff000000 == 0 { x <<= 8;  s -= 8; }
-            if x & 0xf0000000 == 0 { x <<= 4;  s -= 4; }
-            if x & 0xc0000000 == 0 { x <<= 2;  s -= 2; }
-            if x & 0x80000000 == 0 { x <<= 1;  s -= 1; }
+            if x & 0xffff0000 == 0 { /* x <<= 16; */ s -= 16; }
+            if x & 0xff000000 == 0 { /* x <<= 8;  */ s -= 8; }
+            if x & 0xf0000000 == 0 { /* x <<= 4;  */ s -= 4; }
+            if x & 0xc0000000 == 0 { /* x <<= 2;  */ s -= 2; }
+            if x & 0x80000000 == 0 { /* x <<= 1;  */ s -= 1; }
             if s > 0 { s -= 1; }
             if s > 7 { s=7; }
         }
@@ -165,7 +166,9 @@ impl EMMC {
 
     fn map_mempry() {
         KernelCall::map_physical_memory(Page::new(GPIO_BASE.into()), Frame::new(GPIO_BASE.into())).unwrap();
+        log!("Device memory mapped {:?}", Page::<Size4K>::new(GPIO_BASE.into()));
         KernelCall::map_physical_memory(Page::new(EMMCData::BASE.into()), Frame::new(EMMCData::BASE.into())).unwrap();
+        log!("Device memory mapped {:?}", Page::<Size4K>::new(EMMCData::BASE.into()));
     }
 
     pub fn init() -> Result<(), ()> {
@@ -176,6 +179,8 @@ impl EMMC {
             let emmc = &mut *EMMCData::BASE;
             // GPIO_CD
             *GPFSEL4 &= !(7 << (7 * 3));
+            log!("THE FIRST WRITE!!!");
+            // loop {}
             *GPPUD=2;
             wait_cycles(150);
             *GPPUDCLK1 = 1 << 15;
@@ -363,6 +368,7 @@ fn wait_cycles(n: usize) {
     for _ in 0..n {}
 }
 
-fn sleep(ms: usize) {
+fn sleep(_ms: usize) {
+    for _ in 0..10000 {}
     // ::proton::KernelCall::sleep().unwrap();
 }

@@ -1,5 +1,6 @@
 #![feature(asm)]
 #![feature(format_args_nl)]
+#![allow(dead_code)]
 #![no_std]
 #![no_main]
 
@@ -7,6 +8,7 @@
 extern crate proton;
 mod emmc;
 mod constants;
+mod fat;
 
 use proton::Message;
 use proton::driver::Driver;
@@ -17,10 +19,13 @@ driver_entry!(EMMCDriver);
 
 impl Driver for EMMCDriver {
     fn new() -> Self {
-        emmc::EMMC::init();
+        emmc::EMMC::init().unwrap();
+        fat::FAT::init().unwrap();
+        fat::FAT::ls_root();
         Self
     }
-    fn handle_message(&mut self, m: &Message) {
+    
+    fn handle_message(&mut self, _m: &Message) {
         unimplemented!()
     }
 }

@@ -2,7 +2,7 @@ use core::ops::*;
 use proton::memory::*;
 use alloc::boxed::Box;
 use crate::kernel_process::KernelTask;
-
+use proton::task::TaskId;
 
 
 #[repr(usize)]
@@ -58,6 +58,7 @@ pub trait AbstractMemoryManager: Sized {
     fn alloc_frame<S: PageSize>() -> Frame<S>;
     fn dealloc_frame<S: PageSize>(frame: Frame<S>);
     fn map<S: PageSize>(page: Page<S>, frame: Frame<S>, flags: PageFlags);
+    fn map_user<S: PageSize>(task: TaskId, page: Page<S>, frame: Frame<S>, flags: PageFlags);
     fn translate(address: Address<V>) -> Option<(Address<P>, PageFlags)>;
     fn update_flags<S: PageSize>(page: Page<S>, flags: PageFlags);
     fn unmap<S: PageSize>(page: Page<S>);

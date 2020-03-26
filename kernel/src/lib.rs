@@ -28,6 +28,7 @@ use task::Task;
 
 
 static INIT_ELF: &'static [u8] = include_bytes!("../../target/aarch64-proton/debug/init");
+static EMMC_ELF: &'static [u8] = include_bytes!("../../target/aarch64-proton/debug/emmc");
 
 pub struct KernelGlobal<K: AbstractKernel> {
     pub scheduler: Lazy<K::Scheduler>,
@@ -60,13 +61,14 @@ pub trait AbstractKernel: Sized + 'static {
         debug!(Self: "[kernel: timer initialized]");
 
         
-        // let task = KernelProcess::<Self>::spawn();
         let task = Task::<Self>::create_kernel_task(box System::<Self>::new());
-        debug!(Self: "Created kernel process: {:?}", task.id());
+        debug!(Self: "[kernel: created kernel process: {:?}]", task.id());
         let task = Task::<Self>::create_kernel_task(box UserTask::<Self>::new(INIT_ELF));
-        debug!(Self: "Created init process: {:?}", task.id());
+        debug!(Self: "[kernel: created init process: {:?}]", task.id());
+        let task = Task::<Self>::create_kernel_task(box UserTask::<Self>::new(EMMC_ELF));
+        debug!(Self: "[kernel: created emmc process: {:?}]", task.id());
         let task = Task::<Self>::create_kernel_task(Self::Arch::create_idle_task());
-        debug!(Self: "Created idle process: {:?}", task.id());
+        debug!(Self: "[kernel: created idle process: {:?}]", task.id());
 
         Self::global().scheduler.schedule();
     }

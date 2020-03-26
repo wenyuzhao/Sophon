@@ -1,11 +1,12 @@
 // pub mod task;
-// pub mod mem;
+pub mod mem;
 
 use core::marker::PhantomData;
 use super::KernelTask;
 use crate::AbstractKernel;
 use crate::arch::*;
 use proton::task::*;
+use proton::kernel_call::KernelCall;
 
 
 pub struct System<K: AbstractKernel> {
@@ -27,8 +28,13 @@ impl <K: AbstractKernel> KernelTask for System<K> {
         debug!(K: "Kernel process start");
         loop {
             debug_assert!(<K::Arch as AbstractArch>::Interrupt::is_enabled());
-            debug!(K: "Kernel process...");
-            let _m = Message::receive(None);
+            let m = Message::receive(None);
+            debug!(K: "Kernel received {:?}", m);
+            let kind: KernelCall = unsafe { ::core::mem::transmute(m.kind) };
+            match kind {
+                KernelCall::MapPhysicalMemory => mem::map_physical_memory::<K>(&m),
+                _ => {}
+            }
             //     println!("Kernel received {:?}", m);
             //     HANDLERS[m.kind](&m);
             // }

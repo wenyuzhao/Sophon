@@ -69,7 +69,7 @@ pub struct Timer;
 impl AbstractTimer for Timer {
     #[cfg(feature="device-raspi4")]
     fn init() {
-        println!("Timer init raspi4");
+        debug!(Kernel: "Timer init raspi4");
         unsafe {
             asm!("dsb SY":::"memory");
             let timer_irq = 16 + 14;
@@ -82,7 +82,7 @@ impl AbstractTimer for Timer {
             CNTP_CTL_EL0.set(1);
             asm!("dmb SY":::"memory");
         }
-        Target::Interrupt::set_handler(InterruptId::Timer, Some(box handle_timer_irq));
+        <AArch64 as AbstractArch>::Interrupt::set_handler(InterruptId::Timer, Some(box handle_timer_irq));
     }
 
     #[cfg(feature="device-raspi3-qemu")]

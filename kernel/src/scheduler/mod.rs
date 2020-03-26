@@ -81,7 +81,6 @@ pub trait AbstractScheduler: Sized + 'static {
         })
     }
 
-    // fn enqueue_current_task_as_ready(&self);
     fn schedule(&self) -> !;
     fn timer_tick(&self);
 

@@ -84,7 +84,7 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
 #[cfg(feature="device-raspi4")]
 #[no_mangle]
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
-    crate::task::Task::current().unwrap().context.exception_frame = exception_frame;
+    Task::<Kernel>::current().unwrap().context.exception_frame = exception_frame;
     #[allow(non_snake_case)]
     let GICC = GICC::get();
     let iar = GICC.IAR;
@@ -101,7 +101,7 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     }
     
     unsafe {
-        crate::task::Task::current().unwrap().context.return_to_user();
+        Task::<Kernel>::current().unwrap().context.return_to_user();
     }
 }
 
