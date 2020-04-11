@@ -21,19 +21,21 @@ qemu_gdb_server = $(if $(gdb),-s -S)
 
 
 kernel: init drivers FORCE
+	echo $(cargo_xbuild) --target $(kernel_target).json --features device-$(device)
 	@cd arch/aarch64 && $(cargo_xbuild) --target $(kernel_target).json --features device-$(device)
 	@llvm-objcopy --strip-all $(output_elf) -O binary $(output_img)
 	@llvm-objdump --source -d $(output_elf) > $(output_elf).s
 
-user_process: FORCE
-	cd $(process_path) && $(cargo_xbuild) --target $(user_target_json)
-	@llvm-objdump --source -D target/$(user_target)/$(profile)/$(process_name) > target/$(user_target)/$(profile)/$(process_name).s
+define build_user_program
+	@cd $(2) && $(cargo_xbuild) --target $(user_target_json)
+	@llvm-objdump --source -D target/$(user_target)/$(profile)/$(strip $(1)) > target/$(user_target)/$(profile)/$(strip $(1)).s
+endef
 
 drivers: FORCE
-	@make user_process process_path=drivers/emmc process_name=emmc
+	$(call build_user_program, emmc, drivers/emmc)
 
 init: FORCE
-	@make user_process process_path=init process_name=init
+	$(call build_user_program, init, init)
 
 run: device=raspi3-qemu
 run: kernel

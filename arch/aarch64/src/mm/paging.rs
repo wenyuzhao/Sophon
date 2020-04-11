@@ -4,9 +4,11 @@ use cortex_a::barrier;
 use super::page_table::*;
 use proton::memory::*;
 use crate::heap::constants::*;
-use super::super::constants::*;
 use super::super::uart::boot_time_log;
 use super::page_table::PageFlags;
+use crate::peripherals::*;
+use crate::uart::*;
+use core::fmt::Write;
 
 #[repr(C, align(4096))]
 struct TempFrames([usize; 512], [usize; 512], [usize; 512], [usize; 512]);
@@ -46,7 +48,7 @@ unsafe fn setup_ttbr0_el1() {
     //     (*p2).entries[get_index(ptr as _, 2)].set(Frame::<Size2M>::new(ptr.into()), PageFlags::_DEVICE_MEMORY_FLAGS_2M);
     // }
     {
-        let ptr = GPIO_BASE & !0xFFFF0000_00000000;
+        let ptr = GPIORegisters::BASE_LOW;
         let p3 = &TEMP_FRAMES.0 as *const _ as usize as *mut PageTable<L3>;
         let p2 = &TEMP_FRAMES.1 as *const _ as usize as *mut PageTable<L2>;
         // Map p3 to p4
@@ -213,6 +215,7 @@ fn mark_as_used<S: PageSize>(start_frame: Frame<S>, n_frames: usize) {
     });
 }
 
+#[inline(never)]
 fn identity_map_kernel_memory_nomark<S: PageSize>(start_frame: Frame<S>, n_frames: usize, flags: PageFlags) {
     let limit_frame = start_frame.add_usize(n_frames).unwrap();
     let p4 = PageTable::<L4>::get(true);

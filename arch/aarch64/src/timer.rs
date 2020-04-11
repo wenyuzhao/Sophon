@@ -1,12 +1,12 @@
-use super::constants::*;
 use cortex_a::regs::*;
 use proton_kernel::arch::*;
 use proton_kernel::scheduler::AbstractScheduler;
 #[cfg(feature="device-raspi4")]
 use super::gic::*;
 use crate::*;
+use crate::peripherals::*;
 
-const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 1; // Hz
 
 // pub const ARM_TIMER_BASE: usize = 0xffff0000_40000000;
 
@@ -36,11 +36,11 @@ const fn ARM_CORE_TIMER_IRQ_SOURCE(core: u8) -> *mut u32 {
 
 
 static mut COUNT: u32 = 0;
-const TIMER_CS: *mut u32 = (PERIPHERAL_BASE + 0x3000) as _;
-const TIMER_CLO: *mut u32 = (PERIPHERAL_BASE + 0x3004) as _;
-const TIMER_C0: *mut u32 = (PERIPHERAL_BASE + 0x300C) as _;
-const TIMER_C1: *mut u32 = (PERIPHERAL_BASE + 0x3010) as _;
-const TIMER_C3: *mut u32 = (PERIPHERAL_BASE + 0x3018) as _;
+// const TIMER_CS: *mut u32 = (PERIPHERAL_BASE + 0x3000) as _;
+// const TIMER_CLO: *mut u32 = (PERIPHERAL_BASE + 0x3004) as _;
+// const TIMER_C0: *mut u32 = (PERIPHERAL_BASE + 0x300C) as _;
+// const TIMER_C1: *mut u32 = (PERIPHERAL_BASE + 0x3010) as _;
+// const TIMER_C3: *mut u32 = (PERIPHERAL_BASE + 0x3018) as _;
 pub const ARMTIMER_VALUE: *mut u32     = (PERIPHERAL_BASE + 0xB404) as _;
 
 #[inline]

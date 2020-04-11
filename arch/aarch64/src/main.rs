@@ -10,6 +10,8 @@
 #![feature(new_uninit)]
 #![feature(never_type)]
 #![feature(const_in_array_repeat_expressions)]
+#![feature(const_raw_ptr_deref)]
+#![feature(const_mut_refs)]
 #![allow(dead_code)]
 #![no_std]
 #![no_main]
@@ -35,9 +37,10 @@ mod context;
 mod mm;
 mod heap;
 mod uart;
-mod constants;
 mod arch;
 mod idle;
+mod bootimage;
+mod peripherals;
 
 use proton_kernel::AbstractKernel;
 use proton_kernel::scheduler::round_robin::RoundRobinScheduler;

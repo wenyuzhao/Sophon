@@ -7,11 +7,11 @@
 extern crate alloc;
 extern crate elf_rs;
 
+#[macro_use]
+pub mod debug;
 pub mod arch;
 pub mod memory;
 mod utils;
-#[macro_use]
-pub mod debug;
 pub mod task;
 pub mod scheduler;
 pub mod ipc;
@@ -26,9 +26,6 @@ use kernel_process::user::UserTask;
 use task::Task;
 
 
-
-static INIT_ELF: &'static [u8] = include_bytes!("../../target/aarch64-proton/debug/init");
-static EMMC_ELF: &'static [u8] = include_bytes!("../../target/aarch64-proton/debug/emmc");
 
 pub struct KernelGlobal<K: AbstractKernel> {
     pub scheduler: Lazy<K::Scheduler>,
@@ -47,7 +44,8 @@ pub trait AbstractKernel: Sized + 'static {
 
     fn global() -> &'static KernelGlobal<Self>;
 
-    fn start() -> ! {
+    fn start() -> ! {<Self::Arch as AbstractArch>::Context::new2();
+        
         debug!(Self: "Hello, Raspberry PI!");
         // Initialize kernel heap
         <Self::Arch as AbstractArch>::Heap::init();
@@ -60,15 +58,29 @@ pub trait AbstractKernel: Sized + 'static {
         <Self::Arch as AbstractArch>::Timer::init();
         debug!(Self: "[kernel: timer initialized]");
 
-        
+
         let task = Task::<Self>::create_kernel_task(box System::<Self>::new());
         debug!(Self: "[kernel: created kernel process: {:?}]", task.id());
-        let task = Task::<Self>::create_kernel_task(box UserTask::<Self>::new(INIT_ELF));
-        debug!(Self: "[kernel: created init process: {:?}]", task.id());
-        let task = Task::<Self>::create_kernel_task(box UserTask::<Self>::new(EMMC_ELF));
-        debug!(Self: "[kernel: created emmc process: {:?}]", task.id());
         let task = Task::<Self>::create_kernel_task(Self::Arch::create_idle_task());
         debug!(Self: "[kernel: created idle process: {:?}]", task.id());
+
+        // Load init.rd
+        // let initrd_address = Arch::load_initrd();
+        // Start ramfs driver
+        // let task = Task::<Self>::create_kernel_task(box UserTask::<Self>::new(EMMC_ELF));
+        // debug!(Self: "[kernel: created emmc process: {:?}]", task.id());
+
+        // Load & start init process
+        let task = Task::<Self>::create_kernel_task(box UserTask::<Self>::new(
+            <Self::Arch as AbstractArch>::BootImage::get("init").unwrap()
+        ));
+        debug!(Self: "[kernel: created init process: {:?}]", task.id());
+
+        // let _task = Task::<Self>::create_kernel_task2(box UserTask::<Self>::new(
+        //     <Self::Arch as AbstractArch>::BootImage::get("init").unwrap()
+        // ));
+        
+        debug!(Self: "[kernel: created emmc process: {:?}]", task.id());
 
         Self::global().scheduler.schedule();
     }

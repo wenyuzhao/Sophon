@@ -1,5 +1,11 @@
 {
     "rust.all_targets": false,
     "rust.target": "aarch64-unknown-linux-gnu",
-    "rust.unstable_features": true
+    "rust.unstable_features": true,
+    // "rust-analyzer.updates.channel": "nightly",
+    "rust-analyzer.cargo-watch.allTargets": false,
+    "rust-analyzer.cargo-watch.arguments": [
+        "--target",
+        "aarch64-unknown-linux-gnu"
+    ]
 }

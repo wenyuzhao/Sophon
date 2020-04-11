@@ -2,6 +2,7 @@
 #![feature(step_trait)]
 #![feature(const_fn)]
 #![feature(format_args_nl)]
+#![feature(core_intrinsics)]
 #![no_std]
 
 
@@ -19,6 +20,7 @@ mod address;
 mod page;
 pub mod memory;
 pub mod lazy;
+pub mod utils;
 
 #[cfg(feature="user")]
 #[macro_use]

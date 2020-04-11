@@ -1,14 +1,13 @@
-use core::intrinsics::volatile_load;
-use core::intrinsics::volatile_store;
-use super::constants::*;
+use crate::peripherals::*;
 use proton_kernel::arch::*;
+
+
 
 pub fn boot_time_log(s: &str) {
     fn putc(c: char) {
-        unsafe { 
-            while (*UART0::LOW_UART_FR) & (1 << 5) > 0 {}
-            *UART0::LOW_UART_DR = c as u32;
-        }
+        let uart = UARTRegisters::get_low();
+        while uart.fr.get() & (1 << 5) > 0 {}
+        uart.dr.set(c as _);
     }
     for c in s.chars() {
         if c == '\n' {
@@ -23,63 +22,42 @@ pub fn boot_time_log(s: &str) {
 pub struct UART0;
 
 impl UART0 {
-    const UART_DR: *mut u32 = (PERIPHERAL_BASE + 0x201000) as _;
-    const UART_FR: *mut u32 = (PERIPHERAL_BASE + 0x201018) as _;
-
-    const LOW_BASE: usize = (PERIPHERAL_BASE + 0x201000) & 0xffffffffffff;
-    const LOW_UART_DR: *mut u32   = (Self::LOW_BASE + 0x00) as _;
-    const LOW_UART_FR: *mut u32   = (Self::LOW_BASE + 0x18) as _;
-    const LOW_UART_IBRD: *mut u32 = (Self::LOW_BASE + 0x24) as _;
-    const LOW_UART_FBRD: *mut u32 = (Self::LOW_BASE + 0x28) as _;
-    const LOW_UART_LCRH: *mut u32 = (Self::LOW_BASE + 0x2C) as _;
-    const LOW_UART_CR: *mut u32   = (Self::LOW_BASE + 0x30) as _;
-    const LOW_UART_ICR: *mut u32  = (Self::LOW_BASE + 0x44) as _;
-    const LOW_GPIO_BASE: usize = (PERIPHERAL_BASE + 0x200000) & 0xffffffffffff;
-    const LOW_GPFSEL1: *mut u32 = (Self::LOW_GPIO_BASE + 0x4) as _;
-    const LOW_GPPUD: *mut u32 = (Self::LOW_GPIO_BASE + 0x94) as _;
-    const LOW_GPPUDCLK0: *mut u32 = (Self::LOW_GPIO_BASE + 0x98) as _;
-    const LOW_GPPUDCLK1: *mut u32 = (Self::LOW_GPIO_BASE + 0x9C) as _;
-
-    fn mmio_write(reg: *mut u32, val: u32) {
-        unsafe { volatile_store(reg as *mut u32, val) }
-    }
-    
-    fn mmio_read(reg: *mut u32) -> u32 {
-        unsafe { volatile_load(reg as *const u32) }
-    }
-    
     fn transmit_fifo_full() -> bool {
-        Self::mmio_read(Self::UART_FR) & (1 << 5) > 0
+        let uart = UARTRegisters::get();
+        uart.fr.get() & (1 << 5) > 0
     }
     
     fn receive_fifo_empty() -> bool {
-        Self::mmio_read(Self::UART_FR) & (1 << 4) > 0
+        let uart = UARTRegisters::get();
+        uart.fr.get() & (1 << 4) > 0
     }
 
+    #[inline(never)]
     pub fn init() {
-        unsafe {
-            *Self::LOW_UART_CR = 0;
-            *Self::LOW_UART_ICR = 0;
-            *Self::LOW_UART_IBRD = 26;
-            *Self::LOW_UART_FBRD = 3;
-            *Self::LOW_UART_LCRH = (0b11 << 5) | (0b1 << 4);
-            *Self::LOW_UART_CR = (1 << 0) | (1 << 8) | (1 << 9);
+        let uart = UARTRegisters::get_low();
+        let gpio = GPIORegisters::get_low();
+
+        uart.cr.set(0);
+        uart.icr.set(0);
+        uart.ibrd.set(26);
+        uart.fbrd.set(3);
+        uart.lcrh.set((0b11 << 5) | (0b1 << 4));
+        uart.cr.set((1 << 0) | (1 << 8) | (1 << 9));
             
-            *Self::LOW_GPFSEL1 = (0b100 << 12) | (0b100 << 15);
-            *Self::LOW_GPPUD = 0;
-            wait_cycles(150);
-            *Self::LOW_GPPUDCLK0 = (1 << 14) | (1 << 15);
-            wait_cycles(150);
-            *Self::LOW_GPPUDCLK0 = 0;
-        }
+        gpio.gpfsel1.set((0b100 << 12) | (0b100 << 15));
+        gpio.gppud.set(0);
+        wait_cycles(150);
+        gpio.gppudclk0.set((1 << 14) | (1 << 15));
+        wait_cycles(150);
+        gpio.gppudclk0.set(0);
     }
 }
 
 impl AbstractLogger for UART0 {
-
     fn put(c: char) {
         while Self::transmit_fifo_full() {}
-        Self::mmio_write(Self::UART_DR, c as u32);
+        let uart = UARTRegisters::get();
+        uart.dr.set(c as _);
     }
     
     // fn get(&self) -> char {
@@ -93,3 +71,36 @@ fn wait_cycles(n: usize) {
         unsafe { asm!("nop"); }
     }
 }
+
+
+
+
+
+// pub struct BootUART;
+
+// impl BootUART {
+//     fn transmit_fifo_full() -> bool {
+//         let uart = UARTRegisters::get_low();
+//         uart.fr.get() & (1 << 5) > 0
+//     }
+
+//     fn putc(&self, c: char) {
+//         while Self::transmit_fifo_full() {}
+//         let uart = UARTRegisters::get_low();
+//         uart.dr.set(c as _);
+//     }
+// }
+
+// use core::fmt::{self, Write};
+
+// impl Write for BootUART {
+//     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
+//         for c in s.chars() {
+//             if c == '\n' {
+//                 self.putc('\r')
+//             }
+//             self.putc(c)
+//         }
+//         Ok(())
+//     }
+// }

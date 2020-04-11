@@ -70,6 +70,11 @@ impl BitMapAllocator {
                         debug_assert!(self.get_2m(index >> LOG_PAGES_IN_BLOCK));
                         self.set_4k(index, true);
                         return Some(index);
+                        // let index_4k = i * BITS_IN_ENTRY + j;
+                        // self.set_4k(index_4k, true);
+                        // let index_2m = index_4k >> LOG_PAGES_IN_BLOCK;
+                        // self.set_2m(index_2m, true);
+                        // return Some(index_4k);
                     }
                 }
             }
@@ -111,6 +116,7 @@ impl BitMapAllocator {
     }
     
     fn free4k(&mut self, index: usize) {
+        // unreachable!();
         let entry_index = index >> LOG_BITS_IN_ENTRY;
         let bit_index = index & ((1 << LOG_BITS_IN_ENTRY) - 1);
         self.map4k[entry_index] &= !(1 << bit_index);
@@ -137,6 +143,7 @@ impl BitMapAllocator {
         }
     }
     fn free2m(&mut self, index: usize) {
+        // unreachable!();
         let entry_index = index >> LOG_BITS_IN_ENTRY;
         let bit_index = index & ((1 << LOG_BITS_IN_ENTRY) - 1);
         self.map2m[entry_index] &= !(1 << bit_index);
@@ -152,6 +159,7 @@ static ALLOCATOR: Mutex<BitMapAllocator> = Mutex::new(BitMapAllocator::new());
 pub fn mark_as_used<S: PageSize>(frame: Frame<S>) {
     let mut allocator = ALLOCATOR.lock();
     if S::LOG_SIZE == Size4K::LOG_SIZE {
+        // unreachable!();
         let index_2m = frame.start().as_usize() >> Size2M::LOG_SIZE;
         if !allocator.get_2m(index_2m) {
             allocator.set_2m(index_2m, true);
@@ -165,21 +173,31 @@ pub fn mark_as_used<S: PageSize>(frame: Frame<S>) {
     } else {
         let index_2m = frame.start().as_usize() >> Size2M::LOG_SIZE;
         allocator.set_2m(index_2m, true);
+        // let index_4k = index_2m << LOG_PAGES_IN_BLOCK;
+        // for i in 0..PAGES_IN_BLOCK {
+        //     allocator.set_4k(index_4k + i, true);
+        // }
     }
 }
 
 pub fn alloc<S: PageSize>() -> Option<Frame<S>> {
     let mut allocator = ALLOCATOR.lock();
-    if S::LOG_SIZE == Size4K::LOG_SIZE {
+    let f = if S::LOG_SIZE == Size4K::LOG_SIZE {
         let addr = Address::<P>::new(allocator.alloc4k()? << Size4K::LOG_SIZE);
         Some(Frame::new(addr))
     } else {
         let addr = Address::<P>::new(allocator.alloc2m()? << Size2M::LOG_SIZE);
         Some(Frame::new(addr))
+    };
+    if unsafe { crate::start::BOOTED } {
+
+        debug!(crate::Kernel: "# Alloc Frame {:?}", f);
     }
+    f
 }
 
 pub fn free<S: PageSize>(frame: Frame<S>) {
+    unreachable!();
     let mut allocator = ALLOCATOR.lock();
     if S::LOG_SIZE == Size4K::LOG_SIZE {
         unimplemented!()

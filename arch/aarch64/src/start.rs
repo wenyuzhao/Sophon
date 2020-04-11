@@ -3,6 +3,8 @@ use cortex_a::{asm, regs::*, barrier};
 use super::uart::boot_time_log;
 use proton_kernel::*;
 
+pub static mut BOOTED: bool = false;
+
 #[no_mangle]
 #[naked]
 pub unsafe fn _start() -> ! {
@@ -39,12 +41,13 @@ extern {
     static mut __bss_end: usize;
 }
 
+#[inline(never)]
 unsafe fn zero_bss() {
-    let start = (&mut __bss_start as *mut usize as usize & 0x0000ffff_ffffffff) as *mut usize;
-    let end = (&mut __bss_end as *mut usize as usize & 0x0000ffff_ffffffff) as *mut usize;
+    let start = (&mut __bss_start as *mut usize as usize & 0x0000ffff_ffffffff) as *mut u8;
+    let end = (&mut __bss_end as *mut usize as usize & 0x0000ffff_ffffffff) as *mut u8;
     let mut cursor = start;
     while cursor < end {
-        cursor.write(0);
+        ::core::intrinsics::volatile_store(cursor, 0);
         cursor = cursor.offset(1);
     }
 }
@@ -61,6 +64,7 @@ unsafe extern fn _start_el1() -> ! {
     boot_time_log("[boot: setup kernel pagetable]");
     super::mm::paging::setup_kernel_pagetables();
     boot_time_log("[boot: switch to high address space]");
+    // loop {}
     SP.set(SP.get() | 0xffff0000_00000000);
     let fn_addr = _start_el1_high_address_space as usize | 0xffff0000_00000000;
     let func: unsafe extern fn() -> ! = ::core::mem::transmute(fn_addr);
@@ -72,6 +76,7 @@ unsafe extern fn _start_el1() -> ! {
 /// Including SP, PC and other registers
 /// i.e. `address & 0xffff0000_00000000 == 0xffff0000_00000000`
 unsafe extern fn _start_el1_high_address_space() -> ! {
+    BOOTED = true;
     // println!("[boot: clear temporary user page table]");
     super::mm::paging::clear_temp_user_pagetable();
     // Set EL1 interrupt vector
@@ -82,6 +87,8 @@ unsafe extern fn _start_el1_high_address_space() -> ! {
     // set_booted();
     
     TTBR0_EL1.set(0);
+    
+    debug!(Kernel: "[boot: kernel_heap_end = {:?}]", crate::heap::constants::kernel_heap_end());
     debug!(Kernel: "[boot: current execution level = {}]", (CurrentEL.get() & 0b1100) >> 2);
     <Kernel as AbstractKernel>::start();
 }

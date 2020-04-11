@@ -21,17 +21,22 @@ pub struct KernelStack {
 
 impl KernelStack {
     pub fn new() -> Box<Self> {
-        let kernel_stack = unsafe { Box::<KernelStack>::new_uninit().assume_init() };
+        let mut kernel_stack = unsafe { Box::<KernelStack>::new_uninit().assume_init() };
         kernel_stack.init();
         kernel_stack
     }
-    pub fn init(&self) {
-        let guard_page = Page::<Size4K, V>::new(Address::from(&self.guard as *const [u8; Size4K::SIZE]));
-        PageTable::<L4>::get(true).update_flags(guard_page, PageFlags::_KERNEL_STACK_GUARD_FLAGS);
-        let stack_page_start = Page::<Size4K, V>::new(Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]));
-        let stack_page_end = stack_page_start.add_usize(KERNEL_STACK_PAGES).unwrap();
-        for stack_page in stack_page_start..stack_page_end {
-            PageTable::<L4>::get(true).update_flags(stack_page, PageFlags::_KERNEL_STACK_FLAGS);
+    pub fn init(&mut self) {
+        // let guard_page = Page::<Size4K, V>::new(Address::from(&self.guard as *const [u8; Size4K::SIZE]));
+        // PageTable::<L4>::get(true).update_flags(guard_page, PageFlags::_KERNEL_STACK_GUARD_FLAGS);
+        // let stack_page_start = Page::<Size4K, V>::new(Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]));
+        // let stack_page_end = stack_page_start.add_usize(KERNEL_STACK_PAGES).unwrap();
+        // for stack_page in stack_page_start..stack_page_end {
+        //     PageTable::<L4>::get(true).update_flags(stack_page, PageFlags::_KERNEL_STACK_FLAGS);
+        // }
+        for i in 0..KERNEL_STACK_SIZE {
+            unsafe {
+                ::core::intrinsics::volatile_store(&mut self.stack[i], 0);
+            }
         }
     }
     pub fn start_address(&self) -> Address {
@@ -104,7 +109,7 @@ impl AbstractContext for Context {
             let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
             let p4_page = super::mm::page_table::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
             let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
-            for i in 0..512 {
+            for i in 0..511 {
                 p4.entries[i].clear();
             }
             p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
@@ -120,6 +125,31 @@ impl AbstractContext for Context {
         ctx.kernel_stack = Some(kernel_stack);
         ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
         ctx
+    }
+
+    fn new2() {
+        // Alloc page table
+        let p4 = unsafe {
+            // let p4_frame = Frame::<Size4K>::ZERO;
+            let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
+            // let p4_page = super::mm::page_table::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
+            // let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
+            // for i in 0..512 {
+            //     p4.entries[i].clear();
+            // }
+            // p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
+            p4_frame
+        };
+        // Alloc kernel stack
+        // let kernel_stack = KernelStack::new();
+        // let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
+        // let mut ctx = Self::empty();
+        // ctx.entry_pc = entry as _;
+        // ctx.kernel_stack_top = sp;
+        // // ctx.p4 = p4;
+        // ctx.kernel_stack = Some(kernel_stack);
+        // ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
+        // ctx
     }
  
     // fn fork(&self) -> Self {
@@ -154,7 +184,7 @@ impl AbstractContext for Context {
     }
 
     unsafe extern fn return_to_user(&mut self) -> ! {
-        debug_assert!(!<AArch64 as AbstractArch>::Interrupt::is_enabled());
+        assert!(!<AArch64 as AbstractArch>::Interrupt::is_enabled());
         // Switch page table
         if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
             asm! {"
@@ -180,31 +210,35 @@ impl AbstractContext for Context {
                 p
             }
         };
-        if let Some(msg) = self.response_message.take() {
-            let slot = Address::from((*exception_frame).x2 as *mut Message);
-            if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
-                if super::mm::is_copy_on_write_address(slot) {
-                    super::mm::fix_copy_on_write_address(slot);
-                }
-            }
-            ::core::ptr::write(slot.as_ptr_mut(), msg);
-        }
+        // if let Some(msg) = self.response_message.take() {
+        //     let slot = Address::from((*exception_frame).x2 as *mut Message);
+        //     if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
+        //         if super::mm::is_copy_on_write_address(slot) {
+        //             super::mm::fix_copy_on_write_address(slot);
+        //         }
+        //     }
+        //     ::core::ptr::write(slot.as_ptr_mut(), msg);
+        // }
         if let Some(status) = self.response_status {
-            let slot = Address::from(&(*exception_frame).x0 as *const usize);
-            if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
-                if super::mm::is_copy_on_write_address(slot) {
-                    super::mm::fix_copy_on_write_address(slot);
-                }
-            }
-            slot.store(status);
+            // let slot = Address::from(&(*exception_frame).x0 as *const usize);
+            // if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
+            //     if super::mm::is_copy_on_write_address(slot) {
+            //         super::mm::fix_copy_on_write_address(slot);
+            //     }
+            // }
+            // slot.store(status);
+            (*exception_frame).x0 = ::core::mem::transmute(status);
             self.response_status = None;
         }
+        debug!(crate::Kernel: "Set SP {:?}", exception_frame);
         asm!("mov sp, $0"::"r"(exception_frame));
+        // debug!(crate::Kernel: "exit_exception ");
         // Return from exception
         super::exception::exit_exception();
     }
 
     unsafe fn enter_usermode(entry: extern fn(_argc: isize, _argv: *const *const u8), sp: Address) -> ! {
+        debug!(crate::Kernel: "TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}", TTBR0_EL1.get(), entry as *const extern fn(_argc: isize, _argv: *const *const u8), sp);
         <AArch64 as AbstractArch>::Interrupt::disable();
         asm! {
             "

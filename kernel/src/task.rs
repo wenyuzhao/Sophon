@@ -114,10 +114,6 @@ impl <K: AbstractKernel> Task<K> {
     // }
     /// Create a init task with empty p4 table
     pub fn create_kernel_task(t: Box<dyn KernelTask>) -> &'static mut Self {
-        extern fn entry(t: *mut Box<dyn KernelTask>) -> ! {
-            let mut t: Box<Box<dyn KernelTask>> = unsafe { Box::from_raw(t) };
-            t.run()
-        }
         let t = box t;
         // Assign an id
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
@@ -132,6 +128,24 @@ impl <K: AbstractKernel> Task<K> {
         };
         // Add this task to the scheduler
         K::global().scheduler.register_new_task(task)
+    }
+
+    pub fn create_kernel_task2(t: Box<dyn KernelTask>) {
+        // let t = Box::leak(box t);
+        // Assign an id
+        // let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
+        // Alloc task struct
+        // let task = box Task::<K> {
+        //     id,
+        //     context: <K::Arch as AbstractArch>::Context::new(entry as _, Box::into_raw(t) as usize as *mut ()),
+        //     scheduler_state: RefCell::new(Default::default()),
+        //     block_to_receive_from: Mutex::new(None),
+        //     block_to_send: None,
+        //     blocked_senders: Mutex::new(BTreeSet::new()),
+        // };
+         <K::Arch as AbstractArch>::Context::new2();
+        // Add this task to the scheduler
+        // K::global().scheduler.register_new_task(task)
     }
 
     pub fn by_id(id: TaskId) -> Option<&'static mut Self> {
@@ -153,3 +167,8 @@ impl <K: AbstractKernel> PartialEq for Task<K> {
 }
 
 impl <K: AbstractKernel> Eq for Task<K> {}
+
+extern fn entry(t: *mut Box<dyn KernelTask>) -> ! {
+    let mut t: Box<Box<dyn KernelTask>> = unsafe { Box::from_raw(t) };
+    t.run()
+}

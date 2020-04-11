@@ -9,6 +9,8 @@ use core::ops::{Deref, DerefMut};
 
 
 
+const UNIT_TIME_SLICE: usize = 1;
+
 #[derive(Debug, Clone)]
 pub struct State {
     run_state: RunState,
@@ -128,15 +130,18 @@ impl <K: AbstractKernel<Scheduler=Self>> AbstractScheduler for RoundRobinSchedul
                 let state = next_task.scheduler_state().borrow_mut();
                 state.run_state == RunState::Ready
             });
-            // println!("Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
+            debug!(K: "Switch: {:?} -> {:?}", current_task.as_ref().map(|t| t.id()), next_task.id());
             
             // Run next task
             {
                 let mut state = next_task.scheduler_state().borrow_mut();
                 state.run_state = RunState::Running;
-                state.time_slice_units = 100;
+                state.time_slice_units = UNIT_TIME_SLICE;
             }
             self.set_current_task_id(next_task.id());
+    
+            ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
+            debug!(K: "Schedule return_to_user");
             unsafe { next_task.context.return_to_user(); }
         }
     }
@@ -154,7 +159,8 @@ impl <K: AbstractKernel<Scheduler=Self>> AbstractScheduler for RoundRobinSchedul
             debug_assert!(scheduler_state.run_state == RunState::Running, "Invalid state {:?} for {:?}", scheduler_state.run_state, current_task.id());
             scheduler_state.time_slice_units -= 1;
             if scheduler_state.time_slice_units == 0 {
-                scheduler_state.time_slice_units = 100;
+                debug!(K: "Schedule");
+                scheduler_state.time_slice_units = UNIT_TIME_SLICE;
                 ::core::mem::drop(scheduler_state);
                 self.enqueue_current_task_as_ready();
                 self.schedule();

@@ -73,6 +73,7 @@ pub trait AbstractTimer: Sized {
 pub trait AbstractContext: Sized + 'static {
     fn empty() -> Self;
     fn new(entry: *const extern fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
+    fn new2();
     // fn fork(&self) -> Self;
     fn set_response_message(&mut self, m: crate::task::Message);
     fn set_response_status(&mut self, s: isize);
@@ -89,6 +90,10 @@ pub trait AbstractKernelHeap: Sized + 'static {
     fn init();
 }
 
+pub trait AbstractBootImage: Sized + 'static {
+    fn get(file: &str) -> Option<&'static [u8]>;
+}
+
 pub trait AbstractArch: Sized + 'static {
     type Interrupt: AbstractInterruptController;
     type Timer: AbstractTimer;
@@ -96,6 +101,7 @@ pub trait AbstractArch: Sized + 'static {
     type Context: AbstractContext;
     type Logger: AbstractLogger;
     type Heap: AbstractKernelHeap;
+    type BootImage: AbstractBootImage;
     
     fn create_idle_task() -> Box<dyn KernelTask>;
 }

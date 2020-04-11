@@ -44,12 +44,12 @@ impl <K: MemoryKind> Address<K> {
 
     #[inline]
     pub unsafe fn load<T: Copy>(&self) -> T {
-        *(self.0 as *mut T)
+        ::core::intrinsics::volatile_load(self.0 as *mut T)
     }
 
     #[inline]
     pub unsafe fn store<T: Copy>(&self, value: T) {
-        *(self.0 as *mut T) = value;
+        ::core::intrinsics::volatile_store(self.0 as *mut T, value)
     }
 
     #[inline]

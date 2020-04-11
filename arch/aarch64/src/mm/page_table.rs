@@ -43,7 +43,7 @@ impl PageTableEntry {
     const FLAGS_MASK: usize = !Self::ADDRESS_MASK;
     
     pub fn clear(&mut self) {
-        self.0 = 0;
+        unsafe { ::core::intrinsics::volatile_store(&mut self.0, 0); }
     }
     pub fn present(&self) -> bool {
         self.flags().contains(PageFlags::PRESENT)
@@ -52,14 +52,16 @@ impl PageTableEntry {
         !self.flags().contains(PageFlags::SMALL_PAGE)
     }
     pub fn address(&self) -> Address<P> {
-        (self.0 & Self::ADDRESS_MASK).into()
+        (unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::ADDRESS_MASK).into()
     }
     pub fn flags(&self) -> PageFlags {
-        let v = self.0 & Self::FLAGS_MASK;
+        let v = unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::FLAGS_MASK;
         PageFlags::from_bits_truncate(v)
     }
     pub fn update_flags(&mut self, new_flags: PageFlags) {
-        self.0 = self.address().as_usize() | new_flags.bits();
+        unreachable!();
+        let v = self.address().as_usize() | new_flags.bits();
+        unsafe { ::core::intrinsics::volatile_store(&mut self.0, v); }
     }
     pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) {
         if S::LOG_SIZE == Size2M::LOG_SIZE {
@@ -69,7 +71,8 @@ impl PageTableEntry {
         }
         let mut a = frame.start().as_usize();
         a &= !(0xffff_0000_0000_0000);
-        self.0 = a | flags.bits();
+        let v = a | flags.bits();
+        unsafe { ::core::intrinsics::volatile_store(&mut self.0, v); }
     }
 }
 
@@ -127,7 +130,7 @@ impl <L: TableLevel> PageTable<L> {
     const MASK: usize = 0b111111111 << L::SHIFT;
     fn zero(&mut self) {
         for i in 0..512 {
-            self.entries[i] = PageTableEntry(0);
+            unsafe { ::core::intrinsics::volatile_store(&mut self.entries[i], PageTableEntry(0)); }
         }
     }
 
@@ -165,10 +168,12 @@ impl <L: TableLevel> PageTable<L> {
         if let Some(address) = self.next_table_address(index) {
             return unsafe { &mut *(address as *mut _) }
         } else {
-            let frame = frame_allocator::alloc::<Size4K>().expect("no framxes available");
+            let frame = frame_allocator::alloc::<Size4K>().expect("no frames available");
             self.entries[index].set(frame, PageFlags::_PAGE_TABLE_FLAGS);
+            ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
             let t = self.next_table_create(index);
             t.zero();
+            ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
             t
         }
     }
@@ -240,6 +245,11 @@ impl PageTable<L4> {
     }
 
     pub fn map<S: PageSize>(&mut self, page: Page<S>, frame: Frame<S>, flags: PageFlags) -> Page<S> {
+        
+    if unsafe { crate::start::BOOTED } {
+
+        debug!(crate::Kernel: "@ map {:?} {:?}", frame, page);
+    }
         let (level, entry) = self.get_entry_create::<S>(page.start());
         if cfg!(debug_assertions) {
             if S::LOG_SIZE == Size4K::LOG_SIZE {

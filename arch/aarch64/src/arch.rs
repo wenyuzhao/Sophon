@@ -13,6 +13,7 @@ impl AbstractArch for AArch64 {
     type MemoryManager = crate::mm::MemoryManager;
     type Logger = crate::uart::UART0;
     type Heap = crate::heap::KernelHeap;
+    type BootImage = crate::bootimage::BootImage;
 
     fn create_idle_task() -> Box<dyn KernelTask> {
         box crate::idle::Idle

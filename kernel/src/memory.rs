@@ -12,8 +12,11 @@ pub fn memory_map<K: AbstractKernel>(address: Address, size: usize, flags: PageF
     let end_page = Page::<Size4K>::new(address + size);
     for page in start_page..end_page {
         let frame = <K::Arch as AbstractArch>::MemoryManager::alloc_frame();
-        <K::Arch as AbstractArch>::MemoryManager::map(page, frame, flags);
-        unsafe { page.zero(); }
+        <K::Arch as AbstractArch>::MemoryManager::map::<Size4K>(page, frame, flags);
+        debug!(K: "mapped {:?}", page);
+        ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
+        unsafe { page.zero(); }::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
+        
     }
     Ok(address)
 }
