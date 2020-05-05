@@ -8,6 +8,10 @@
 3. [cargo-xbuild](https://github.com/rust-osdev/cargo-xbuild)
 4. LLVM Tools (`llvm-objcopy` and `llvm-objdump`)
 
+**VSCode setup**
+1. Install components: `rustup component add rls-preview rust-analysis rust-src llvm-tools-preview`
+2. Install rls-vscode extension
+
 **Test/debug with QEMU**
 1. `qemu-system-aarch64` >= 2.12
 2. `gdb-multiarch`
