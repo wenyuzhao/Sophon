@@ -37,10 +37,10 @@ impl <K: AbstractKernel> UserTask<K> {
             let entry: extern fn(isize, *const *const u8) = unsafe { ::core::mem::transmute(elf.header().entry_point()) };
             debug!(K: "Entry: {:?}", entry as *mut ());
             for p in elf.program_headers() {
-                if p.p_type == PT_LOAD {
+                if p.ph_type() == ProgramType::LOAD {
                     // println!("pheader = {:?}", p);
-                    let start: Address = (p.p_vaddr as usize).into();
-                    let size = (p.p_memsz as usize + Size4K::MASK) / Size4K::SIZE;
+                    let start: Address = (p.vaddr() as usize).into();
+                    let size = (p.memsz() as usize + Size4K::MASK) / Size4K::SIZE;
                     let end = start + (size << Size4K::LOG_SIZE);
                     debug!(K: "Map {:?} {:?} {:?}", start, size, end);
                     memory_map::<K>(start, size << Size4K::LOG_SIZE, PageFlags::user_code_flags()).unwrap();
@@ -48,11 +48,11 @@ impl <K: AbstractKernel> UserTask<K> {
                     let mut cursor = start;
                     while cursor < end {
                         let offset = (cursor - start) as usize;
-                        if (p.p_offset as usize) + offset >= self.elf_data.len() {
+                        if (p.offset() as usize) + offset >= self.elf_data.len() {
                             break;
                         }
-                        let v = self.elf_data[(p.p_offset as usize) + offset];
-                        if offset < p.p_filesz as usize {
+                        let v = self.elf_data[(p.offset() as usize) + offset];
+                        if offset < p.filesz() as usize {
                             unsafe { *ptr.add(offset) = v };
                         } else {
                             unsafe { *ptr.add(offset) = 0 };
