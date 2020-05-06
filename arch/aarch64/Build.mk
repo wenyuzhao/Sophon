@@ -16,7 +16,7 @@ arch-user-program:
 arch-kernel:
 	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo build --target $(target) --no-default-features --features device-$(strip $(device)),$(strip $(features))
 	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo objcopy --target $(target) -- --strip-all -O binary $(kernel_img) > /dev/null 2>&1 
-	@cd $(kernel_src) && cargo objdump --target $(target) -- --source -d > $(kernel_elf).s 2>&1
+	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo objdump --target $(target) -- --source -d > $(kernel_elf).s 2>&1
 
 arch-run: device=raspi3-qemu
 arch-run: kernel
