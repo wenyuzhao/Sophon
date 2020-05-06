@@ -9,14 +9,14 @@ include arch/$(arch)/Build.mk
 
 
 init: FORCE
-	$(MAKE) arch_user_program name=init path=init
+	$(MAKE) arch-user-program name=init path=init
 
 drivers: FORCE
-	$(MAKE) arch_user_program name=emmc path=drivers/emmc
+	$(MAKE) arch-user-program name=emmc path=drivers/emmc
 
-kernel: init drivers arch_kernel FORCE
+kernel: init drivers arch-kernel FORCE
 
-run: arch_run
+run: arch-run
 
 clean:
 	@cargo clean
