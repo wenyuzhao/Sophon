@@ -1,9 +1,27 @@
 arch ?= aarch64
+features ?=
 
 profile = $(if $(release),release,debug)
-cargo_xbuild = cargo xbuild --no-default-features $(if $(release), --release)
+project = $(PWD)
 
-include Makefile.$(arch).mk
+include arch/$(arch)/Build.mk
+
+
+
+init: FORCE
+	$(MAKE) arch_user_program name=init path=init
+
+drivers: FORCE
+	$(MAKE) arch_user_program name=emmc path=drivers/emmc
+
+kernel: init drivers arch_kernel FORCE
+
+run: arch_run
+
+clean:
+	@cargo clean
+
+
 
 FORCE: ;
 
