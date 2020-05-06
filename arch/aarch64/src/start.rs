@@ -88,7 +88,8 @@ unsafe extern fn _start_el1_high_address_space() -> ! {
     
     TTBR0_EL1.set(0);
     
-    debug!(Kernel: "[boot: kernel_heap_end = {:?}]", crate::heap::constants::kernel_heap_end());
+    debug!(Kernel: "[boot: kernel_end = 0x{:x}]", crate::heap::constants::kernel_end());
+    debug!(Kernel: "[boot: kernel_heap_end = 0x{:x}]", crate::heap::constants::kernel_heap_end());
     debug!(Kernel: "[boot: current execution level = {}]", (CurrentEL.get() & 0b1100) >> 2);
     <Kernel as AbstractKernel>::start();
 }

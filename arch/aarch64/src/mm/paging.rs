@@ -34,6 +34,8 @@ unsafe fn setup_ttbr0_el1() {
         (*p3).entries[get_index(ptr as _, 3)].set(Frame::<Size4K>::new((p2 as usize).into()), PageFlags::_PAGE_TABLE_FLAGS);
         // Map first block to p2
         (*p2).entries[get_index(ptr as _, 2)].set(Frame::<Size2M>::new(ptr.into()), PageFlags::_KERNEL_CODE_FLAGS_2M);
+        // Map second block to p2
+        (*p2).entries[get_index(0x200000 as _, 2)].set(Frame::<Size2M>::new(0x200000.into()), PageFlags::_KERNEL_CODE_FLAGS_2M);
     }
     // Identity map 0x3F20_0000 ~ 0x3F21_0000
     // {
