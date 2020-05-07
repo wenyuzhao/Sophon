@@ -10,13 +10,13 @@ qemu_gdb_server = $(if $(gdb),-s -S)
 
 
 arch-user-program:
-	@cd $(path) && cargo build --target $(target)
+	@cd $(path) && cargo build --target $(target) $(if $(release), --release)
 	@cd $(path) && cargo objdump --target $(target) -- --source -d > $(project)/target/$(target)/$(profile)/$(strip $(name)).s 2>&1
 
 arch-kernel:
-	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo build --target $(target) --no-default-features --features device-$(strip $(device)),$(strip $(features))
-	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo objcopy --target $(target) -- --strip-all -O binary $(kernel_img) > /dev/null 2>&1 
-	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo objdump --target $(target) -- --source -d > $(kernel_elf).s 2>&1
+	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo build $(if $(release), --release) --target $(target) --no-default-features --features device-$(strip $(device)),$(strip $(features))
+	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo objcopy $(if $(release), --release) --target $(target) -- --strip-all -O binary $(kernel_img) > /dev/null 2>&1 
+	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo objdump $(if $(release), --release) --target $(target) -- --source -d > $(kernel_elf).s 2>&1
 
 arch-run: device=raspi3-qemu
 arch-run: kernel
