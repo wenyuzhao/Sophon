@@ -3,6 +3,7 @@ features ?=
 
 profile = $(if $(release),release,debug)
 project = $(PWD)
+cargo_profile_flag = $(if $(release), --release)
 
 include arch/$(arch)/Build.mk
 
