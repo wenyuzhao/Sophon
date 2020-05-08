@@ -6,12 +6,14 @@ kernel_rust_flags = -C link-arg=-T$(kernel_src)/aarch64.ld
 qemu_command = qemu-system-aarch64 -display none -M raspi3 -serial stdio -drive file=test.img,if=sd,format=raw
 qemu_debug_interrupts = $(if $(dint),-d int)
 qemu_gdb_server = $(if $(gdb),-s -S)
-
+user_target = aarch64-proton
+user_target_json = $(project)/proton/$(user_target).json
 
 
 arch-user-program: # args: name, path
-	@cd $(path) && cargo build --target $(target) $(cargo_profile_flag)
-	@llvm-objdump --section-headers --source -d $(project)/target/$(target)/$(profile)/$(strip $(name)) > $(project)/target/$(target)/$(profile)/$(strip $(name)).s
+	@cd $(path) && cargo xbuild --target $(user_target_json) $(cargo_profile_flag)
+	@cp $(project)/target/$(user_target)/$(profile)/$(strip $(name)) $(project)/target/$(user_target)/$(strip $(name))
+	@llvm-objdump --section-headers --source -d $(project)/target/$(user_target)/$(profile)/$(strip $(name)) > $(project)/target/$(user_target)/$(profile)/$(strip $(name)).s
 
 arch-kernel: # args: device (raspi4 / raspi3-qemu), features
 	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo build $(cargo_profile_flag) --target $(target) --no-default-features --features device-$(strip $(device)),$(strip $(features))
