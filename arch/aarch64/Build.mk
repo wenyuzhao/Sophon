@@ -25,7 +25,8 @@ arch-run: kernel
 	@$(qemu_command) $(qemu_debug_interrupts) $(qemu_gdb_server) -kernel $(kernel_img)
 
 arch-gdb:
-	lldb --arch aarch64 --file $(kernel_elf) --one-line "gdb-remote 1234"
+	# lldb --arch aarch64 --file $(kernel_elf) --one-line "gdb-remote 1234"
+	gdb -quiet "$(kernel_elf)" -ex "set arch aarch64" -ex "target remote :1234"
 
 raspi4-build: device=raspi4
 raspi4-build: kernel
