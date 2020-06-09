@@ -36,6 +36,7 @@ unsafe fn setup_ttbr0_el1() {
         (*p2).entries[get_index(ptr as _, 2)].set(Frame::<Size2M>::new(ptr.into()), PageFlags::_KERNEL_CODE_FLAGS_2M);
         // Map second block to p2
         (*p2).entries[get_index(0x200000 as _, 2)].set(Frame::<Size2M>::new(0x200000.into()), PageFlags::_KERNEL_CODE_FLAGS_2M);
+        (*p2).entries[get_index(0x400000 as _, 2)].set(Frame::<Size2M>::new(0x400000.into()), PageFlags::_KERNEL_CODE_FLAGS_2M);
     }
     // Identity map 0x3F20_0000 ~ 0x3F21_0000
     // {
@@ -101,7 +102,7 @@ pub fn clear_temp_user_pagetable() {
     // }
     TTBR0_EL1.set(0);
     unsafe {
-        asm!("
+        llvm_asm!("
             tlbi vmalle1is
             DSB SY
             isb
@@ -130,11 +131,10 @@ pub unsafe fn setup_kernel_pagetables() {
     boot_time_log("[boot: (mmu) setup MAIR]");
     MAIR_EL1.write(
         // Attribute 1 - Cacheable normal DRAM.
-        MAIR_EL1::Attr1_HIGH::Memory_OuterWriteBack_NonTransient_ReadAlloc_WriteAlloc
-         + MAIR_EL1::Attr1_LOW_MEMORY::InnerWriteBack_NonTransient_ReadAlloc_WriteAlloc
+        MAIR_EL1::Attr1_Normal_Outer::WriteBack_NonTransient_ReadWriteAlloc +
+        MAIR_EL1::Attr1_Normal_Inner::WriteBack_NonTransient_ReadWriteAlloc +
         // Attribute 0 - Device.
-         + MAIR_EL1::Attr0_HIGH::Device
-         + MAIR_EL1::Attr0_LOW_DEVICE::Device_nGnRE,
+        MAIR_EL1::Attr0_Device::nonGathering_nonReordering_EarlyWriteAck,
     );
 
     boot_time_log("[boot: (mmu) setup TTBRx registers]");
@@ -172,7 +172,14 @@ pub unsafe fn setup_kernel_pagetables() {
     // Mark kernel stack/heap and device physical memory as occupied
     boot_time_log("[boot: (mmu) alloc kernel & device frames]");
     let kernel_frames = (kernel_heap_end() & 0x0000ffff_ffffffff) >> Size2M::LOG_SIZE;
-    mark_as_used::<Size2M>(Frame::new(0x0.into()), kernel_frames);
+    boot_time_log("[boot: a");
+    let f = Frame::new(0x0.into());
+    boot_time_log("[boot: b");
+    boot_time_log("[boot: c");
+    mark_as_used::<Size2M>(f, kernel_frames);
+    boot_time_log("[boot: d");
+    // loop {}
+    boot_time_log("[boot: (mmu) alloc kernel & device frames]");
     let dev_frames = (vcm_end.start() - vcm_start.start()) >> Size2M::LOG_SIZE;
     mark_as_used::<Size2M>(vcm_start, dev_frames);
 
@@ -182,6 +189,7 @@ pub unsafe fn setup_kernel_pagetables() {
     let kernel_code_end = kernel_end() & 0x0000ffff_ffffffff;
     let kernel_code_start_frame = Frame::<Size4K>::new(kernel_code_start.into());
     let frames = (kernel_code_end - kernel_code_start + Size4K::MASK) >> Size4K::LOG_SIZE;
+    boot_time_log("[boot: (mmu) map kernel code...]");
     identity_map_kernel_memory_nomark::<Size4K>(kernel_code_start_frame, frames, PageFlags::_KERNEL_STACK_FLAGS);
 
     // Map core 0 kernel stack
@@ -211,24 +219,33 @@ pub unsafe fn setup_kernel_pagetables() {
 
 fn mark_as_used<S: PageSize>(start_frame: Frame<S>, n_frames: usize) {
     // Mark frames as used
-    let limit_frame = start_frame.add_usize(n_frames).unwrap();
+    // boot_time_log("[boot: xxx]");
+    // loop {}
+    let limit_frame = start_frame.forward(n_frames);
+    // boot_time_log("[boot: mark_as_used 1]");
+    
     Frame::range(start_frame, limit_frame, |frame| {
         super::frame_allocator::mark_as_used(frame);
     });
+    // loop {}
 }
 
 #[inline(never)]
 fn identity_map_kernel_memory_nomark<S: PageSize>(start_frame: Frame<S>, n_frames: usize, flags: PageFlags) {
-    let limit_frame = start_frame.add_usize(n_frames).unwrap();
+    // let limit_frame = start_frame.add_usize(n_frames).unwrap();
+    let limit_frame = start_frame.forward(n_frames);
     let p4 = PageTable::<L4>::get(true);
-    
+    // boot_time_log("[boot: identity_map_kernel_memory_nomark 1]");
     Frame::range(start_frame, limit_frame, |frame| {
+        // boot_time_log("[boot: identity_map_kernel_memory_nomark loop 1]");
         if p4.translate(Address::<V>::new(frame.start().as_usize())).is_none() {
             p4.identity_map(frame, flags);
         } else {
             unreachable!()
         }
+        // boot_time_log("[boot: identity_map_kernel_memory_nomark loop 2]");
     });
+    // boot_time_log("[boot: identity_map_kernel_memory_nomark 2]");
 }
 
 pub fn fork_page_table(parent_p4_frame: Frame) -> Frame {
@@ -239,7 +256,7 @@ pub fn fork_page_table(parent_p4_frame: Frame) -> Frame {
 
 pub fn invalidate_tlb() {
     unsafe {
-        asm! {"
+        llvm_asm! {"
             tlbi vmalle1is
             DSB SY
             isb

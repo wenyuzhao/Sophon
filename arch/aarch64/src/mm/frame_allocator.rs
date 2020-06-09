@@ -45,7 +45,10 @@ impl BitMapAllocator {
     fn get_2m(&self, i: usize) -> bool {
         let entry_index = i >> LOG_BITS_IN_ENTRY;
         let bit_index = i & ((1 << LOG_BITS_IN_ENTRY) - 1);
-        let x = self.map2m[entry_index] & (1 << bit_index) != 0;
+        let v = self.map2m[entry_index];
+        let m = 1 << bit_index;
+        let y = v & m;
+        let x = y != 0;
         x
     }
     fn set_2m(&mut self, i: usize, v: bool) {
@@ -154,10 +157,20 @@ impl BitMapAllocator {
     }
 }
 
+static mut INITIALIZED: bool = false;
+static mut ALLOCATOR_UNSYNC: BitMapAllocator = BitMapAllocator::new();
 static ALLOCATOR: Mutex<BitMapAllocator> = Mutex::new(BitMapAllocator::new());
 
 pub fn mark_as_used<S: PageSize>(frame: Frame<S>) {
+    crate::uart::boot_time_log("[boot: ALLOCATOR.lock()]");
+    // unsafe {
+    //     if !INITIALIZED {
+    //         INITIALIZED = true;
+    //         ALLOCATOR_UNSYNC = BitMapAllocator::new();
+    //     }
+    // }
     let mut allocator = ALLOCATOR.lock();
+    crate::uart::boot_time_log("[boot: ALLOCATOR.lock() end]");
     if S::LOG_SIZE == Size4K::LOG_SIZE {
         // unreachable!();
         let index_2m = frame.start().as_usize() >> Size2M::LOG_SIZE;
@@ -181,9 +194,14 @@ pub fn mark_as_used<S: PageSize>(frame: Frame<S>) {
 }
 
 pub fn alloc<S: PageSize>() -> Option<Frame<S>> {
+    // crate::uart::boot_time_log("[boot: alloc 0]");
     let mut allocator = ALLOCATOR.lock();
+    // crate::uart::boot_time_log("[boot: alloc 1]");
     let f = if S::LOG_SIZE == Size4K::LOG_SIZE {
+
+    // crate::uart::boot_time_log("[boot: alloc4k]");
         let addr = Address::<P>::new(allocator.alloc4k()? << Size4K::LOG_SIZE);
+        // crate::uart::boot_time_log("[boot: alloc4k end]");
         Some(Frame::new(addr))
     } else {
         let addr = Address::<P>::new(allocator.alloc2m()? << Size2M::LOG_SIZE);

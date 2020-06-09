@@ -22,6 +22,7 @@ bitflags! {
         const _DEVICE_MEMORY_FLAGS_4K = Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
         const _DEVICE_MEMORY_FLAGS_2M = Self::PRESENT.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
         const _PAGE_TABLE_FLAGS = Self::NORMAL_MEMORY.bits | Self::NO_EXEC.bits | Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
+        const _USER_PAGE_TABLE_FLAGS = Self::_PAGE_TABLE_FLAGS.bits | Self::USER.bits;
         const _KERNEL_STACK_FLAGS = Self::NORMAL_MEMORY.bits | Self::NO_EXEC.bits | Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
         const _KERNEL_STACK_GUARD_FLAGS = Self::NORMAL_MEMORY.bits | !Self::ACCESSED.bits & (Self::NO_WRITE.bits | Self::_KERNEL_STACK_FLAGS.bits);
         const _KERNEL_CODE_FLAGS_2M = Self::NORMAL_MEMORY.bits | Self::PRESENT.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
@@ -246,10 +247,10 @@ impl PageTable<L4> {
 
     pub fn map<S: PageSize>(&mut self, page: Page<S>, frame: Frame<S>, flags: PageFlags) -> Page<S> {
         
-    if unsafe { crate::start::BOOTED } {
+    // if unsafe { crate::start::BOOTED } {
 
-        debug!(crate::Kernel: "@ map {:?} {:?}", frame, page);
-    }
+    //     debug!(crate::Kernel: "@ map {:?} {:?}", frame, page);
+    // }
         let (level, entry) = self.get_entry_create::<S>(page.start());
         if cfg!(debug_assertions) {
             if S::LOG_SIZE == Size4K::LOG_SIZE {

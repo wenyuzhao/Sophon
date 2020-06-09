@@ -9,7 +9,7 @@ pub static mut BOOTED: bool = false;
 #[naked]
 pub unsafe fn _start() -> ! {
     // Halt non-promary processors
-    asm! {"
+    llvm_asm! {"
             mrs     x0, mpidr_el1
             and     x0, x0, #3
             cbz     x0, 2f
@@ -18,7 +18,7 @@ pub unsafe fn _start() -> ! {
         2:
     "};
     // Setup core 0 stack
-    asm!("mov sp, $0"::"r"(0x80000));
+    llvm_asm!("mov sp, $0"::"r"(0x80000));
     
     super::uart::UART0::init();
     assert!(CurrentEL.get() == CurrentEL::EL::EL2.value);
@@ -57,7 +57,7 @@ unsafe fn zero_bss() {
 unsafe extern fn _start_el1() -> ! {
     // Enable all co-processors
     boot_time_log("[boot: enable all co-processors]");
-    asm!("msr cpacr_el1, $0"::"r"(0xfffffff));
+    llvm_asm!("msr cpacr_el1, $0"::"r"(0xfffffff));
     boot_time_log("[boot: zero bss]");
     zero_bss();
     // Setup paging

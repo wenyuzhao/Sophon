@@ -62,17 +62,17 @@ impl AbstractInterruptController for InterruptController {
     fn is_enabled() -> bool {
         unsafe {
             let daif: usize;
-            asm!("mrs $0, DAIF":"=r"(daif));
+            llvm_asm!("mrs $0, DAIF":"=r"(daif));
             daif & (1 << 7) == 0
         }
     }
     
     fn enable() {
-        unsafe { asm!("msr daifclr, #2") };
+        unsafe { llvm_asm!("msr daifclr, #2") };
     }
     
     fn disable() {
-        unsafe { asm!("msr daifset, #2") };
+        unsafe { llvm_asm!("msr daifset, #2") };
     }
 
     fn set_handler(id: InterruptId, handler: Option<InterruptHandler>) {

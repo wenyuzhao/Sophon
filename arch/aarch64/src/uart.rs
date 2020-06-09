@@ -68,7 +68,7 @@ impl AbstractLogger for UART0 {
 
 fn wait_cycles(n: usize) {
     for _ in 0..n {
-        unsafe { asm!("nop"); }
+        unsafe { llvm_asm!("nop"); }
     }
 }
 

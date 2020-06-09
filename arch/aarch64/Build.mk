@@ -13,12 +13,12 @@ user_target_json = $(project)/proton/$(user_target).json
 arch-user-program: # args: name, path
 	@cd $(path) && cargo xbuild --target $(user_target_json) $(cargo_profile_flag)
 	@cp $(project)/target/$(user_target)/$(profile)/$(strip $(name)) $(project)/target/$(user_target)/$(strip $(name))
-	@llvm-objdump --section-headers --source -d $(project)/target/$(user_target)/$(profile)/$(strip $(name)) > $(project)/target/$(user_target)/$(profile)/$(strip $(name)).s
+	@llvm-objdump --section-headers --source -d $(project)/target/$(user_target)/$(profile)/$(strip $(name)) > $(project)/target/$(user_target)/$(profile)/$(strip $(name)).s 2>/dev/null
 
 arch-kernel: # args: device (raspi4 / raspi3-qemu), features
 	@cd $(kernel_src) && RUSTFLAGS="$(kernel_rust_flags)" cargo build $(cargo_profile_flag) --target $(target) --no-default-features --features device-$(strip $(device)),$(strip $(features))
 	@llvm-objcopy --strip-all $(kernel_elf) -O binary $(kernel_img)
-	@llvm-objdump --section-headers --source -d $(kernel_elf) > $(kernel_elf).s
+	@llvm-objdump --section-headers --source -d $(kernel_elf) > $(kernel_elf).s 2>/dev/null
 
 arch-run: device=raspi3-qemu
 arch-run: kernel

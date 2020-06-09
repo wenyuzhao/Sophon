@@ -54,7 +54,7 @@ pub struct ExceptionFrame {
 
 unsafe fn get_exception_class() -> ExceptionClass {
     let esr_el1: u32;
-    asm!("mrs $0, esr_el1":"=r"(esr_el1));
+    llvm_asm!("mrs $0, esr_el1":"=r"(esr_el1));
     ::core::mem::transmute(esr_el1 >> 26)
 }
 
@@ -75,9 +75,9 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
         },
         ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
             let far: usize;
-            asm!("mrs $0, far_el1":"=r"(far));
+            llvm_asm!("mrs $0, far_el1":"=r"(far));
             let elr: usize;
-            asm!("mrs $0, elr_el1":"=r"(elr));
+            llvm_asm!("mrs $0, elr_el1":"=r"(elr));
             debug!(Kernel: "Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
             // debug!(Kernel: "Data Abort {:?}", far as *mut ());
             super::mm::handle_user_pagefault(far.into());
@@ -86,7 +86,7 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
         v => {
             debug!(Kernel: "Exception Frame: {:?} {:?}", exception_frame, *exception_frame);
             let esr_el1: u32;
-            asm!("mrs $0, esr_el1":"=r"(esr_el1));
+            llvm_asm!("mrs $0, esr_el1":"=r"(esr_el1));
             debug!(Kernel: "ESR_EL1 = <EC={:x}, IL={:x}>", esr_el1 >> 26, esr_el1 & ((1 << 26) - 1));
             // debug!(Kernel: "0x212ba4 -> 0x{:x}", *(0x212ba4usize as *const usize));
             panic!("Unknown exception 0b{:b}", ::core::mem::transmute::<_, u32>(v))
@@ -116,9 +116,9 @@ pub unsafe extern fn handle_exception_serror(exception_frame: *mut ExceptionFram
         },
         ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
             let far: usize;
-            asm!("mrs $0, far_el1":"=r"(far));
+            llvm_asm!("mrs $0, far_el1":"=r"(far));
             let elr: usize;
-            asm!("mrs $0, elr_el1":"=r"(elr));
+            llvm_asm!("mrs $0, elr_el1":"=r"(elr));
             debug!(Kernel: "Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
             // debug!(Kernel: "Data Abort {:?}", far as *mut ());
             super::mm::handle_user_pagefault(far.into());
@@ -127,7 +127,7 @@ pub unsafe extern fn handle_exception_serror(exception_frame: *mut ExceptionFram
         v => {
             debug!(Kernel: "Exception Frame: {:?} {:?}", exception_frame, *exception_frame);
             let esr_el1: u32;
-            asm!("mrs $0, esr_el1":"=r"(esr_el1));
+            llvm_asm!("mrs $0, esr_el1":"=r"(esr_el1));
             debug!(Kernel: "ESR_EL1 = <EC={:x}, IL={:x}>", esr_el1 >> 26, esr_el1 & ((1 << 26) - 1));
             // debug!(Kernel: "0x212ba4 -> 0x{:x}", *(0x212ba4usize as *const usize));
             panic!("Unknown exception 0b{:b}", ::core::mem::transmute::<_, u32>(v))

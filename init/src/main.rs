@@ -1,4 +1,4 @@
-#![feature(asm)]
+#![feature(asm, llvm_asm)]
 #![feature(format_args_nl)]
 #![no_std]
 #![no_main]
@@ -10,7 +10,7 @@ mod log;
 
 #[no_mangle]
 pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
-    // unsafe { asm!("1:  b 1b") }
+    // unsafe { llvm_asm!("1:  b 1b") }
     log!("Init process start (user mode)");
 
     // let msg = Message {
@@ -50,7 +50,7 @@ pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     // loop {
     //     log!("Hello from init process! <{}>", id);
     //     for i in 0..100000 {
-    //         // unsafe { asm!("nop") }
+    //         // unsafe { llvm_asm!("nop") }
     //     }
     // }
 }

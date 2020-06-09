@@ -1,4 +1,4 @@
-#![feature(asm)]
+#![feature(asm, llvm_asm)]
 #![feature(format_args_nl)]
 #![allow(dead_code)]
 #![no_std]

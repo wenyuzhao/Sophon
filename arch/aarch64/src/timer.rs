@@ -55,7 +55,7 @@ pub fn handle_timer_irq(_: usize, _: usize, _: usize, _: usize, _: usize, _: usi
     {
         let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
         unsafe {
-            asm!("msr cntp_cval_el0, $0":: "r"(CNTPCT_EL0.get() + step));
+            llvm_asm!("msr cntp_cval_el0, $0":: "r"(CNTPCT_EL0.get() + step));
         }
     }
     Kernel::global().scheduler.timer_tick();
@@ -71,16 +71,16 @@ impl AbstractTimer for Timer {
     fn init() {
         debug!(Kernel: "Timer init raspi4");
         unsafe {
-            asm!("dsb SY":::"memory");
+            llvm_asm!("dsb SY":::"memory");
             let timer_irq = 16 + 14;
             GICD::get().ISENABLER[timer_irq / 32] = 1 << (timer_irq % 32);
             let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
             assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
             let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;
             let n_cntpct: usize = CNTPCT_EL0.get() as _;
-            asm!("msr CNTP_CVAL_EL0, $0" :: "r" (n_cntpct + clock_ticks_per_timer_irq));
+            llvm_asm!("msr CNTP_CVAL_EL0, $0" :: "r" (n_cntpct + clock_ticks_per_timer_irq));
             CNTP_CTL_EL0.set(1);
-            asm!("dmb SY":::"memory");
+            llvm_asm!("dmb SY":::"memory");
         }
         <AArch64 as AbstractArch>::Interrupt::set_handler(InterruptId::Timer, Some(box handle_timer_irq));
     }
@@ -92,7 +92,7 @@ impl AbstractTimer for Timer {
             assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
             let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;
             let n_cntpct: usize = CNTPCT_EL0.get() as _;
-            asm!("msr CNTP_CVAL_EL0, $0" :: "r" (n_cntpct + clock_ticks_per_timer_irq));
+            llvm_asm!("msr CNTP_CVAL_EL0, $0" :: "r" (n_cntpct + clock_ticks_per_timer_irq));
             CNTP_CTL_EL0.set(1);
             *ARM_CORE_TIMER_INTERRUPT_CONTROL(0) = 1 << 1;
         }

@@ -60,7 +60,7 @@ impl Drop for KernelStack {
         let guard_page = Page::<Size4K, V>::new(Address::from(&self.guard as *const [u8; Size4K::SIZE]));
         PageTable::<L4>::get(true).update_flags(guard_page, PageFlags::_KERNEL_DATA_FLAGS_4K);
         let stack_page_start = Page::<Size4K, V>::new(Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]));
-        let stack_page_end = stack_page_start.add_usize(KERNEL_STACK_PAGES).unwrap();
+        let stack_page_end = ::core::iter::Step::forward(stack_page_start, KERNEL_STACK_PAGES);
         for stack_page in stack_page_start..stack_page_end {
             PageTable::<L4>::get(true).update_flags(stack_page, PageFlags::_KERNEL_DATA_FLAGS_4K);
         }
@@ -187,7 +187,7 @@ impl AbstractContext for Context {
         assert!(!<AArch64 as AbstractArch>::Interrupt::is_enabled());
         // Switch page table
         if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
-            asm! {"
+            llvm_asm! {"
                 msr	ttbr0_el1, $0
                 tlbi vmalle1is
                 DSB ISH
@@ -231,7 +231,8 @@ impl AbstractContext for Context {
             self.response_status = None;
         }
         debug!(crate::Kernel: "Set SP {:?}", exception_frame);
-        asm!("mov sp, $0"::"r"(exception_frame));
+        debug!(crate::Kernel: "Set IP 0x{:x}", (*exception_frame).elr_el1);
+        llvm_asm!("mov sp, $0"::"r"(exception_frame));
         // debug!(crate::Kernel: "exit_exception ");
         // Return from exception
         super::exception::exit_exception();
@@ -240,7 +241,7 @@ impl AbstractContext for Context {
     unsafe fn enter_usermode(entry: extern fn(_argc: isize, _argv: *const *const u8), sp: Address) -> ! {
         debug!(crate::Kernel: "TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}", TTBR0_EL1.get(), entry as *const extern fn(_argc: isize, _argv: *const *const u8), sp);
         <AArch64 as AbstractArch>::Interrupt::disable();
-        asm! {
+        llvm_asm! {
             "
             msr spsr_el1, $0
             msr elr_el1, $1

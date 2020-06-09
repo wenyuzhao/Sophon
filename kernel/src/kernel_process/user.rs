@@ -36,29 +36,36 @@ impl <K: AbstractKernel> UserTask<K> {
             debug!(K: "Parsed ELF file");
             let entry: extern fn(isize, *const *const u8) = unsafe { ::core::mem::transmute(elf.header().entry_point()) };
             debug!(K: "Entry: {:?}", entry as *mut ());
-            for p in elf.program_headers() {
-                if p.ph_type() == ProgramType::LOAD {
-                    // println!("pheader = {:?}", p);
-                    let start: Address = (p.vaddr() as usize).into();
-                    let size = (p.memsz() as usize + Size4K::MASK) / Size4K::SIZE;
-                    let end = start + (size << Size4K::LOG_SIZE);
-                    debug!(K: "Map {:?} {:?} {:?}", start, size, end);
-                    memory_map::<K>(start, size << Size4K::LOG_SIZE, PageFlags::user_code_flags()).unwrap();
-                    let ptr: *mut u8 = start.as_ptr_mut();
-                    let mut cursor = start;
-                    while cursor < end {
-                        let offset = (cursor - start) as usize;
-                        if (p.offset() as usize) + offset >= self.elf_data.len() {
-                            break;
-                        }
-                        let v = self.elf_data[(p.offset() as usize) + offset];
-                        if offset < p.filesz() as usize {
-                            unsafe { *ptr.add(offset) = v };
-                        } else {
-                            unsafe { *ptr.add(offset) = 0 };
-                        }
-                        cursor += 1;
+            let mut load_start = None;
+            let mut load_end = None;
+            for p in elf.program_header_iter().filter(|p| p.ph.ph_type() == ProgramType::LOAD) {
+                debug!(K: "{:?}", p.ph);
+                let start: Address = (p.ph.vaddr() as usize).into();
+                let end = start + (p.ph.filesz() as usize);
+                match (load_start, load_end) {
+                    (None, None) => {
+                        load_start = Some(start);
+                        load_end = Some(end);
                     }
+                    (Some(s), Some(e)) => {
+                        if start < s { load_start = Some(start) }
+                        if end   > e { load_end = Some(end) }
+                    }
+                    _ => unreachable!()
+                }
+            }
+            debug!(K: "vaddr: {:?} .. {:?}", load_start.unwrap(), load_end.unwrap());
+            let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
+            let vaddr_end = Page::<Size4K>::align_up(load_end.unwrap());
+            memory_map::<K>(vaddr_start, vaddr_end - vaddr_start, PageFlags::user_code_flags()).unwrap();
+            // Copy data
+            for p in elf.program_header_iter().filter(|p| p.ph.ph_type() == ProgramType::LOAD) {
+                let start: Address = (p.ph.vaddr() as usize).into();
+                let bytes = p.ph.filesz() as usize;
+                let offset = p.ph.offset() as usize;
+                for i in 0..bytes {
+                    let v = self.elf_data[offset + i];
+                    unsafe { (start + i).store(v); }
                 }
             }
             entry

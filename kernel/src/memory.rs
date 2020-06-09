@@ -6,7 +6,7 @@ use crate::arch::*;
 pub fn memory_map<K: AbstractKernel>(address: Address, size: usize, flags: PageFlags) -> Result<Address, ()> {
     debug_assert!(!flags.contains(PageFlags::PAGE_2M));
     debug_assert!(!flags.contains(PageFlags::PAGE_1G));
-    assert!(Page::<Size4K>::is_aligned(address));
+    assert!(Page::<Size4K>::is_aligned(address), "{:?} is not page aligned", address);
     assert!(Page::<Size4K>::is_aligned(size.into()));
     let start_page = Page::<Size4K>::new(address);
     let end_page = Page::<Size4K>::new(address + size);

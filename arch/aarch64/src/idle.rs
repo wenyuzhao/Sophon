@@ -7,7 +7,7 @@ pub struct Idle;
 impl KernelTask for Idle {
     fn run(&mut self) -> ! {
         loop {
-            unsafe { asm!("wfe"); }
+            unsafe { llvm_asm!("wfe"); }
         }
     }
 }

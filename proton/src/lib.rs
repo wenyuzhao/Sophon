@@ -1,8 +1,9 @@
-#![feature(asm)]
+#![feature(asm, llvm_asm)]
 #![feature(step_trait)]
 #![feature(const_fn)]
 #![feature(format_args_nl)]
 #![feature(core_intrinsics)]
+#![feature(step_trait_ext)]
 #![no_std]
 
 

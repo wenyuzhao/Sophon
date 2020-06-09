@@ -111,6 +111,11 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
         let v = (a.as_usize() + S::SIZE - 1) & !(S::SIZE - 1);
         v.into()
     }
+
+    #[inline]
+    pub fn forward(&self, count: usize) -> Self {
+        Self(self.0 + (count << Self::LOG_SIZE), PhantomData)
+    }
 }
 
 impl <S: PageSize, K: MemoryKind> fmt::Debug for Page<S, K> {
@@ -127,7 +132,7 @@ impl <S: PageSize, K: MemoryKind> Sub<Page<S, K>> for Page<S, K> {
 }
 
 
-impl <S: PageSize, K: MemoryKind> Step for Page<S, K> {
+unsafe impl <S: PageSize, K: MemoryKind> Step for Page<S, K> {
     #[inline]
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         if start > end {
@@ -136,22 +141,12 @@ impl <S: PageSize, K: MemoryKind> Step for Page<S, K> {
             Some((*end - *start) >> Self::LOG_SIZE)
         }
     }
-    fn replace_one(&mut self) -> Self {
-        unimplemented!()
-    }
-    fn replace_zero(&mut self) -> Self {
-        unimplemented!()
+    #[inline]
+    fn forward_checked(start: Self, count: usize) -> Option<Self> {
+        Some(Self(start.0 + (count << Self::LOG_SIZE), PhantomData))
     }
     #[inline]
-    fn add_one(&self) -> Self {
-        Self(self.0 + Self::SIZE, PhantomData)
-    }
-    #[inline]
-    fn sub_one(&self) -> Self {
-        Self(self.0 - Self::SIZE, PhantomData)
-    }
-    #[inline]
-    fn add_usize(&self, n: usize) -> Option<Self> {
-        Some(Self(self.0 + (n << Self::LOG_SIZE), PhantomData))
+    fn backward_checked(start: Self, count: usize) -> Option<Self> {
+        Some(Self(start.0 - (count << Self::LOG_SIZE), PhantomData))
     }
 }

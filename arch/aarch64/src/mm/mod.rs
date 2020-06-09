@@ -42,7 +42,7 @@ impl AbstractMemoryManager for MemoryManager {
             let ctx = &Task::<Kernel>::by_id(task).unwrap().context;
             // Set pagetable
             unsafe {
-                asm! {"
+                llvm_asm! {"
                     msr	ttbr0_el1, $0
                     tlbi vmalle1is
                     DSB ISH

@@ -1,4 +1,4 @@
-#![feature(asm)]
+#![feature(asm, llvm_asm)]
 #![feature(format_args_nl)]
 #![feature(global_asm)]
 #![feature(core_intrinsics)]
@@ -12,6 +12,7 @@
 #![feature(const_in_array_repeat_expressions)]
 #![feature(const_raw_ptr_deref)]
 #![feature(const_mut_refs)]
+#![feature(step_trait_ext)]
 #![allow(dead_code)]
 #![no_std]
 #![no_main]
