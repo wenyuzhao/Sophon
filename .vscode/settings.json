@@ -1,11 +1,8 @@
 {
-    "rust.all_targets": false,
-    "rust.target": "aarch64-unknown-none",
-    "rust.unstable_features": true,
-    // "rust-analyzer.updates.channel": "nightly",
-    "rust-analyzer.cargo-watch.allTargets": false,
-    "rust-analyzer.cargo-watch.arguments": [
-        "--target",
-        "aarch64-unknown-linux-gnu"
+    "rust-analyzer.updates.channel": "nightly",
+    "rust-analyzer.checkOnSave.overrideCommand": [
+        "cargo", "check",
+        "--target", "aarch64-unknown-linux-gnu",
+        "--message-format=json"
     ]
 }
