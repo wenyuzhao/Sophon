@@ -60,7 +60,6 @@ impl PageTableEntry {
         PageFlags::from_bits_truncate(v)
     }
     pub fn update_flags(&mut self, new_flags: PageFlags) {
-        unreachable!();
         let v = self.address().as_usize() | new_flags.bits();
         unsafe { ::core::intrinsics::volatile_store(&mut self.0, v); }
     }

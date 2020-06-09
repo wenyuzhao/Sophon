@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use core::iter::Step;
 use proton::memory::*;
 use crate::heap::constants::*;
 use crate::arch::*;
@@ -129,7 +128,7 @@ impl AbstractContext for Context {
 
     fn new2() {
         // Alloc page table
-        let p4 = unsafe {
+        let _p4 = {
             // let p4_frame = Frame::<Size4K>::ZERO;
             let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
             // let p4_page = super::mm::page_table::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);

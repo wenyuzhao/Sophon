@@ -3,6 +3,7 @@ use super::gic::*;
 use proton_kernel::task::Task;
 use proton_kernel::arch::*;
 use crate::*;
+#[cfg(feature="device-raspi4")]
 use core::intrinsics::{volatile_load, volatile_store};
 
 

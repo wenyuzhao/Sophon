@@ -8,10 +8,6 @@ use elf_rs::*;
 
 
 
-
-const PT_LOAD: u32 = 1;
-
-
 const USER_STACK_START: Address<V> = Address::new(0x111900000);
 const USER_STACK_PAGES: usize = 4; // Too many???
 const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::SIZE;

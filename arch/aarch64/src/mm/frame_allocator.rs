@@ -215,7 +215,6 @@ pub fn alloc<S: PageSize>() -> Option<Frame<S>> {
 }
 
 pub fn free<S: PageSize>(frame: Frame<S>) {
-    unreachable!();
     let mut allocator = ALLOCATOR.lock();
     if S::LOG_SIZE == Size4K::LOG_SIZE {
         unimplemented!()

@@ -130,7 +130,7 @@ impl <K: AbstractKernel> Task<K> {
         K::global().scheduler.register_new_task(task)
     }
 
-    pub fn create_kernel_task2(t: Box<dyn KernelTask>) {
+    pub fn create_kernel_task2(_t: Box<dyn KernelTask>) {
         // let t = Box::leak(box t);
         // Assign an id
         // let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));

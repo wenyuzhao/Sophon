@@ -1,4 +1,3 @@
-use core::iter::Step;
 use cortex_a::regs::*;
 use cortex_a::barrier;
 use super::page_table::*;
@@ -7,8 +6,6 @@ use crate::heap::constants::*;
 use super::super::uart::boot_time_log;
 use super::page_table::PageFlags;
 use crate::peripherals::*;
-use crate::uart::*;
-use core::fmt::Write;
 
 #[repr(C, align(4096))]
 struct TempFrames([usize; 512], [usize; 512], [usize; 512], [usize; 512]);
