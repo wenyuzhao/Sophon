@@ -4,5 +4,6 @@
         "cargo", "check",
         "--target", "aarch64-unknown-linux-gnu",
         "--message-format=json"
-    ]
+    ],
+    "rust-analyzer.cargo.allFeatures": true,
 }
