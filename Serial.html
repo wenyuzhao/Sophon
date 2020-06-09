@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web TTY</title>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@4.1.0/lib/xterm.js"></script>
+    <link rel="stylesheet" href='https://cdn.jsdelivr.net/npm/xterm@4.1.0/css/xterm.css'>
+</head>
+
+<body>
+    <div id="terminal" style="width: 500px; height: 500px;"></div>
+    <script>
+        async function start() {
+            const port = await navigator.serial.requestPort({});
+            await port.open({ baudrate: 115200 });
+
+            const reader = port.readable.getReader();
+            //const writer = port.writable.getWriter();
+            //writer.write(buffy);
+
+            let buffer = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const s = new TextDecoder("utf-8").decode(value);
+                buffer += s;
+                if (s.endsWith('\r\n') || s.endsWith('\n')) {
+                    console.log(buffer)
+                    buffer = '';
+                }
+            }
+        }
+
+        Object.assign(window, {
+            ptr(v) {
+                return '0x' + v.toString(16)
+            }
+        })
+    </script>
+    <button onclick="start()"><h1>CONNECT</h1></button>
+</body>
+
+</html>
