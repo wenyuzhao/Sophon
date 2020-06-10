@@ -1,5 +1,5 @@
 {
-    "rust-analyzer.updates.channel": "nightly",
+    // "rust-analyzer.updates.channel": "nightly",
     "rust-analyzer.checkOnSave.extraArgs": [
         "--target", "aarch64-unknown-none"
     ],
