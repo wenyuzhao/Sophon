@@ -1,9 +1,8 @@
 {
     "rust-analyzer.updates.channel": "nightly",
-    "rust-analyzer.checkOnSave.overrideCommand": [
-        "cargo", "check",
-        "--target", "aarch64-unknown-linux-gnu",
-        "--message-format=json"
+    "rust-analyzer.checkOnSave.extraArgs": [
+        "--target", "aarch64-unknown-none"
     ],
-    "rust-analyzer.cargo.allFeatures": true,
+    "rust-analyzer.checkOnSave.allTargets": false,
+    "rust-analyzer.cargo.allFeatures": true
 }
