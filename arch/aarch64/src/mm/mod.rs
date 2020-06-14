@@ -1,4 +1,3 @@
-pub mod frame_allocator;
 pub mod page_table;
 pub mod paging;
 use page_table::PageFlags as ArchPageFlags;
@@ -8,6 +7,12 @@ use proton_kernel::arch::*;
 use proton_kernel::task::*;
 use crate::Kernel;
 use crate::arch::*;
+use proton::utils::frame_allocator::SynchronizedFrameAllocator;
+use proton::utils::frame_allocator::bump_allocator::BumpFrameAllocator;
+
+pub static FRAME_ALLOCATOR: SynchronizedFrameAllocator<BumpFrameAllocator> = SynchronizedFrameAllocator::new(
+    BumpFrameAllocator::new((Address::new(0x2000_0000), Address::new(0x3000_0000)))
+);
 
 pub struct MemoryManager;
 
@@ -16,10 +21,10 @@ impl MemoryManager {
 
 impl AbstractMemoryManager for MemoryManager {
     fn alloc_frame<S: PageSize>() -> Frame<S> {
-        frame_allocator::alloc().unwrap()
+        FRAME_ALLOCATOR.alloc()
     }
     fn dealloc_frame<S: PageSize>(frame: Frame<S>) {
-        frame_allocator::free(frame)
+        FRAME_ALLOCATOR.free(frame)
     }
     fn map<S: PageSize>(page: Page<S>, frame: Frame<S>, flags: PageFlags) {
         let p4 = PageTable::<L4>::get(page.start().as_usize() & 0xffff_0000_0000_0000 != 0);

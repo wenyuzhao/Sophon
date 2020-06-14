@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use proton::memory::*;
 use crate::heap::constants::*;
 use crate::arch::*;
-use super::mm::frame_allocator;
+use super::mm::FRAME_ALLOCATOR;
 use super::mm::page_table::*;
 use super::mm::page_table::PageFlags;
 use super::exception::ExceptionFrame;
@@ -105,7 +105,7 @@ impl AbstractContext for Context {
     fn new(entry: *const extern fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
         // Alloc page table
         let p4 = unsafe {
-            let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
+            let p4_frame = FRAME_ALLOCATOR.alloc::<Size4K>();
             let p4_page = super::mm::page_table::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
             let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
             for i in 0..511 {
@@ -130,7 +130,7 @@ impl AbstractContext for Context {
         // Alloc page table
         let _p4 = {
             // let p4_frame = Frame::<Size4K>::ZERO;
-            let p4_frame = frame_allocator::alloc::<Size4K>().unwrap();
+            let p4_frame = FRAME_ALLOCATOR.alloc::<Size4K>();
             // let p4_page = super::mm::page_table::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
             // let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
             // for i in 0..512 {

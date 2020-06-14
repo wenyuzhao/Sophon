@@ -1,6 +1,6 @@
 use cortex_a::regs::*;
 use core::marker::PhantomData;
-use super::frame_allocator;
+use super::FRAME_ALLOCATOR;
 use proton::memory::*;
 
 
@@ -168,7 +168,7 @@ impl <L: TableLevel> PageTable<L> {
         if let Some(address) = self.next_table_address(index) {
             return unsafe { &mut *(address as *mut _) }
         } else {
-            let frame = frame_allocator::alloc::<Size4K>().expect("no frames available");
+            let frame = FRAME_ALLOCATOR.alloc::<Size4K>();
             self.entries[index].set(frame, PageFlags::_PAGE_TABLE_FLAGS);
             ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
             let t = self.next_table_create(index);
@@ -337,7 +337,7 @@ impl <L: TableLevel> PageTable<L> {
         if L::ID == 0 { unreachable!() }
 
         // Alloc a new table
-        let new_table_frame = frame_allocator::alloc::<Size4K>().unwrap();
+        let new_table_frame = FRAME_ALLOCATOR.alloc::<Size4K>();
         {
             let page = map_kernel_temporarily(new_table_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
             unsafe { page.zero(); }
@@ -402,7 +402,7 @@ impl PageTable<L4> {
             let p1_index = PageTable::<L1>::get_index(a);
             debug_assert!(p1.entries[p1_index].flags().contains(PageFlags::COPY_ON_WRITE));
             let old_page = Page::<Size4K>::of(a);
-            let new_frame = frame_allocator::alloc::<Size4K>().unwrap();
+            let new_frame = FRAME_ALLOCATOR.alloc::<Size4K>();
             {
                 let new_page = map_kernel_temporarily(new_frame, PageFlags::_USER_STACK_FLAGS, None);
                 let mut offset = 0;
