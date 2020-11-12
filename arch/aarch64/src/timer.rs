@@ -5,6 +5,7 @@ use proton_kernel::scheduler::AbstractScheduler;
 use super::gic::*;
 use crate::*;
 use crate::peripherals::*;
+use core::ptr::read_volatile;
 
 const TIMER_INTERRUPT_FREQUENCY: usize = 1; // Hz
 
@@ -45,7 +46,8 @@ pub const ARMTIMER_VALUE: *mut u32     = (PERIPHERAL_BASE + 0xB404) as _;
 
 #[inline]
 pub fn pending_timer_irq() -> bool {
-    ((unsafe { *ARM_CORE_TIMER_IRQ_SOURCE(0) }) & (1 << 1)) != 0
+    let x = unsafe { read_volatile(ARM_CORE_TIMER_IRQ_SOURCE(0) as *const u32) };
+    (x & (1 << 1)) != 0
 }
 
 #[inline]

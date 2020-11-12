@@ -44,8 +44,7 @@ pub trait AbstractKernel: Sized + 'static {
 
     fn global() -> &'static KernelGlobal<Self>;
 
-    fn start() -> ! {<Self::Arch as AbstractArch>::Context::new2();
-        
+    fn start() -> ! {
         debug!(Self: "Hello, Raspberry PI!");
         // Initialize kernel heap
         <Self::Arch as AbstractArch>::Heap::init();
@@ -79,8 +78,8 @@ pub trait AbstractKernel: Sized + 'static {
         // let _task = Task::<Self>::create_kernel_task2(box UserTask::<Self>::new(
         //     <Self::Arch as AbstractArch>::BootImage::get("init").unwrap()
         // ));
-        
-        debug!(Self: "[kernel: created emmc process: {:?}]", task.id());
+
+        // debug!(Self: "[kernel: created emmc process: {:?}]", task.id());
 
         Self::global().scheduler.schedule();
     }
