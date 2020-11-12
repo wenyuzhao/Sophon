@@ -4,7 +4,7 @@
 #![feature(core_intrinsics)]
 #![feature(naked_functions)]
 #![feature(step_trait)]
-#![feature(const_transmute)]
+#![feature(const_fn_transmute)]
 #![feature(box_syntax)]
 #![feature(alloc_error_handler)]
 #![feature(new_uninit)]

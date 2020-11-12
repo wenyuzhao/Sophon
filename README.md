@@ -4,7 +4,7 @@
 
 **Build**
 1. Rustup nightly channel
-2. Rustup target `aarch64-unknown-linux-gnu`
+2. Rustup target `aarch64-unknown-none`
 3. [cargo-xbuild](https://github.com/rust-osdev/cargo-xbuild)
 4. LLVM Tools (`llvm-objcopy` and `llvm-objdump`)
 
