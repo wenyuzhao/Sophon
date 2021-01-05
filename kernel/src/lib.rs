@@ -56,6 +56,7 @@ pub trait AbstractKernel: Sized + 'static {
         debug!(Self: "[kernel: ipc initialized]");
         <Self::Arch as AbstractArch>::Timer::init();
         debug!(Self: "[kernel: timer initialized]");
+        debug!(Self: "[kernel: timer initialized {}]", <Self::Arch as AbstractArch>::Interrupt::is_enabled());
 
 
         let task = Task::<Self>::create_kernel_task(box System::<Self>::new());

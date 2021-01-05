@@ -66,7 +66,7 @@ impl <K: AbstractKernel> Task<K> {
         *receiver.block_to_receive_from.lock() = Some(from);
         K::global().scheduler.block_current_task_as_receiving();
     }
-    
+
     #[inline]
     pub fn send_message(m: Message) -> ! {
         let sender = Task::<K>::by_id(m.sender).unwrap();
@@ -114,9 +114,12 @@ impl <K: AbstractKernel> Task<K> {
     // }
     /// Create a init task with empty p4 table
     pub fn create_kernel_task(t: Box<dyn KernelTask>) -> &'static mut Self {
+        debug!(K: "create_kernel_task 1");
         let t = box t;
+        debug!(K: "create_kernel_task 2");
         // Assign an id
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
+        debug!(K: "create_kernel_task 3");
         // Alloc task struct
         let task = box Task {
             id,
@@ -126,6 +129,7 @@ impl <K: AbstractKernel> Task<K> {
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
         };
+        debug!(K: "create_kernel_task 4");
         // Add this task to the scheduler
         K::global().scheduler.register_new_task(task)
     }
