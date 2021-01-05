@@ -59,7 +59,7 @@ unsafe fn setup_initial_ttbr() {
             p2 = (*p3).entries[p3_index].address().as_ptr_mut();
         }
         // Map first block to p2
-        (*p2).entries[get_index(ptr as _, 2)].set(Frame::<Size2M>::new(ptr.into()), PageFlags::_DEVICE_MEMORY_FLAGS_2M);    
+        (*p2).entries[get_index(ptr as _, 2)].set(Frame::<Size2M>::new(ptr.into()), PageFlags::_DEVICE_MEMORY_FLAGS_2M);
     }
     // Set page table register 0
     KERNEL_P4.entries[511].set::<Size4K>(Frame::new(Address::from(&KERNEL_P4 as *const _)), PageFlags::_PAGE_TABLE_FLAGS);
@@ -89,7 +89,7 @@ pub fn clear_temp_user_pagetable() {
 pub unsafe fn setup_kernel_pagetables() {
     // Get video-core occupied memory
     boot_time_log("[boot: (mmu) query device memory]");
-    let (vcm_start, vcm_end) = {
+    let (_vcm_start, _vcm_end) = {
         // use crate::mailbox::*;
         // let res::GetVCMemory { base_address, size } = match MailBox::boottime_send(Channel::PropertyARM2VC, req::GetVCMemory) {
         //     Ok(x) => x,
@@ -177,7 +177,7 @@ pub unsafe fn setup_kernel_pagetables() {
     let kernel_heap_start = kernel_heap_start() & 0x0000ffff_ffffffff;
     let kernel_heap_start_frame = Frame::<Size4K>::new(kernel_heap_start.into());
     identity_map_kernel_memory_nomark::<Size4K>(kernel_heap_start_frame, KERNEL_HEAP_PAGES, PageFlags::_KERNEL_DATA_FLAGS_4K);
-    
+
     // Map device Memory
     // boot_time_log("[boot: (mmu) map device memory]");
     let p4 = PageTable::<L4>::get(true);
@@ -197,7 +197,7 @@ fn mark_as_used<S: PageSize>(start_frame: Frame<S>, n_frames: usize) {
     // loop {}
     let limit_frame = start_frame.forward(n_frames);
     // boot_time_log("[boot: mark_as_used 1]");
-    
+
     Frame::range(start_frame, limit_frame, |frame| {
         // boot_time_log("[boot: mark_as_used loop 1]");
         use proton::utils::frame_allocator::FrameAllocator;
