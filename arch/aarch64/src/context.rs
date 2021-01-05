@@ -9,7 +9,7 @@ use super::exception::ExceptionFrame;
 use cortex_a::regs::*;
 use proton::task::Message;
 use proton_kernel::arch::*;
-// use 
+// use
 
 #[repr(C, align(4096))]
 pub struct KernelStack {
@@ -150,7 +150,7 @@ impl AbstractContext for Context {
         // ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
         // ctx
     }
- 
+
     // fn fork(&self) -> Self {
     //     let mut ctx = Context {
     //         exception_frame: 0usize as _,
@@ -195,7 +195,7 @@ impl AbstractContext for Context {
             ::   "r"(self.p4.start().as_usize())
             }
         }
-        
+
         let exception_frame = {
             if self.exception_frame as usize == 0 {
                 let mut frame: *mut ExceptionFrame = (self.kernel_stack_top as usize - ::core::mem::size_of::<ExceptionFrame>()) as _;
@@ -264,6 +264,7 @@ extern {
     fn switch_context(from: &mut Context, to: &Context, p4: usize);
 }
 
+#[cfg(not(feature="rls"))]
 global_asm! {"
 .global switch_context
 
@@ -300,7 +301,7 @@ switch_context:
 	tlbi vmalle1is
   	DSB ISH              // ensure completion of TLB invalidation
     isb
-    
+
     // tlbi vmalle1is
     // DSB SY
     // DMB SY

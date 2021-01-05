@@ -36,8 +36,8 @@ impl <T, F: FnOnce() -> T> Lazy<T, F> {
             if state == INITIALIZED {
                 return
             } else if state == UNINITIALIZED {
-                let old_state = lazy.state.compare_and_swap(UNINITIALIZED, INITIALIZING, Ordering::Relaxed);
-                if old_state == UNINITIALIZED {
+                let old_state = lazy.state.compare_exchange(UNINITIALIZED, INITIALIZING, Ordering::Relaxed, Ordering::Relaxed);
+                if old_state == Ok(UNINITIALIZED) {
                     lazy.force_initialize();
                     return
                 }

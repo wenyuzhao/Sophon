@@ -7,19 +7,21 @@ pub static mut BOOTED: bool = false;
 
 #[no_mangle]
 #[naked]
-pub unsafe fn _start() -> ! {
-    // Halt non-promary processors
-    llvm_asm! {"
-            mrs     x0, mpidr_el1
-            and     x0, x0, #3
-            cbz     x0, 2f
-        1:  wfe
-            b       1b
-        2:
-    "};
-    // Setup core 0 stack
-    llvm_asm!("mov sp, $0"::"r"(0x80000));
-    
+pub unsafe extern fn _start() -> ! {
+    asm!{
+          "mrs    x0, mpidr_el1",
+          "and    x0, x0, #3",
+          "cbz    x0, 2f",
+    "1:", "wfe",
+          "b      1b",
+    "2:", "mov sp, #0x80000",
+          "bl     arch_start",
+        options(noreturn)
+    };
+}
+
+#[no_mangle]
+pub unsafe extern fn arch_start() -> ! {
     super::uart::UART0::init();
     assert!(CurrentEL.get() == CurrentEL::EL::EL2.value);
     boot_time_log("[boot...]");
@@ -85,9 +87,9 @@ unsafe extern fn _start_el1_high_address_space() -> ! {
     barrier::isb(barrier::SY);
     // Call kmain
     // set_booted();
-    
+
     TTBR0_EL1.set(0);
-    
+
     debug!(Kernel: "[boot: kernel_end = 0x{:x}]", crate::heap::constants::kernel_end());
     debug!(Kernel: "[boot: kernel_heap_end = 0x{:x}]", crate::heap::constants::kernel_heap_end());
     debug!(Kernel: "[boot: current execution level = {}]", (CurrentEL.get() & 0b1100) >> 2);

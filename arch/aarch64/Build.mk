@@ -2,7 +2,7 @@ target = aarch64-unknown-none
 kernel_src = $(project)/arch/aarch64
 kernel_elf = $(project)/target/$(target)/$(profile)/proton
 kernel_img = $(project)/target/$(target)/$(profile)/kernel8.img
-kernel_rust_flags = -C link-arg=-T$(kernel_src)/aarch64.ld
+kernel_rust_flags = -C link-arg=-T$(kernel_src)/raspi64.ld
 qemu_command = qemu-system-aarch64 -display none -M raspi3 -serial stdio -drive file=test.img,if=sd,format=raw
 qemu_debug_interrupts = $(if $(dint),-d int)
 qemu_gdb_server = $(if $(gdb),-s -S)
@@ -11,7 +11,7 @@ user_target_json = $(project)/proton/$(user_target).json
 
 
 arch-user-program: # args: name, path
-	@cd $(path) && cargo xbuild --target $(user_target_json) $(cargo_profile_flag)
+	@cd $(path) && cargo build --target $(user_target_json) $(cargo_profile_flag)
 	@cp $(project)/target/$(user_target)/$(profile)/$(strip $(name)) $(project)/target/$(user_target)/$(strip $(name))
 	@llvm-objdump --section-headers --source -d $(project)/target/$(user_target)/$(profile)/$(strip $(name)) > $(project)/target/$(user_target)/$(profile)/$(strip $(name)).s 2>/dev/null
 

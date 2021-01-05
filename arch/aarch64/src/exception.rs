@@ -93,9 +93,9 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
             panic!("Unknown exception 0b{:b}", ::core::mem::transmute::<_, u32>(v))
         },
     }
-    
+
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-    
+
     debug!(Kernel: "return_to_use00");
     Task::<Kernel>::current().unwrap().context.return_to_user();
 }
@@ -134,9 +134,9 @@ pub unsafe extern fn handle_exception_serror(exception_frame: *mut ExceptionFram
             panic!("Unknown exception 0b{:b}", ::core::mem::transmute::<_, u32>(v))
         },
     }
-    
+
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-    
+
     debug!(Kernel: "return_to_use00");
     Task::<Kernel>::current().unwrap().context.return_to_user();
 }
@@ -160,7 +160,7 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
             panic!("Unknown IRQ");
         }
     }
-    
+
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     unsafe {
         // debug!(Kernel: "return_to_use00");
@@ -173,7 +173,7 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     // println!("EF = {:?}", exception_frame as *mut _);
     // debug!(Kernel: "Interrupt received {:?}", exception_frame);
-    
+
     debug_assert!(Task::<Kernel>::current().unwrap().context.exception_frame as usize == 0);
     Task::<Kernel>::current().unwrap().context.exception_frame = exception_frame;
 
@@ -193,11 +193,11 @@ extern {
     pub fn exit_exception() -> !;
 }
 
-
+#[cfg(not(feature="rls"))]
 // FIXME: We may need to switch stack after enter an exception,
 //        to avoid stack overflow.
 // Exception handlers table
-global_asm! {"
+global_asm! {r#"
 .global exception_handlers
 .global exit_exception
 
@@ -260,7 +260,7 @@ global_asm! {"
     ldp x22, x23, [sp], #16
     ldp x30, x21, [sp], #16
     msr	sp_el0, x21
-    msr elr_el1, x22  
+    msr elr_el1, x22
     msr spsr_el1, x23
     ldp x28, x29, [sp], #16
     ldp x26, x27, [sp], #16
@@ -329,4 +329,4 @@ exception_handlers:
     .align 7; b irq
     .align 7; b serror
     .align 7; b serror
-"}
+"#}
