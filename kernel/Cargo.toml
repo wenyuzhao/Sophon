@@ -13,7 +13,7 @@ edition = "2018"
 [dependencies]
 proton = { path = "../proton", features = ["kernel"] }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
-spin = "0.5.2"
+spin = "0.7"
 bitflags = "1.2.1"
 # goblin = { version = "0.2.1", default-features = false, features = [ "alloc"] }
 elf_rs = "0.1.1"

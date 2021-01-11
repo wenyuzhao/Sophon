@@ -1,3 +1,5 @@
+use core::sync::atomic::Ordering;
+
 use cortex_a::regs::*;
 use cortex_a::barrier;
 use super::page_table::*;
@@ -22,6 +24,39 @@ static mut KERNEL_P4: PageTable<L4> = PageTable::new();
 const fn get_index(a: usize, level: usize) -> usize {
     let shift = (level - 1) * 9 + 12;
     (a >> shift) & 0b111111111
+}
+
+pub unsafe fn setup_ttbr() {
+    log!("Setup TCR");
+    TCR_EL1.write(
+        TCR_EL1::TG0::KiB_4
+        + TCR_EL1::TG1::KiB_4
+        + TCR_EL1::SH0::Inner
+        + TCR_EL1::SH1::Inner
+        + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
+        + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
+        + TCR_EL1::ORGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
+        + TCR_EL1::IRGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
+        + TCR_EL1::EPD0::EnableTTBR0Walks
+        + TCR_EL1::EPD1::EnableTTBR1Walks
+    );
+    TCR_EL1.set(TCR_EL1.get() | 0b101 << 32); // Intermediate Physical Address Size (IPS) = 0b101
+    TCR_EL1.set(TCR_EL1.get() | 0x10 <<  0); // TTBR0_EL1 memory size (T0SZ) = 0x10 ==> 2^(64 - T0SZ)
+    TCR_EL1.set(TCR_EL1.get() | 0x10 << 16); // TTBR1_EL1 memory size (T1SZ) = 0x10 ==> 2^(64 - T1SZ)
+    let p4 = &mut *(TTBR0_EL1.get() as *mut PageTable<L4>);
+    log!("P4 physical address = {:?}", p4 as *const _);
+    log!("P4 {:?}", p4);
+    p4.entries[511].set::<Size4K>(Frame::new(Address::from(p4 as *const _)), PageFlags::_PAGE_TABLE_FLAGS);
+    log!("Finish setup resursive page table");
+    barrier::dmb(barrier::SY);
+    barrier::dsb(barrier::SY);
+    barrier::isb(barrier::SY);
+    super::paging::invalidate_tlb();
+    core::sync::atomic::fence(Ordering::SeqCst);
+    core::sync::atomic::compiler_fence(Ordering::SeqCst);
+    log!("P4 phy last word = {:#x}",  (*(0x7ffff000 as *mut [usize; 512]))[511]);
+    let x= (*(0xffff_ffff_f000 as *mut [usize; 512]))[511];
+    log!("P4 last word = {:#x}", x);
 }
 
 // unsafe fn setup_initial_ttbr() {

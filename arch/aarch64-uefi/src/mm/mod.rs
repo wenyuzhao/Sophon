@@ -11,7 +11,7 @@ use proton::utils::frame_allocator::SynchronizedFrameAllocator;
 use proton::utils::frame_allocator::bump_allocator::BumpFrameAllocator;
 
 pub static FRAME_ALLOCATOR: SynchronizedFrameAllocator<BumpFrameAllocator> = SynchronizedFrameAllocator::new(
-    BumpFrameAllocator::new((Address::new(0x2000_0000), Address::new(0x3000_0000)))
+    BumpFrameAllocator::new((Address::new(0x6000_0000), Address::new(0x7000_0000)))
 );
 
 pub struct MemoryManager;

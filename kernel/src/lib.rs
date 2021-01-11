@@ -16,6 +16,7 @@ pub mod task;
 pub mod scheduler;
 pub mod ipc;
 pub mod kernel_process;
+pub mod boot_driver;
 
 use arch::*;
 use scheduler::AbstractScheduler;

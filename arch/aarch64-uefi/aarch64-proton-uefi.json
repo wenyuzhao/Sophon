@@ -13,10 +13,10 @@
   "panic-strategy": "abort",
   "pre-link-args": {
     "lld-link": [
-      "/subsystem:EFI_Application",
-      "/entry:efi_main",
-      "/machine:arm64",
-      "/DEBUG"
+      "-subsystem:efi_application",
+      "-entry:efi_main",
+      "-machine:arm64",
+      "-debug"
     ]
   },
   "stack_probes": true,

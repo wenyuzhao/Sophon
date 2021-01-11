@@ -62,6 +62,7 @@ unsafe fn get_exception_class() -> ExceptionClass {
 #[no_mangle]
 pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
     log!("Exception received");
+    loop {}
     // println!("EF = {:?}", exception_frame as *mut _);
     debug_assert!(Task::<Kernel>::current().unwrap().context.exception_frame as usize == 0);
     Task::<Kernel>::current().map(|t| t.context.exception_frame = exception_frame);
@@ -105,6 +106,7 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
 #[no_mangle]
 pub unsafe extern fn handle_exception_serror(exception_frame: *mut ExceptionFrame) {
     log!("Exception S received");
+    loop {}
     // println!("EF = {:?}", exception_frame as *mut _);
     debug_assert!(Task::<Kernel>::current().unwrap().context.exception_frame as usize == 0);
     Task::<Kernel>::current().map(|t| t.context.exception_frame = exception_frame);
@@ -194,7 +196,7 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
 }
 
 extern {
-    pub static exception_handlers: u8;
+    pub fn exception_handlers() -> !;
     pub fn exit_exception() -> !;
 }
 
@@ -202,6 +204,7 @@ extern {
 // FIXME: We may need to switch stack after enter an exception,
 //        to avoid stack overflow.
 // Exception handlers table
+#[cfg(not(feature="rls"))]
 global_asm! {"
 .global exception_handlers
 .global exit_exception

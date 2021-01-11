@@ -1,5 +1,5 @@
 use cortex_a::regs::*;
-use core::marker::PhantomData;
+use core::{fmt::Debug, marker::PhantomData};
 use super::FRAME_ALLOCATOR;
 use proton::memory::*;
 use bitflags::bitflags;
@@ -22,7 +22,7 @@ bitflags! {
         // Commonly used flags
         const _DEVICE_MEMORY_FLAGS_4K = Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
         const _DEVICE_MEMORY_FLAGS_2M = Self::PRESENT.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
-        const _PAGE_TABLE_FLAGS = Self::NORMAL_MEMORY.bits | Self::NO_EXEC.bits | Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
+        const _PAGE_TABLE_FLAGS = Self::NORMAL_MEMORY.bits | Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
         const _USER_PAGE_TABLE_FLAGS = Self::_PAGE_TABLE_FLAGS.bits | Self::USER.bits;
         const _KERNEL_STACK_FLAGS = Self::NORMAL_MEMORY.bits | Self::NO_EXEC.bits | Self::PRESENT.bits | Self::SMALL_PAGE.bits | Self::OUTER_SHARE.bits | Self::ACCESSED.bits;
         const _KERNEL_STACK_GUARD_FLAGS = Self::NORMAL_MEMORY.bits | !Self::ACCESSED.bits & (Self::NO_WRITE.bits | Self::_KERNEL_STACK_FLAGS.bits);
@@ -39,6 +39,16 @@ bitflags! {
 #[repr(C)]
 #[derive(Clone)]
 pub struct PageTableEntry(usize);
+
+impl core::fmt::Debug for PageTableEntry {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        if self.0 != 0 {
+            write!(f, "{:x?} {:?}", self.0, self.flags())
+        } else {
+            write!(f, "{:x?}", self.0)
+        }
+    }
+}
 
 impl PageTableEntry {
     const ADDRESS_MASK: usize = 0x0000_ffff_ffff_f000;
@@ -65,6 +75,7 @@ impl PageTableEntry {
         unsafe { ::core::intrinsics::volatile_store(&mut self.0, v); }
     }
     pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) {
+        log!("set");
         if S::LOG_SIZE == Size2M::LOG_SIZE {
             debug_assert!(flags.bits() & 0b10 == 0);
         } else {
@@ -74,15 +85,17 @@ impl PageTableEntry {
         a &= !(0xffff_0000_0000_0000);
         let v = a | flags.bits();
         unsafe { ::core::intrinsics::volatile_store(&mut self.0, v); }
+        log!("set end");
     }
 }
 
-pub trait TableLevel {
+pub trait TableLevel: Debug {
     const ID: usize;
     const SHIFT: usize;
     type NextLevel: TableLevel;
 }
 
+#[derive(Debug)]
 pub struct L4;
 
 impl TableLevel for L4 {
@@ -91,6 +104,7 @@ impl TableLevel for L4 {
     type NextLevel = L3;
 }
 
+#[derive(Debug)]
 pub struct L3;
 
 impl TableLevel for L3 {
@@ -99,6 +113,7 @@ impl TableLevel for L3 {
     type NextLevel = L2;
 }
 
+#[derive(Debug)]
 pub struct L2;
 
 impl TableLevel for L2 {
@@ -107,6 +122,7 @@ impl TableLevel for L2 {
     type NextLevel = L1;
 }
 
+#[derive(Debug)]
 pub struct L1;
 
 impl TableLevel for L1 {
@@ -122,6 +138,7 @@ impl TableLevel for ! {
 }
 
 #[repr(C, align(4096))]
+#[derive(Debug)]
 pub struct PageTable<L: TableLevel + 'static> {
     pub entries: [PageTableEntry; 512],
     phantom: PhantomData<L>,
@@ -130,9 +147,11 @@ pub struct PageTable<L: TableLevel + 'static> {
 impl <L: TableLevel> PageTable<L> {
     const MASK: usize = 0b111111111 << L::SHIFT;
     fn zero(&mut self) {
+        log!("Zero {:?}", self as *const _);
         for i in 0..512 {
             unsafe { ::core::intrinsics::volatile_store(&mut self.entries[i], PageTableEntry(0)); }
         }
+        log!("Zero end");
     }
 
     #[inline]
@@ -166,15 +185,26 @@ impl <L: TableLevel> PageTable<L> {
 
     fn next_table_create(&mut self, index: usize) -> &'static mut PageTable<L::NextLevel> {
         debug_assert!(L::ID > 1);
+        log!("next_table_create 0 1 table@{:?}", self as *const _);
+        let e = self.entries[index].0;
+        log!("next_table_create 0 -> {:#x}", e);
+        log!("next_table_create 0 2");
         if let Some(address) = self.next_table_address(index) {
             return unsafe { &mut *(address as *mut _) }
         } else {
+            log!("next_table_create 2 1");
             let frame = FRAME_ALLOCATOR.alloc::<Size4K>();
+            log!("next_table_create 2 1 frame={:?}", frame);
             self.entries[index].set(frame, PageFlags::_PAGE_TABLE_FLAGS);
             ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
             let t = self.next_table_create(index);
+            log!("next_table_create 2 2 {:?}", self);
             t.zero();
+
+            log!("next_table_create 2 3");
             ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
+
+            log!("next_table_create 2 4");
             t
         }
     }
@@ -196,6 +226,7 @@ impl <L: TableLevel> PageTable<L> {
 
     fn get_entry_create<S: PageSize>(&mut self, address: Address<V>) -> (usize, &'static mut PageTableEntry) {
         debug_assert!(L::ID != 0);
+        log!("get_entry_create 0");
         let index = Self::get_index(address);
         if L::ID == 2 && self.entries[index].present() && self.entries[index].is_block() {
             debug_assert!(S::LOG_SIZE != Size4K::LOG_SIZE);
@@ -207,7 +238,11 @@ impl <L: TableLevel> PageTable<L> {
         if S::LOG_SIZE == Size2M::LOG_SIZE && L::ID == 2 {
             return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
         }
+
+        log!("get_entry_create 1");
         let next = self.next_table_create(index);
+
+        log!("get_entry_create 2");
         next.get_entry_create::<S>(address)
     }
 }
@@ -251,7 +286,9 @@ impl PageTable<L4> {
 
     //     debug!(crate::Kernel: "@ map {:?} {:?}", frame, page);
     // }
+    log!("get_entry_create start");
         let (level, entry) = self.get_entry_create::<S>(page.start());
+        log!("get_entry_create end");
         if cfg!(debug_assertions) {
             if S::LOG_SIZE == Size4K::LOG_SIZE {
                 assert!(level == 1, "{:?} {:?} {}", page, frame, level);
@@ -437,16 +474,21 @@ impl <S: PageSize> Deref for TemporaryKernelPage<S> {
 impl <S: PageSize> Drop for TemporaryKernelPage<S> {
     fn drop(&mut self) {
         // unmap_kernel(self.0, false);
-        PageTable::<L4>::get(true).unmap(self.0);
+        PageTable::<L4>::get(false).unmap(self.0);
         super::paging::invalidate_tlb();
     }
 }
 
 pub fn map_kernel_temporarily<S: PageSize>(frame: Frame<S>, flags: PageFlags, p: Option<usize>) -> TemporaryKernelPage<S> {
-    const MAGIC_PAGE: usize = 0xffff_1234_5600_0000;
+    log!("map_kernel_temporarily 1 TTBR {:#x} {:#x}", TTBR0_EL1.get(), TTBR1_EL1.get());
+    const MAGIC_PAGE: usize = 0x0000_1234_5600_0000;
+    log!("map_kernel_temporarily 2");
     let page = Page::new(p.unwrap_or(MAGIC_PAGE).into());
-    PageTable::<L4>::get(true).map(page, frame, flags);
+    log!("map_kernel_temporarily 3");
+    PageTable::<L4>::get(false).map(page, frame, flags);
+    log!("map_kernel_temporarily 4");
     // map_kernel(page, frame, flags);
     super::paging::invalidate_tlb();
+    log!("map_kernel_temporarily 5");
     TemporaryKernelPage(page)
 }

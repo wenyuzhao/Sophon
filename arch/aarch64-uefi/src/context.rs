@@ -106,13 +106,19 @@ impl AbstractContext for Context {
         log!("Content new 1");
         // Alloc page table
         let p4 = unsafe {
+            log!("Content new 1.1");
             let p4_frame = FRAME_ALLOCATOR.alloc::<Size4K>();
+            log!("Content new 1.2");
             let p4_page = super::mm::page_table::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
+            log!("Content new 1.3");
             let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
+            log!("Content new 1.4");
             for i in 0..511 {
                 p4.entries[i].clear();
             }
+            log!("Content new 1.5");
             p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
+            log!("Content new 1.6");
             p4_frame
         };
         log!("Content new 2");
@@ -266,6 +272,7 @@ extern {
     fn switch_context(from: &mut Context, to: &Context, p4: usize);
 }
 
+#[cfg(not(feature="rls"))]
 global_asm! {"
 .global switch_context
 
