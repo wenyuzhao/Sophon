@@ -1,0 +1,25 @@
+[tasks.build-flow]
+dependencies = [
+  { name = "build-flow", path = "../../arch/aarch64-uefi" },
+  { name = "build", path = "." },
+  { name = "post-build", path = "." },
+]
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+
+[tasks.post-build]
+dependencies = [ "copy-user-programs-aarch64-dev" ]
+
+[tasks.copy-user-programs-aarch64-dev]
+script = '''
+    mkdir -p ../../target/_boot
+    cp ../../target/aarch64-unknown-none/debug/proton ../../target/_boot/
+    cp ../../target/aarch64-proton-uefi/debug/proton-boot-uefi.efi ../../target/_boot/
+    cp ./.cargo/startup.nsh ../../target/_boot/
+'''
+
+[tasks.run]
+dependencies = [ "build-flow" ]
+script = "qemu-system-aarch64 -M virt -cpu cortex-a72 -smp 1 -m 1G -bios .cargo/QEMU_EFI.fd -drive index=0,format=raw,file=fat:rw:../../target/_boot -net none -monitor none -nographic -serial stdio"

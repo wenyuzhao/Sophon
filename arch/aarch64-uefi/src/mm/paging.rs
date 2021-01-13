@@ -27,25 +27,9 @@ const fn get_index(a: usize, level: usize) -> usize {
 }
 
 pub unsafe fn setup_ttbr() {
-    log!("Setup TCR");
-    TCR_EL1.write(
-        TCR_EL1::TG0::KiB_4
-        + TCR_EL1::TG1::KiB_4
-        + TCR_EL1::SH0::Inner
-        + TCR_EL1::SH1::Inner
-        + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::ORGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::IRGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::EPD0::EnableTTBR0Walks
-        + TCR_EL1::EPD1::EnableTTBR1Walks
-    );
-    TCR_EL1.set(TCR_EL1.get() | 0b101 << 32); // Intermediate Physical Address Size (IPS) = 0b101
-    TCR_EL1.set(TCR_EL1.get() | 0x10 <<  0); // TTBR0_EL1 memory size (T0SZ) = 0x10 ==> 2^(64 - T0SZ)
-    TCR_EL1.set(TCR_EL1.get() | 0x10 << 16); // TTBR1_EL1 memory size (T1SZ) = 0x10 ==> 2^(64 - T1SZ)
+    log!("Setup page table");
     let p4 = &mut *(TTBR0_EL1.get() as *mut PageTable<L4>);
     log!("P4 physical address = {:?}", p4 as *const _);
-    log!("P4 {:?}", p4);
     p4.entries[511].set::<Size4K>(Frame::new(Address::from(p4 as *const _)), PageFlags::_PAGE_TABLE_FLAGS);
     log!("Finish setup resursive page table");
     barrier::dmb(barrier::SY);

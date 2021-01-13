@@ -2,6 +2,13 @@
 #![feature(format_args_nl)]
 #![feature(associated_type_defaults)]
 #![feature(box_syntax)]
+#![feature(core_intrinsics)]
+#![feature(never_type)]
+#![feature(const_fn_transmute)]
+#![feature(const_raw_ptr_deref)]
+#![feature(const_panic)]
+#![feature(specialization)]
+#![feature(const_mut_refs)]
 #![no_std]
 
 extern crate alloc;
@@ -11,12 +18,14 @@ extern crate elf_rs;
 pub mod debug;
 pub mod arch;
 pub mod memory;
-mod utils;
+#[macro_use]
+pub mod utils;
 pub mod task;
 pub mod scheduler;
 pub mod ipc;
 pub mod kernel_process;
 pub mod boot_driver;
+pub mod page_table;
 
 use arch::*;
 use scheduler::AbstractScheduler;

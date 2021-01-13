@@ -5,10 +5,7 @@ runner = ".cargo/run-qemu.sh"
 runner = ".cargo/run-qemu.sh"
 
 [build]
-target = "aarch64-unknown-none"
-
-[target.aarch64-unknown-none]
-rustflags = ["-C", "link-args=-T./arch/aarch64-uefi/aarch64.ld"]
+target = "aarch64-proton-uefi.json"
 
 [unstable]
 build-std = ["core", "compiler_builtins", "alloc"]

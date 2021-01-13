@@ -87,8 +87,63 @@ use fdt_rs::base::*;
 //     s = (0..indent).
 // }
 
-unsafe extern fn setup_vbar(ptr: u64) {
+extern {
+    static mut __bss_start: usize;
+    static mut __bss_end: usize;
+}
 
+#[inline(never)]
+unsafe fn zero_bss() {
+    let start = (&mut __bss_start as *mut usize as usize & 0x0000ffff_ffffffff) as *mut u8;
+    let end = (&mut __bss_end as *mut usize as usize & 0x0000ffff_ffffffff) as *mut u8;
+    let mut cursor = start;
+    while cursor < end {
+        ::core::intrinsics::volatile_store(cursor, 0);
+        cursor = cursor.offset(1);
+    }
+}
+
+#[no_mangle]
+pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
+    unsafe { zero_bss() }
+
+    ALLOCATOR.init();
+
+    let x = box 233;
+    let t = device_tree::DeviceTree::load(DEVICE_TREE).unwrap();
+    {
+        let uart = drivers::uart::UART.lock();
+        uart.init_with_device_tree(&t);
+        uart.putchar('@');
+        uart.putchar('\n');
+    }
+
+    log!("Hello Proton!");
+
+
+    let intc = t.find("/intc@8000000").unwrap();
+    let reg = intc.prop_raw("reg").unwrap();
+    log!("{:?}", intc);
+
+    drivers::gic::GIC.init_with_device_tree(&t);
+
+    unsafe {
+        log!("[boot: enable all co-processors]");
+        llvm_asm!("msr cpacr_el1, $0"::"r"(0xfffffff));
+        setup_vbar(exception::exception_handlers as *const fn() as u64);
+        crate::mm::paging::setup_ttbr();
+    }
+
+    unsafe {
+        *(0xdeadbeed as *mut u8) = 0;
+    }
+    log!("CurrentEL: {}", CurrentEL.get() >> 2);
+
+
+    loop {}
+}
+
+unsafe extern fn setup_vbar(ptr: u64) {
     log!("efi_main: {:?}", efi_main as *const fn());
     log!("handle_exception: {:?}", exception::handle_exception as *const fn());
     log!("exception_handlers: {:?}", exception::exception_handlers as *const fn());

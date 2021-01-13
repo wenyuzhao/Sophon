@@ -2,6 +2,8 @@
 members = [
     "kernel",
     "proton",
+    "boot/uefi",
+    "arch/aarch64",
     "arch/aarch64",
     "arch/aarch64-uefi",
     "arch/x86_64-uefi",

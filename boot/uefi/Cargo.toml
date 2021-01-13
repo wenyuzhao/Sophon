@@ -1,0 +1,19 @@
+[package]
+name = "proton-boot-uefi"
+version = "0.1.0"
+authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
+edition = "2018"
+
+[[bin]]
+name = "proton-boot-uefi"
+path = "src/main.rs"
+
+[dependencies]
+spin = "0.7"
+cortex-a = "3.0.3"
+bitflags = "1.2.1"
+uefi = { version = "0.7.0" }
+elf_rs = "0.1.1"
+elfloader = "0.11.0"
+proton_kernel = { path = "../../kernel" }
+proton = { path = "../../proton" }

@@ -1,7 +1,11 @@
 use proton_kernel::arch::AbstractBootImage;
 
 
-static INIT_ELF: &'static [u8] = include_bytes!("../../../target/aarch64-proton/init");
+#[cfg(debug_assertions)]
+static INIT_ELF: &'static [u8] = include_bytes!("../../../target/aarch64-proton/debug/init");
+
+#[cfg(not(debug_assertions))]
+static INIT_ELF: &'static [u8] = include_bytes!("../../../target/aarch64-proton/release/init");
 // static EMMC_ELF: &'static [u8] = include_bytes!("../../../target/aarch64-proton/emmc");
 
 pub struct BootImage;
