@@ -1,4 +1,5 @@
 use alloc::collections::BTreeSet;
+use kernel_tasks::KernelTask;
 use spin::Mutex;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use super::scheduler::*;
@@ -6,7 +7,7 @@ use core::cell::RefCell;
 use crate::*;
 pub use proton::{IPC, TaskId, Message};
 use alloc::boxed::Box;
-use crate::kernel_process::KernelTask;
+// use crate::kernel_process::KernelTask;
 
 static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -18,29 +19,29 @@ pub enum TaskState {
     Blocked,
 }
 
-pub struct Task<K: AbstractKernel> {
+pub struct Task {
     id: TaskId,
-    scheduler_state: RefCell<<K::Scheduler as AbstractScheduler>::State>,
-    pub context: <K::Arch as AbstractArch>::Context,
+    scheduler_state: RefCell<<Scheduler as AbstractScheduler>::State>,
+    pub context: <TargetArch as Arch>::Context,
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
     block_to_send: Option<Message>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
 }
 
-impl <K: AbstractKernel> Task<K> {
+impl Task {
     #[inline]
     pub fn id(&self) -> TaskId {
         self.id
     }
 
     #[inline]
-    pub fn scheduler_state(&self) -> &RefCell<<K::Scheduler as AbstractScheduler>::State> {
-        &self.scheduler_state
+    pub fn scheduler_state<S: AbstractScheduler>(&self) -> &RefCell<S::State> {
+        unsafe { &*(&self.scheduler_state as *const RefCell<<Scheduler as AbstractScheduler>::State> as *const RefCell<S::State>) }
     }
 
     #[inline]
     pub fn receive_message(from: Option<TaskId>) -> ! {
-        let receiver = Task::<K>::current().unwrap();
+        let receiver = Task::current().unwrap();
         // Search from blocked_senders
         {
             let mut blocked_senders = receiver.blocked_senders.lock();
@@ -53,38 +54,38 @@ impl <K: AbstractKernel> Task<K> {
             if let Some(sender_id) = target_sender {
                 // Unblock this sender
                 blocked_senders.remove(&sender_id);
-                let sender = Task::<K>::by_id(sender_id).unwrap();
+                let sender = Task::by_id(sender_id).unwrap();
                 let m = sender.block_to_send.take().unwrap();
-                K::global().scheduler.unblock_sending_task(sender_id, 0);
+                SCHEDULER.unblock_sending_task(sender_id, 0);
                 // We've received a message, return to user program
                 receiver.context.set_response_message(m);
                 receiver.context.set_response_status(0);
-                K::global().scheduler.schedule();
+                SCHEDULER.schedule();
             }
         }
         // Block receiver
         *receiver.block_to_receive_from.lock() = Some(from);
-        K::global().scheduler.block_current_task_as_receiving();
+        SCHEDULER.block_current_task_as_receiving();
     }
 
     #[inline]
     pub fn send_message(m: Message) -> ! {
-        let sender = Task::<K>::by_id(m.sender).unwrap();
-        debug_assert!(sender.id() == Task::<K>::current().unwrap().id());
-        let receiver = Task::<K>::by_id(m.receiver).unwrap();
+        let sender = Task::by_id(m.sender).unwrap();
+        debug_assert!(sender.id() == Task::current().unwrap().id());
+        let receiver = Task::by_id(m.receiver).unwrap();
         // If the receiver is blocked for this sender, copy message & unblock the receiver
         {
             let mut block_to_receive_from_guard = receiver.block_to_receive_from.lock();
             if let Some(block_to_receive_from) = *block_to_receive_from_guard {
                 if block_to_receive_from.is_none() || block_to_receive_from == Some(sender.id) {
-                    debug!(K: "Unblock {:?} for message {:?}", receiver.id, m);
+                    log!("Unblock {:?} for message {:?}", receiver.id, m);
                     *block_to_receive_from_guard = None;
-                    K::global().scheduler.unblock_receiving_task(receiver.id, 0, m);
+                    SCHEDULER.unblock_receiving_task(receiver.id, 0, m);
                     // Succesfully send the message, return to user
                     sender.context.set_response_status(0);
-                    debug!(K: "Sender: {:?}", sender.scheduler_state.borrow());
+                    log!("Sender: {:?}", sender.scheduler_state.borrow());
                     ::core::mem::drop(block_to_receive_from_guard);
-                    K::global().scheduler.schedule()
+                    SCHEDULER.schedule()
                 }
             }
         }
@@ -94,7 +95,7 @@ impl <K: AbstractKernel> Task<K> {
             let mut blocked_senders = receiver.blocked_senders.lock();
             blocked_senders.insert(sender.id);
         }
-        K::global().scheduler.block_current_task_as_sending();
+        SCHEDULER.block_current_task_as_sending();
     }
 
     /// Fork a new task.
@@ -114,63 +115,45 @@ impl <K: AbstractKernel> Task<K> {
     // }
     /// Create a init task with empty p4 table
     pub fn create_kernel_task(t: Box<dyn KernelTask>) -> &'static mut Self {
-        debug!(K: "create_kernel_task 1");
+        log!("create_kernel_task 1");
         let t = box t;
-        debug!(K: "create_kernel_task 2");
+        log!("create_kernel_task 2");
         // Assign an id
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
-        debug!(K: "create_kernel_task 3");
+        log!("create_kernel_task 3");
         // Alloc task struct
         let task = box Task {
             id,
-            context: <K::Arch as AbstractArch>::Context::new(entry as _, Box::into_raw(t) as usize as *mut ()),
+            context: <TargetArch as Arch>::Context::new(entry as _, Box::into_raw(t) as usize as *mut ()),
             scheduler_state: RefCell::new(Default::default()),
             block_to_receive_from: Mutex::new(None),
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
         };
-        debug!(K: "create_kernel_task 4");
+        log!("create_kernel_task 4");
         // Add this task to the scheduler
-        K::global().scheduler.register_new_task(task)
-    }
-
-    pub fn create_kernel_task2(_t: Box<dyn KernelTask>) {
-        // let t = Box::leak(box t);
-        // Assign an id
-        // let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
-        // Alloc task struct
-        // let task = box Task::<K> {
-        //     id,
-        //     context: <K::Arch as AbstractArch>::Context::new(entry as _, Box::into_raw(t) as usize as *mut ()),
-        //     scheduler_state: RefCell::new(Default::default()),
-        //     block_to_receive_from: Mutex::new(None),
-        //     block_to_send: None,
-        //     blocked_senders: Mutex::new(BTreeSet::new()),
-        // };
-         <K::Arch as AbstractArch>::Context::new2();
-        // Add this task to the scheduler
-        // K::global().scheduler.register_new_task(task)
+        SCHEDULER.register_new_task(task)
     }
 
     pub fn by_id(id: TaskId) -> Option<&'static mut Self> {
-        K::global().scheduler.get_task_by_id(id)
+        SCHEDULER.get_task_by_id(id)
     }
 
     pub fn current() -> Option<&'static mut Self> {
-        K::global().scheduler.get_current_task()
+        SCHEDULER.get_current_task()
     }
 }
 
-unsafe impl <K: AbstractKernel> Send for Task<K> {}
-unsafe impl <K: AbstractKernel> Sync for Task<K> {}
+unsafe impl Send for Task {}
+unsafe impl Sync for Task {}
 
-impl <K: AbstractKernel> PartialEq for Task<K> {
+impl PartialEq for Task {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl <K: AbstractKernel> Eq for Task<K> {}
+impl Eq for Task {}
 
 extern fn entry(t: *mut Box<dyn KernelTask>) -> ! {
     let mut t: Box<Box<dyn KernelTask>> = unsafe { Box::from_raw(t) };

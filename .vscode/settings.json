@@ -3,4 +3,6 @@
     "rust-analyzer.checkOnSave.target": "aarch64-unknown-none",
     "rust-analyzer.checkOnSave.allTargets": false,
     "rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.cargo.allFeatures": true,
+    "rust-analyzer.checkOnSave.allFeatures": true,
 }

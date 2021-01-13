@@ -4,9 +4,9 @@ version = "0.1.0"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
 
-# [[bin]]
-# name = "proton"
-# path = "src/main.rs"
+[[bin]]
+name = "proton"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,8 +14,7 @@ edition = "2018"
 proton = { path = "../proton", features = ["kernel"] }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 spin = "0.7"
-# bitflags = "1.2.1"
-# goblin = { version = "0.2.1", default-features = false, features = [ "alloc"] }
+cortex-a = "3.0.3"
 elf_rs = "0.1.1"
 device_tree = { git = "https://github.com/rcore-os/device_tree-rs" }
 # enumset/ = { git = "https://github.com/ocboogie/enumset", branch = "span-fix" }
@@ -27,3 +26,4 @@ device_tree = { git = "https://github.com/rcore-os/device_tree-rs" }
 
 [features]
 default = []
+rls = []

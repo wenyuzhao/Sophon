@@ -1,6 +1,6 @@
 [tasks.build-flow]
 dependencies = [
-  { name = "build-flow", path = "../../arch/aarch64-uefi" },
+  { name = "build-flow", path = "../../kernel" },
   { name = "build", path = "." },
   { name = "post-build", path = "." },
 ]

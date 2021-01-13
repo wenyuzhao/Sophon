@@ -1,9 +1,7 @@
 pub mod round_robin;
 
-use crate::task::*;
-use crate::AbstractKernel;
+use crate::{task::*, arch::*};
 use alloc::boxed::Box;
-use crate::arch::*;
 use core::ops::{Deref, DerefMut};
 
 /**
@@ -14,7 +12,7 @@ use core::ops::{Deref, DerefMut};
  *                       ^           |
  *                       |           v
  *                       |___ Sending/Receiving
- * 
+ *
  */
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub enum RunState {
@@ -24,37 +22,34 @@ pub enum RunState {
     Receiving,
 }
 
-pub trait SchedulerState: Clone + Default + ::core::fmt::Debug + Deref<Target=RunState> + DerefMut {}
+pub trait AbstractSchedulerState: Clone + Default + ::core::fmt::Debug + Deref<Target=RunState> + DerefMut {}
 
 pub trait AbstractScheduler: Sized + 'static {
-    type State: SchedulerState;
-    type Kernel: AbstractKernel;
+    type State: AbstractSchedulerState;
 
-    fn new() -> Self;
-
-    fn register_new_task(&self, task: Box<Task<Self::Kernel>>) -> &'static mut Task<Self::Kernel>;
+    fn register_new_task(&self, task: Box<Task>) -> &'static mut Task;
     fn remove_task(&self, id: TaskId);
-    fn get_task_by_id(&self, id: TaskId) -> Option<&'static mut Task<Self::Kernel>>;
+    fn get_task_by_id(&self, id: TaskId) -> Option<&'static mut Task>;
     fn get_current_task_id(&self) -> Option<TaskId>;
-    fn get_current_task(&self) -> Option<&'static mut Task<Self::Kernel>>;
+    fn get_current_task(&self) -> Option<&'static mut Task>;
 
-    fn mark_task_as_ready(&self, t: &'static mut Task<Self::Kernel>);
+    fn mark_task_as_ready(&self, t: &'static mut Task);
 
     fn unblock_sending_task(&self, id: TaskId, status: isize) {
         Self::uninterruptable(|| {
             let task = self.get_task_by_id(id).unwrap();
-            assert!(**task.scheduler_state().borrow() == RunState::Sending);
+            assert!(**task.scheduler_state::<Self>().borrow() == RunState::Sending);
             // Set response
             task.context.set_response_status(status);
             // Add this task to ready queue
             self.mark_task_as_ready(task)
         })
     }
-    
+
     fn unblock_receiving_task(&self, id: TaskId, status: isize, m: Message) {
         Self::uninterruptable(|| {
             let task = self.get_task_by_id(id).unwrap();
-            assert!(**task.scheduler_state().borrow() == RunState::Receiving);
+            assert!(**task.scheduler_state::<Self>().borrow() == RunState::Receiving);
             // Set response
             task.context.set_response_message(m);
             task.context.set_response_status(status);
@@ -62,21 +57,21 @@ pub trait AbstractScheduler: Sized + 'static {
             self.mark_task_as_ready(task)
         })
     }
-    
+
     fn block_current_task_as_sending(&self) -> ! {
         Self::uninterruptable(|| {
             let task = self.get_current_task().unwrap();
-            assert!(**task.scheduler_state().borrow() == RunState::Running);
-            **task.scheduler_state().borrow_mut() = RunState::Sending;
+            assert!(**task.scheduler_state::<Self>().borrow() == RunState::Running);
+            **task.scheduler_state::<Self>().borrow_mut() = RunState::Sending;
             self.schedule();
         })
     }
-    
+
     fn block_current_task_as_receiving(&self) -> ! {
         Self::uninterruptable(|| {
             let task = self.get_current_task().unwrap();
-            assert!(**task.scheduler_state().borrow() == RunState::Running, "{:?} {:?}", task.id(), **task.scheduler_state().borrow());
-            **task.scheduler_state().borrow_mut() = RunState::Receiving;
+            assert!(**task.scheduler_state::<Self>().borrow() == RunState::Running, "{:?} {:?}", task.id(), **task.scheduler_state::<Self>().borrow());
+            **task.scheduler_state::<Self>().borrow_mut() = RunState::Receiving;
             self.schedule();
         })
     }
@@ -86,7 +81,12 @@ pub trait AbstractScheduler: Sized + 'static {
 
     #[inline]
     fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
-        <<Self::Kernel as AbstractKernel>::Arch as AbstractArch>::Interrupt::uninterruptable(f)
+        TargetArch::uninterruptable(f)
     }
 }
 
+
+
+pub type Scheduler = impl AbstractScheduler;
+
+pub static SCHEDULER: Scheduler = round_robin::create();

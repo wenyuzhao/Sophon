@@ -1,2 +1,0 @@
-[target.x86_64-proton-uefi]
-runner = ".cargo/run-qemu.sh"
