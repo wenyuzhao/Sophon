@@ -7,7 +7,7 @@ use proton::memory::*;
 use proton::utils::frame_allocator::FrameAllocator;
 use proton::utils::frame_allocator::bump_allocator::BumpFrameAllocator;
 
-use crate::arch::*;
+use crate::{arch::*, memory::physical::*};
 
 const MIN_SIZE: usize = 1 << 3;
 
@@ -23,8 +23,10 @@ impl FreeListAllocator {
     }
 
     fn init(&mut self) {
-        let heap_start: Address = Address::from(0x40000000);
-        let heap_limit: Address = heap_start + (229702 * Page::<Size4K>::SIZE);
+        // Allocate 128M as kernel heap
+        let heap = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size2M>(128).unwrap();
+        let heap_start: Address = Address::<V>::from(heap.start.start().as_usize());
+        let heap_limit: Address = Address::<V>::from(heap.end.start().as_usize());
         // println!("Heap: {:?}..{:?}", heap_start, heap_limit);
         let mut cursor = heap_start;
         while cursor < heap_limit {

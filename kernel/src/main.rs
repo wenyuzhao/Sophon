@@ -28,10 +28,12 @@ mod boot_driver;
 mod task;
 mod scheduler;
 mod kernel_tasks;
+mod memory;
 
 use core::{mem, panic::PanicInfo};
 use alloc::vec;
 use kernel_tasks::{TestKernelTaskA, TestKernelTaskB};
+use memory::physical::*;
 use proton_kernel::BootInfo;
 use scheduler::*;
 use arch::*;
@@ -42,14 +44,14 @@ use task::*;
 static ALLOCATOR: heap::GlobalAllocator = heap::GlobalAllocator::new();
 
 extern {
-    static mut __bss_start: usize;
-    static mut __bss_end: usize;
+    static mut __bss_start: u8;
+    static mut __bss_end: u8;
 }
 
 #[inline(never)]
 unsafe fn zero_bss() {
-    let start = (&mut __bss_start as *mut usize as usize & 0x0000ffff_ffffffff) as *mut u8;
-    let end = (&mut __bss_end as *mut usize as usize & 0x0000ffff_ffffffff) as *mut u8;
+    let start = &mut __bss_start as *mut u8;
+    let end = &mut __bss_end as *mut u8;
     let mut cursor = start;
     while cursor < end {
         ::core::intrinsics::volatile_store(cursor, 0);
@@ -61,6 +63,7 @@ unsafe fn zero_bss() {
 pub extern fn _start(boot_info: &mut BootInfo) -> isize {
     unsafe { zero_bss() }
 
+    PHYSICAL_PAGE_RESOURCE.lock().init(boot_info.available_physical_memory);
     ALLOCATOR.init();
 
     let t = device_tree::DeviceTree::load(boot_info.device_tree).unwrap();
@@ -69,6 +72,9 @@ pub extern fn _start(boot_info: &mut BootInfo) -> isize {
     // return 233;
     let x = vec![ 233usize ];
     log!("Hello Proton! {:?}", x.as_ptr());
+
+    let v = vec![1, 3, 5, 7, 9];
+    log!("Test Alloc {:?} {:?}", v, v.as_ptr());
 
     let task = Task::create_kernel_task(box TestKernelTaskA);
     log!("[kernel: created kernel process: {:?}]", task.id());
