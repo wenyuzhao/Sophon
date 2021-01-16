@@ -42,60 +42,44 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
     pub const MASK: usize = Self::SIZE - 1;
     pub const ZERO: Self = Self(Address::ZERO, PhantomData);
 
-    pub fn range(start: Self, end: Self, mut f: impl FnMut(Self)) {
-        let mut p = start;
-        while p.start().as_usize() < end.start().as_usize() {
-            f(p);
-            p = Self(p.start() + Self::SIZE, PhantomData);
-        }
-    }
-
-    pub fn range_inclusive(start: Self, end: Self, mut f: impl FnMut(Self)) {
-        let mut p = start;
-        while p.start().as_usize() <= end.start().as_usize() {
-            f(p);
-            p = Self(p.start() + Self::SIZE, PhantomData);
-        }
-    }
-
-    #[inline]
+    #[inline(always)]
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn start(&self) -> Address<K> {
         self.0
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn end(&self) -> Address<K> {
         self.0 + Self::SIZE
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn align(a: Address<K>) -> Address<K> {
         Address::new(a.as_usize() & !Self::MASK)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_aligned(a: Address<K>) -> bool {
         (a.as_usize() & Self::MASK) == 0
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn of(a: Address<K>) -> Self {
         Self(Self::align(a), PhantomData)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn new(a: Address<K>) -> Self {
         let page = Self(a, PhantomData);
         debug_assert!(Self::is_aligned(page.0), "{:?} is not aligned", a);
         page
     }
 
-    #[inline]
+    #[inline(always)]
     pub unsafe fn zero(&self) {
         debug_assert!(!self.is_zero());
         let mut cursor = self.start();
@@ -106,15 +90,10 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn align_up<M: MemoryKind>(a: Address<M>) -> Address<M> {
         let v = (a.as_usize() + S::SIZE - 1) & !(S::SIZE - 1);
         v.into()
-    }
-
-    #[inline]
-    pub fn forward(&self, count: usize) -> Self {
-        Self(self.0 + (count << Self::LOG_SIZE), PhantomData)
     }
 }
 
@@ -124,29 +103,66 @@ impl <S: PageSize, K: MemoryKind> fmt::Debug for Page<S, K> {
     }
 }
 
+impl <S: PageSize, K: MemoryKind> Add<usize> for Page<S, K> {
+    type Output = Self;
+    #[inline(always)]
+    fn add(self, rhs: usize) -> Self {
+        Self(self.0 + (rhs << S::LOG_SIZE), PhantomData)
+    }
+}
+
+impl <S: PageSize, K: MemoryKind> Add<isize> for Page<S, K> {
+    type Output = Self;
+    #[inline(always)]
+    fn add(self, rhs: isize) -> Self {
+        if rhs >= 0 {
+            self + (rhs as usize)
+        } else {
+            self - ((-rhs) as usize)
+        }
+    }
+}
+
+impl <S: PageSize, K: MemoryKind> Add<i32> for Page<S, K> {
+    type Output = Self;
+    #[inline(always)]
+    fn add(self, rhs: i32) -> Self {
+        self + (rhs as isize)
+    }
+}
+
 impl <S: PageSize, K: MemoryKind> Sub<Page<S, K>> for Page<S, K> {
     type Output = usize;
+    #[inline(always)]
     fn sub(self, rhs: Self) -> usize {
-        self.0 - rhs.0
+        (self.0 - rhs.0) >> S::LOG_SIZE
+    }
+}
+
+impl <S: PageSize, K: MemoryKind> Sub<usize> for Page<S, K> {
+    type Output = Self;
+    #[inline(always)]
+    fn sub(self, rhs: usize) -> Self {
+        Self(self.0 - (rhs << S::LOG_SIZE), PhantomData)
     }
 }
 
 
 unsafe impl <S: PageSize, K: MemoryKind> Step for Page<S, K> {
-    #[inline]
+    #[inline(always)]
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         if start > end {
             None
         } else {
-            Some((*end - *start) >> Self::LOG_SIZE)
+            Some(*end - *start)
         }
     }
-    #[inline]
+    #[inline(always)]
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        Some(Self(start.0 + (count << Self::LOG_SIZE), PhantomData))
+        Some(Self(start.0 + count, PhantomData))
     }
-    #[inline]
+    #[inline(always)]
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        Some(Self(start.0 - (count << Self::LOG_SIZE), PhantomData))
+        Some(Self(start.0 - count, PhantomData))
     }
 }

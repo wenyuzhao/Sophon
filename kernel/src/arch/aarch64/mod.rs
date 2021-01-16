@@ -34,7 +34,6 @@ impl Arch for AArch64 {
         unsafe { &**INTERRUPT_CONTROLLER.as_ref().unwrap() }
     }
 
-
     #[inline]
     fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
         let enabled = unsafe {

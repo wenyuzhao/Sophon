@@ -103,9 +103,9 @@ impl ArchContext for AArch64Context {
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
     fn new(entry: *const extern fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
-        unreachable!()
-        // log!("Content new 1");
-        // // Alloc page table
+        unreachable!();
+        log!("Content new 1");
+        // Alloc page table
         // let p4 = unsafe {
         //     log!("Content new 1.1");
         //     let p4_frame = FRAME_ALLOCATOR.alloc::<Size4K>();
@@ -122,7 +122,7 @@ impl ArchContext for AArch64Context {
         //     log!("Content new 1.6");
         //     p4_frame
         // };
-        // log!("Content new 2");
+        log!("Content new 2");
         // // Alloc kernel stack
         // let kernel_stack = KernelStack::new();
         // let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();

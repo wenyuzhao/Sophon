@@ -27,9 +27,11 @@ pub mod utils;
 // pub mod kernel_process;
 pub mod page_table;
 
+use core::ops::Range;
+
 // use arch::*;
 // use scheduler::AbstractScheduler;
-use proton::lazy::Lazy;
+use proton::{lazy::Lazy, memory::{Address, Frame, P, Page}};
 // use ipc::IPCController;
 // use kernel_process::system::System;
 // use kernel_process::user::UserTask;
@@ -95,3 +97,8 @@ use proton::lazy::Lazy;
 //         Self::global().scheduler.schedule();
 //     }
 // }
+
+pub struct BootInfo {
+    pub available_physical_memory: &'static [Range<Frame>],
+    pub device_tree: &'static [u8],
+}

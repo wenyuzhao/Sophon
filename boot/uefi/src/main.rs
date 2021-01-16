@@ -12,9 +12,11 @@
 #![feature(const_in_array_repeat_expressions)]
 #![feature(untagged_unions)]
 
-use core::{alloc::{GlobalAlloc, Layout}, intrinsics::transmute, panic::PanicInfo, ptr};
+extern crate alloc;
+
+use core::{alloc::{GlobalAlloc, Layout}, intrinsics::transmute, mem, ops::Range, panic::PanicInfo, ptr, slice};
 use cortex_a::regs::*;
-use proton_kernel::page_table::*;
+use proton_kernel::{BootInfo, page_table::*};
 use proton::memory::*;
 use proton_kernel::page_table::PageFlags;
 use uefi::{
@@ -24,6 +26,8 @@ use uefi::{
 #[macro_use]
 mod log;
 use elf_rs::*;
+
+static DEVICE_TREE: &'static [u8] = include_bytes!("../../dtbs/qemu-virt.dtb");
 
 pub struct NoAlloc;
 
@@ -132,12 +136,12 @@ pub unsafe fn setup_tcr() {
     log!("Setup TCR Done");
 }
 
-fn load_elf() -> extern "C" fn(isize, *const *const u8) -> isize {
+fn load_elf() -> extern "C" fn(&mut BootInfo) -> isize {
     log!("Parse Kernel ELF");
     let elf = Elf::from_bytes(KERNEL_ELF).unwrap();
     log!("Parse Kernel ELF Done");
     if let Elf::Elf64(elf) = elf {
-        let entry: extern fn(isize, *const *const u8) = unsafe { ::core::mem::transmute(elf.header().entry_point()) };
+        let entry: extern fn(&mut BootInfo) = unsafe { ::core::mem::transmute(elf.header().entry_point()) };
         log!("Entry @ {:?}", entry as *mut ());
         let mut load_start = None;
         let mut load_end = None;
@@ -181,6 +185,33 @@ fn load_elf() -> extern "C" fn(isize, *const *const u8) -> isize {
     }
 }
 
+fn gen_available_physical_memory() -> &'static [Range<Frame>] {
+    let bt = boot_system_table();
+    let buffer = new_page4k();
+    let (_, descriptors) = bt.boot_services()
+        .memory_map(unsafe { buffer.start().as_ref_mut::<[u8; 4096]>() })
+        .unwrap().unwrap();
+    let count = Frame::<Size4K>::SIZE / mem::size_of::<Range<Frame>>();
+    let available_physical_memory_ranges: &'static mut [Range<Frame>] = unsafe { slice::from_raw_parts_mut(buffer.start().as_ptr_mut(), count) };
+    let mut cursor = 0;
+    for desc in descriptors {
+        if desc.ty == MemoryType::CONVENTIONAL {
+            let start = Frame::<Size4K>::new((desc.phys_start as usize).into());
+            let end = start + (desc.page_count as usize);
+            available_physical_memory_ranges[cursor] = start..end;
+            cursor += 1;
+        }
+    }
+    return available_physical_memory_ranges;
+}
+
+fn gen_boot_info() -> BootInfo {
+    BootInfo {
+        available_physical_memory: gen_available_physical_memory(),
+        device_tree: &DEVICE_TREE,
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn efi_main(_image: Handle, st: SystemTable<Boot>) -> Status {
     unsafe {
@@ -193,9 +224,11 @@ pub extern "C" fn efi_main(_image: Handle, st: SystemTable<Boot>) -> Status {
 
     let start = load_elf();
 
+    let mut boot_info = gen_boot_info();
+
     log!("Starting kernel...");
 
-    let ret = start(0, 0 as _);
+    let ret = start(&mut boot_info);
 
     log!("Kernel return {}", ret);
 

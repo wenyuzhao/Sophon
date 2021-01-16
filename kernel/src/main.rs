@@ -32,6 +32,7 @@ mod kernel_tasks;
 use core::{mem, panic::PanicInfo};
 use alloc::vec;
 use kernel_tasks::{TestKernelTaskA, TestKernelTaskB};
+use proton_kernel::BootInfo;
 use scheduler::*;
 use arch::*;
 use task::*;
@@ -39,8 +40,6 @@ use task::*;
 
 #[global_allocator]
 static ALLOCATOR: heap::GlobalAllocator = heap::GlobalAllocator::new();
-
-static DEVICE_TREE: &'static [u8] = include_bytes!("../qemu-virt.dtb");
 
 extern {
     static mut __bss_start: usize;
@@ -59,19 +58,17 @@ unsafe fn zero_bss() {
 }
 
 #[no_mangle]
-pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
+pub extern fn _start(boot_info: &mut BootInfo) -> isize {
     unsafe { zero_bss() }
 
     ALLOCATOR.init();
 
-
-
-    let t = device_tree::DeviceTree::load(DEVICE_TREE).unwrap();
+    let t = device_tree::DeviceTree::load(boot_info.device_tree).unwrap();
     TargetArch::init(&t);
 
     // return 233;
-
-    log!("Hello Proton!");
+    let x = vec![ 233usize ];
+    log!("Hello Proton! {:?}", x.as_ptr());
 
     let task = Task::create_kernel_task(box TestKernelTaskA);
     log!("[kernel: created kernel process: {:?}]", task.id());
