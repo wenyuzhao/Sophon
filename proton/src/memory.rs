@@ -24,6 +24,6 @@ impl PageFlags {
         Self::PRESENT | Self::ACCESSED | Self::NO_EXEC
     }
     pub fn user_code_flags() -> Self {
-        Self::PRESENT | Self::ACCESSED// | Self::NO_WRITE
+        Self::PRESENT | Self::ACCESSED // | Self::NO_WRITE
     }
 }

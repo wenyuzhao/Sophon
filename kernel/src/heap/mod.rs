@@ -1,13 +1,20 @@
 pub mod constants;
 
-use core::{alloc::{GlobalAlloc, Layout}, mem, ops::Add};
-use spin::Mutex;
 use core::cmp::{max, min};
+use core::{
+    alloc::{GlobalAlloc, Layout},
+    mem,
+    ops::Add,
+};
 use proton::memory::*;
-use proton::utils::frame_allocator::FrameAllocator;
 use proton::utils::frame_allocator::bump_allocator::BumpFrameAllocator;
+use proton::utils::frame_allocator::FrameAllocator;
+use spin::Mutex;
 
-use crate::{arch::*, memory::{self, physical::*}};
+use crate::{
+    arch::*,
+    memory::{self, physical::*},
+};
 
 const MIN_SIZE: usize = 1 << 3;
 
@@ -22,7 +29,7 @@ impl FreeListAllocator {
         Self {
             start: Address::ZERO,
             end: Address::ZERO,
-            cells: [Address::ZERO; 28]
+            cells: [Address::ZERO; 28],
         }
     }
 
@@ -32,7 +39,10 @@ impl FreeListAllocator {
 
     fn init(&mut self) {
         // Allocate 128M as kernel heap
-        let heap = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size2M>(128).unwrap();
+        let heap = PHYSICAL_PAGE_RESOURCE
+            .lock()
+            .acquire::<Size2M>(128)
+            .unwrap();
         let heap_start: Address = Address::<V>::from(heap.start.start().as_usize());
         let heap_limit: Address = Address::<V>::from(heap.end.start().as_usize());
         self.start = heap_start;
@@ -61,8 +71,6 @@ impl FreeListAllocator {
         //     current_frame.memory
         // }
 
-
-
         // // println!("Heap: {:?}..{:?}", heap_start, heap_limit);
         // let mut cursor = heap_start;
         // while cursor < heap_limit {
@@ -77,7 +85,9 @@ impl FreeListAllocator {
     }
 
     fn push_cell(&mut self, size_class: usize, cell: Address) {
-        unsafe { cell.store(self.cells[size_class]); }
+        unsafe {
+            cell.store(self.cells[size_class]);
+        }
         self.cells[size_class] = cell;
     }
 
@@ -115,7 +125,9 @@ impl FreeListAllocator {
     fn zero(start: Address, size: usize) {
         let (mut cursor, limit) = (start, start + size);
         while cursor < limit {
-            unsafe { cursor.store(0usize); }
+            unsafe {
+                cursor.store(0usize);
+            }
             cursor = cursor + ::core::mem::size_of::<usize>();
         }
     }
@@ -128,7 +140,7 @@ impl FreeListAllocator {
             Some(cell) => {
                 Self::zero(cell, cell_size);
                 cell
-            },
+            }
             None => panic!("OutOfMemory"),
         }
     }
@@ -148,7 +160,7 @@ pub struct GlobalAllocator {
 impl GlobalAllocator {
     pub const fn new() -> Self {
         Self {
-            fa: Mutex::new(FreeListAllocator::new())
+            fa: Mutex::new(FreeListAllocator::new()),
         }
     }
 
@@ -163,16 +175,12 @@ impl GlobalAllocator {
 
 unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let a = TargetArch::uninterruptable(|| {
-            self.fa.lock().alloc(&layout).as_ptr_mut()
-        });
+        let a = TargetArch::uninterruptable(|| self.fa.lock().alloc(&layout).as_ptr_mut());
         a
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        TargetArch::uninterruptable(|| {
-            self.fa.lock().free(ptr.into(), &layout)
-        });
+        TargetArch::uninterruptable(|| self.fa.lock().free(ptr.into(), &layout));
     }
 }
 

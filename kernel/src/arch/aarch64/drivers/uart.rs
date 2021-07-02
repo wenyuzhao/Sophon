@@ -1,32 +1,35 @@
-use core::{fmt::{self, Write}, mem, slice};
+use core::{
+    fmt::{self, Write},
+    mem, slice,
+};
 
-use proton::utils::volatile::Volatile;
-use device_tree::Node;
 use crate::boot_driver::BootDriver;
+use device_tree::Node;
+use proton::utils::volatile::Volatile;
 use spin::{Lazy, Mutex};
 
 #[repr(C)]
 pub struct UARTRegisters {
-    pub dr: Volatile<u32>,       // 0x00
-    pub rsrecr: Volatile<u32>,   // 0x04
-    _0: [u8; 16],                // 0x08
-    pub fr: Volatile<u32>,       // 0x18,
-    _1: [u8; 4],                 // 0x1c,
-    pub ilpr: Volatile<u32>,     // 0x20,
-    pub ibrd: Volatile<u32>,     // 0x24,
-    pub fbrd: Volatile<u32>,     // 0x28,
-    pub lcrh: Volatile<u32>,     // 0x2c,
-    pub cr: Volatile<u32>,       // 0x30,
-    pub ifls: Volatile<u32>,     // 0x34,
-    pub imsc: Volatile<u32>,     // 0x38,
-    pub ris: Volatile<u32>,      // 0x3c,
-    pub mis: Volatile<u32>,      // 0x40,
-    pub icr: Volatile<u32>,      // 0x44,
-    pub dmacr: Volatile<u32>,    // 0x48,
+    pub dr: Volatile<u32>,     // 0x00
+    pub rsrecr: Volatile<u32>, // 0x04
+    _0: [u8; 16],              // 0x08
+    pub fr: Volatile<u32>,     // 0x18,
+    _1: [u8; 4],               // 0x1c,
+    pub ilpr: Volatile<u32>,   // 0x20,
+    pub ibrd: Volatile<u32>,   // 0x24,
+    pub fbrd: Volatile<u32>,   // 0x28,
+    pub lcrh: Volatile<u32>,   // 0x2c,
+    pub cr: Volatile<u32>,     // 0x30,
+    pub ifls: Volatile<u32>,   // 0x34,
+    pub imsc: Volatile<u32>,   // 0x38,
+    pub ris: Volatile<u32>,    // 0x3c,
+    pub mis: Volatile<u32>,    // 0x40,
+    pub icr: Volatile<u32>,    // 0x44,
+    pub dmacr: Volatile<u32>,  // 0x48,
 }
 
 pub struct UART0 {
-    uart: Option<*mut UARTRegisters>
+    uart: Option<*mut UARTRegisters>,
 }
 
 unsafe impl Send for UART0 {}
@@ -73,15 +76,13 @@ impl UART0 {
 
 fn wait_cycles(n: usize) {
     for _ in 0..n {
-        unsafe { llvm_asm!("nop"); }
+        unsafe {
+            llvm_asm!("nop");
+        }
     }
 }
 
-pub static UART: Lazy<Mutex<UART0>> = Lazy::new(|| {
-    Mutex::new(UART0 {
-        uart: None
-    })
-});
+pub static UART: Lazy<Mutex<UART0>> = Lazy::new(|| Mutex::new(UART0 { uart: None }));
 
 impl BootDriver for UART0 {
     const COMPATIBLE: &'static str = "arm,pl011\0arm,primecell";

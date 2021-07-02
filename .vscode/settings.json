@@ -5,4 +5,5 @@
     "rust-analyzer.procMacro.enable": true,
     "rust-analyzer.cargo.allFeatures": true,
     "rust-analyzer.checkOnSave.allFeatures": true,
+    "editor.formatOnSave": true,
 }

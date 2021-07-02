@@ -1,15 +1,21 @@
-use cortex_a::{barrier, regs::{RegisterReadWrite, VBAR_EL1}};
+use cortex_a::{
+    barrier,
+    regs::{RegisterReadWrite, VBAR_EL1},
+};
 use proton::memory::Address;
-use proton_kernel::page_table::{L4, PageTable};
+use proton_kernel::page_table::{PageTable, L4};
 
 // use super::gic::*;
 // use proton_kernel::task::Task;
 // use proton_kernel::arch::*;
-use crate::{*, arch::aarch64::{context::AArch64Context, drivers::gic::{GIC, GICC}}};
+use crate::{
+    arch::aarch64::{
+        context::AArch64Context,
+        drivers::gic::{GIC, GICC},
+    },
+    *,
+};
 use core::intrinsics::{volatile_load, volatile_store};
-
-
-
 
 #[repr(usize)]
 #[derive(Debug)]
@@ -62,7 +68,7 @@ unsafe fn get_exception_class() -> ExceptionClass {
 }
 
 #[no_mangle]
-pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
+pub unsafe extern "C" fn handle_exception(exception_frame: *mut ExceptionFrame) {
     log!("Exception received");
     loop {}
     // println!("EF = {:?}", exception_frame as *mut _);
@@ -106,16 +112,19 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
 }
 
 #[no_mangle]
-pub unsafe extern fn handle_exception_serror(exception_frame: *mut ExceptionFrame) {
+pub unsafe extern "C" fn handle_exception_serror(exception_frame: *mut ExceptionFrame) {
     log!("SError received");
     loop {}
 }
 
 #[no_mangle]
-pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
+pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     log!("IRQ received");
     // loop {}
-    Task::current().unwrap().get_context::<AArch64Context>().exception_frame = exception_frame;
+    Task::current()
+        .unwrap()
+        .get_context::<AArch64Context>()
+        .exception_frame = exception_frame;
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     #[allow(non_snake_case)]
     let GICC = GIC.gicc();
@@ -125,10 +134,17 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     if irq < 256 {
         if irq == 30 || irq == 27 {
             unsafe { volatile_store(&mut GICC.EOIR, iar) };
-            TargetArch::interrupt().handle(InterruptId::Timer, &[
-                exception_frame.x0, exception_frame.x1, exception_frame.x2,
-                exception_frame.x3, exception_frame.x4, exception_frame.x5,
-            ]);
+            TargetArch::interrupt().handle(
+                InterruptId::Timer,
+                &[
+                    exception_frame.x0,
+                    exception_frame.x1,
+                    exception_frame.x2,
+                    exception_frame.x3,
+                    exception_frame.x4,
+                    exception_frame.x5,
+                ],
+            );
             return;
         } else {
             log!("Unknown IRQ #{}", irq);
@@ -142,12 +158,12 @@ pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     }
 }
 
-extern {
+extern "C" {
     pub fn exception_handlers() -> !;
     pub fn exit_exception() -> !;
 }
 
-pub unsafe extern fn setup_vbar() {
+pub unsafe extern "C" fn setup_vbar() {
     // log!("efi_main: {:?}", efi_main as *const fn());
     // log!("handle_exception: {:?}", exception::handle_exception as *const fn());
     // log!("exception_handlers: {:?}", exception::exception_handlers as *const fn());

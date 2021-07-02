@@ -1,8 +1,11 @@
-use alloc::boxed::Box;
-use crate::{arch::*, heap::constants::*, memory::physical::*};
 use super::exception::ExceptionFrame;
+use crate::{arch::*, heap::constants::*, memory::physical::*};
+use alloc::boxed::Box;
 use cortex_a::regs::*;
-use proton::{memory::{Frame, Size4K, PageSize}, task::Message};
+use proton::{
+    memory::{Frame, PageSize, Size4K},
+    task::Message,
+};
 use proton_kernel::page_table::*;
 // use
 
@@ -16,7 +19,10 @@ pub struct KernelStack {
 impl KernelStack {
     pub fn new() -> &'static mut Self {
         let pages = KERNEL_STACK_PAGES + 1;
-        let stack = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size4K>(pages).unwrap();
+        let stack = PHYSICAL_PAGE_RESOURCE
+            .lock()
+            .acquire::<Size4K>(pages)
+            .unwrap();
         let mut kernel_stack = unsafe { stack.start.start().as_ref_mut::<Self>() };
         kernel_stack.init();
         kernel_stack
@@ -85,7 +91,6 @@ pub struct AArch64Context {
     entry_pc: *mut u8, // x30
 
     // q: [u128; 32], // Neon registers
-
     pub p4: Frame,
     kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
@@ -100,10 +105,14 @@ impl ArchContext for AArch64Context {
 
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
-    fn new(entry: *const extern fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
+    fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
         log!("AArch64Context::new 0");
         // Create user page table
-        let p4_frame = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size4K>(1).unwrap().start;
+        let p4_frame = PHYSICAL_PAGE_RESOURCE
+            .lock()
+            .acquire::<Size4K>(1)
+            .unwrap()
+            .start;
         unsafe { p4_frame.zero() };
         let p4 = unsafe { p4_frame.start().as_ref_mut::<PageTable<L4>>() };
         p4.entries[511].set(p4_frame, PageFlags::page_table_flags());
@@ -134,7 +143,7 @@ impl ArchContext for AArch64Context {
         self.response_status = Some(s);
     }
 
-    unsafe extern fn return_to_user(&mut self) -> ! {
+    unsafe extern "C" fn return_to_user(&mut self) -> ! {
         assert!(!TargetArch::interrupt().is_enabled());
         // Switch page table
         if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
@@ -150,7 +159,9 @@ impl ArchContext for AArch64Context {
 
         let exception_frame = {
             if self.exception_frame as usize == 0 {
-                let mut frame: *mut ExceptionFrame = (self.kernel_stack_top as usize - ::core::mem::size_of::<ExceptionFrame>()) as _;
+                let mut frame: *mut ExceptionFrame = (self.kernel_stack_top as usize
+                    - ::core::mem::size_of::<ExceptionFrame>())
+                    as _;
                 (*frame).elr_el1 = self.entry_pc as _;
                 (*frame).spsr_el1 = 0b0101;
                 frame
@@ -189,8 +200,16 @@ impl ArchContext for AArch64Context {
         super::exception::exit_exception();
     }
 
-    unsafe fn enter_usermode(entry: extern fn(_argc: isize, _argv: *const *const u8), sp: Address) -> ! {
-        log!("TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}", TTBR0_EL1.get(), entry as *const extern fn(_argc: isize, _argv: *const *const u8), sp);
+    unsafe fn enter_usermode(
+        entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
+        sp: Address,
+    ) -> ! {
+        log!(
+            "TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}",
+            TTBR0_EL1.get(),
+            entry as *const extern "C" fn(_argc: isize, _argv: *const *const u8),
+            sp
+        );
         TargetArch::interrupt().disable();
         llvm_asm! {
             "
@@ -211,12 +230,12 @@ impl Drop for AArch64Context {
     }
 }
 
-extern {
+extern "C" {
     #[allow(improper_ctypes)]
     fn switch_context(from: &mut AArch64Context, to: &AArch64Context, p4: usize);
 }
 
-#[cfg(not(feature="rls"))]
+#[cfg(not(feature = "rls"))]
 global_asm! {"
 .global switch_context
 

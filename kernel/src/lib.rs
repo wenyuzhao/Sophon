@@ -32,13 +32,14 @@ use core::ops::Range;
 
 // use arch::*;
 // use scheduler::AbstractScheduler;
-use proton::{lazy::Lazy, memory::{Address, Frame, P, Page}};
+use proton::{
+    lazy::Lazy,
+    memory::{Address, Frame, Page, P},
+};
 // use ipc::IPCController;
 // use kernel_process::system::System;
 // use kernel_process::user::UserTask;
 // use task::Task;
-
-
 
 // pub struct KernelGlobal<K: AbstractKernel> {
 //     pub scheduler: Lazy<K::Scheduler>,
@@ -70,7 +71,6 @@ use proton::{lazy::Lazy, memory::{Address, Frame, P, Page}};
 //         <Self::Arch as AbstractArch>::Timer::init();
 //         debug!(Self: "[kernel: timer initialized]");
 //         debug!(Self: "[kernel: timer initialized {}]", <Self::Arch as AbstractArch>::Interrupt::is_enabled());
-
 
 //         // let task = Task::<Self>::create_kernel_task(box System::<Self>::new());
 //         // debug!(Self: "[kernel: created kernel process: {:?}]", task.id());

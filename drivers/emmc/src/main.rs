@@ -6,12 +6,12 @@
 
 #[macro_use]
 extern crate proton;
-mod emmc;
 mod constants;
+mod emmc;
 mod fat;
 
-use proton::Message;
 use proton::driver::Driver;
+use proton::Message;
 
 pub struct EMMCDriver;
 
@@ -24,16 +24,14 @@ impl Driver for EMMCDriver {
         fat::FAT::ls_root();
         Self
     }
-    
+
     fn handle_message(&mut self, _m: &Message) {
         unimplemented!()
     }
 }
 
 impl EMMCDriver {
-    fn init(&mut self) {
-
-    }
+    fn init(&mut self) {}
 }
 
 #[panic_handler]

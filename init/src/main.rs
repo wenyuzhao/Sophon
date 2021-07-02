@@ -9,7 +9,7 @@ extern crate proton;
 mod log;
 
 #[no_mangle]
-pub extern fn _start(_argc: isize, _argv: *const *const u8) -> isize {
+pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     // unsafe { llvm_asm!("1:  b 1b") }
     log!("Init process start (user mode)");
 

@@ -1,7 +1,7 @@
+use super::IPC;
 use core::fmt;
 use core::fmt::Write;
 use spin::Mutex;
-use super::IPC;
 
 #[allow(dead_code)]
 static WRITER: Mutex<Log> = Mutex::new(Log);

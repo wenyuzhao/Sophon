@@ -1,6 +1,6 @@
+use super::FrameAllocator;
 use crate::address::*;
 use crate::page::*;
-use super::FrameAllocator;
 
 pub struct BumpFrameAllocator {
     start: Address<P>,
@@ -11,7 +11,8 @@ pub struct BumpFrameAllocator {
 impl BumpFrameAllocator {
     pub const fn new((start, limit): (Address<P>, Address<P>)) -> Self {
         Self {
-            start, limit,
+            start,
+            limit,
             cursur: start,
         }
     }
@@ -21,7 +22,9 @@ impl FrameAllocator for BumpFrameAllocator {
     fn identity_alloc<S: PageSize>(&mut self, p: Frame<S>) {
         let start = p.start();
         let end = p.start() + Frame::<S>::SIZE;
-        assert!(start.as_usize() < self.start.as_usize() || end.as_usize() >= self.limit.as_usize());
+        assert!(
+            start.as_usize() < self.start.as_usize() || end.as_usize() >= self.limit.as_usize()
+        );
     }
 
     fn alloc<S: PageSize>(&mut self) -> Frame<S> {

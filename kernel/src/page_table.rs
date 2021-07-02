@@ -5,17 +5,15 @@ use proton::memory::*;
 use crate::utils::bitflags::*;
 // use bitflags::bitflags;
 
-
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
 pub enum PageFlag {
-    PRESENT     = 0b01,      // map a 4k page
-    SMALL_PAGE  = 0b10,      // map a 4k page
-    USER        = 1 << 6,    // enable EL0 Access
-    NO_WRITE    = 1 << 7,    // readonly
-    ACCESSED    = 1 << 10,   // accessed
-    NO_EXEC     = 1 << 54,   // no execute
+    PRESENT = 0b01,          // map a 4k page
+    SMALL_PAGE = 0b10,       // map a 4k page
+    USER = 1 << 6,           // enable EL0 Access
+    NO_WRITE = 1 << 7,       // readonly
+    ACCESSED = 1 << 10,      // accessed
+    NO_EXEC = 1 << 54,       // no execute
     INNER_SHARE = 0b10 << 8, // outter shareable
     OUTER_SHARE = 0b11 << 8, // inner shareable
     COPY_ON_WRITE = 1 << 53,
@@ -42,7 +40,11 @@ pub type PageFlags = BitFlags<PageFlag>;
 
 impl PageFlags {
     pub fn page_table_flags() -> PageFlags {
-        PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::SMALL_PAGE | PageFlag::OUTER_SHARE | PageFlag::ACCESSED
+        PageFlag::NORMAL_MEMORY
+            | PageFlag::PRESENT
+            | PageFlag::SMALL_PAGE
+            | PageFlag::OUTER_SHARE
+            | PageFlag::ACCESSED
     }
     pub fn kernel_code_flags_2m() -> PageFlags {
         PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
@@ -89,7 +91,9 @@ impl PageTableEntry {
     const FLAGS_MASK: u64 = !Self::ADDRESS_MASK;
 
     pub fn clear(&mut self) {
-        unsafe { ::core::intrinsics::volatile_store(&mut self.0, 0); }
+        unsafe {
+            ::core::intrinsics::volatile_store(&mut self.0, 0);
+        }
     }
     pub fn is_empty(&self) -> bool {
         self.0 == 0
@@ -101,7 +105,8 @@ impl PageTableEntry {
         !self.flags().contains(PageFlag::SMALL_PAGE)
     }
     pub fn address(&self) -> Address<P> {
-        ((unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::ADDRESS_MASK) as usize).into()
+        ((unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::ADDRESS_MASK) as usize)
+            .into()
     }
     pub fn flags(&self) -> PageFlags {
         let v = unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::FLAGS_MASK;
@@ -109,7 +114,9 @@ impl PageTableEntry {
     }
     pub fn update_flags(&mut self, new_flags: PageFlags) {
         let v = self.address().as_usize() as u64 | new_flags.bits();
-        unsafe { ::core::intrinsics::volatile_store(&mut self.0, v); }
+        unsafe {
+            ::core::intrinsics::volatile_store(&mut self.0, v);
+        }
     }
     pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) {
         if S::LOG_SIZE == Size2M::LOG_SIZE {
@@ -120,7 +127,9 @@ impl PageTableEntry {
         let mut a = frame.start().as_usize();
         a &= !(0xffff_0000_0000_0000);
         let v = a as u64 | flags.bits();
-        unsafe { ::core::intrinsics::volatile_store(&mut self.0, v); }
+        unsafe {
+            ::core::intrinsics::volatile_store(&mut self.0, v);
+        }
     }
 }
 
@@ -179,12 +188,14 @@ pub struct PageTable<L: TableLevel + 'static> {
     phantom: PhantomData<L>,
 }
 
-impl <L: TableLevel> PageTable<L> {
+impl<L: TableLevel> PageTable<L> {
     const MASK: usize = 0b111111111 << L::SHIFT;
 
     fn zero(&mut self) {
         for i in 0..512 {
-            unsafe { ::core::intrinsics::volatile_store(&mut self.entries[i], PageTableEntry(0)); }
+            unsafe {
+                ::core::intrinsics::volatile_store(&mut self.entries[i], PageTableEntry(0));
+            }
         }
     }
 
@@ -208,7 +219,7 @@ impl <L: TableLevel> PageTable<L> {
         }
     }
 
-    pub fn next_table(&self, index: usize) ->  Option<&'static mut PageTable<L::NextLevel>> {
+    pub fn next_table(&self, index: usize) -> Option<&'static mut PageTable<L::NextLevel>> {
         debug_assert!(L::ID > 1);
         if let Some(address) = self.next_table_address(index) {
             Some(unsafe { &mut *(address as *mut _) })
@@ -221,7 +232,7 @@ impl <L: TableLevel> PageTable<L> {
         debug_assert!(L::ID > 1);
         let e = self.entries[index].0;
         if let Some(address) = self.next_table_address(index) {
-            return unsafe { &mut *(address as *mut _) }
+            return unsafe { &mut *(address as *mut _) };
         } else {
             unreachable!()
             // let frame = FRAME_ALLOCATOR.alloc::<Size4K>();
@@ -241,28 +252,41 @@ impl <L: TableLevel> PageTable<L> {
         debug_assert!(L::ID != 0);
         let index = Self::get_index(address);
         if L::ID == 2 && self.entries[index].is_block() {
-            return Some((L::ID, unsafe { ::core::mem::transmute(&self.entries[index]) }));
+            return Some((L::ID, unsafe {
+                ::core::mem::transmute(&self.entries[index])
+            }));
         }
         if L::ID == 1 {
-            return Some((L::ID, unsafe { ::core::mem::transmute(&self.entries[index]) }));
+            return Some((L::ID, unsafe {
+                ::core::mem::transmute(&self.entries[index])
+            }));
         }
 
         let next = self.next_table(index)?;
         next.get_entry(address)
     }
 
-    fn get_entry_create<S: PageSize>(&mut self, address: Address<V>) -> (usize, &'static mut PageTableEntry) {
+    fn get_entry_create<S: PageSize>(
+        &mut self,
+        address: Address<V>,
+    ) -> (usize, &'static mut PageTableEntry) {
         debug_assert!(L::ID != 0);
         let index = Self::get_index(address);
         if L::ID == 2 && self.entries[index].present() && self.entries[index].is_block() {
             debug_assert!(S::LOG_SIZE != Size4K::LOG_SIZE);
-            return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
+            return (L::ID, unsafe {
+                ::core::mem::transmute(&mut self.entries[index])
+            });
         }
         if S::LOG_SIZE == Size4K::LOG_SIZE && L::ID == 1 {
-            return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
+            return (L::ID, unsafe {
+                ::core::mem::transmute(&mut self.entries[index])
+            });
         }
         if S::LOG_SIZE == Size2M::LOG_SIZE && L::ID == 2 {
-            return (L::ID, unsafe { ::core::mem::transmute(&mut self.entries[index]) });
+            return (L::ID, unsafe {
+                ::core::mem::transmute(&mut self.entries[index])
+            });
         }
 
         let next = self.next_table_create(index);
@@ -304,7 +328,12 @@ impl PageTable<L4> {
         self.map(Page::new(frame.start().as_usize().into()), frame, flags)
     }
 
-    pub fn map<S: PageSize>(&mut self, page: Page<S>, frame: Frame<S>, flags: PageFlags) -> Page<S> {
+    pub fn map<S: PageSize>(
+        &mut self,
+        page: Page<S>,
+        frame: Frame<S>,
+        flags: PageFlags,
+    ) -> Page<S> {
         let (level, entry) = self.get_entry_create::<S>(page.start());
 
         if cfg!(debug_assertions) {
@@ -324,7 +353,12 @@ impl PageTable<L4> {
         page
     }
 
-    pub fn remap<S: PageSize>(&mut self, page: Page<S>, frame: Frame<S>, flags: PageFlags) -> Page<S> {
+    pub fn remap<S: PageSize>(
+        &mut self,
+        page: Page<S>,
+        frame: Frame<S>,
+        flags: PageFlags,
+    ) -> Page<S> {
         let (level, entry) = self.get_entry_create::<S>(page.start());
         if cfg!(debug_assertions) {
             if S::LOG_SIZE == Size4K::LOG_SIZE {
@@ -476,7 +510,6 @@ impl PageTable<L4> {
 //         }
 //     }
 // }
-
 
 // use core::ops::*;
 

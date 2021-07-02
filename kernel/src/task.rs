@@ -1,16 +1,15 @@
-use alloc::collections::BTreeSet;
-use kernel_tasks::KernelTask;
-use spin::Mutex;
-use core::sync::atomic::{AtomicUsize, Ordering};
 use super::scheduler::*;
-use core::cell::RefCell;
 use crate::*;
-pub use proton::{IPC, TaskId, Message};
 use alloc::boxed::Box;
+use alloc::collections::BTreeSet;
+use core::cell::RefCell;
+use core::sync::atomic::{AtomicUsize, Ordering};
+use kernel_tasks::KernelTask;
+pub use proton::{Message, TaskId, IPC};
+use spin::Mutex;
 // use crate::kernel_process::KernelTask;
 
 static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
-
 
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub enum TaskState {
@@ -36,7 +35,10 @@ impl Task {
 
     #[inline]
     pub fn scheduler_state<S: AbstractScheduler>(&self) -> &RefCell<S::State> {
-        unsafe { &*(&self.scheduler_state as *const RefCell<<Scheduler as AbstractScheduler>::State> as *const RefCell<S::State>) }
+        unsafe {
+            &*(&self.scheduler_state as *const RefCell<<Scheduler as AbstractScheduler>::State>
+                as *const RefCell<S::State>)
+        }
     }
 
     #[inline]
@@ -124,7 +126,10 @@ impl Task {
         // Alloc task struct
         let task = box Task {
             id,
-            context: <TargetArch as Arch>::Context::new(entry as _, Box::into_raw(t) as usize as *mut ()),
+            context: <TargetArch as Arch>::Context::new(
+                entry as _,
+                Box::into_raw(t) as usize as *mut (),
+            ),
             scheduler_state: RefCell::new(Default::default()),
             block_to_receive_from: Mutex::new(None),
             block_to_send: None,
@@ -160,7 +165,7 @@ impl PartialEq for Task {
 
 impl Eq for Task {}
 
-extern fn entry(t: *mut Box<dyn KernelTask>) -> ! {
+extern "C" fn entry(t: *mut Box<dyn KernelTask>) -> ! {
     let mut t: Box<Box<dyn KernelTask>> = unsafe { Box::from_raw(t) };
     t.run()
 }

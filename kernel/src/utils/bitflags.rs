@@ -1,8 +1,17 @@
-use core::{fmt, ops::{BitAnd, BitOr, BitXor}};
-
+use core::{
+    fmt,
+    ops::{BitAnd, BitOr, BitXor},
+};
 
 pub trait BitFlag: Sized + Clone + Copy + PartialEq {
-    type Repr: fmt::LowerHex + BitAnd<Output=Self::Repr> + BitOr<Output=Self::Repr> + BitXor<Output=Self::Repr> + Default + PartialEq + Clone + Copy;
+    type Repr: fmt::LowerHex
+        + BitAnd<Output = Self::Repr>
+        + BitOr<Output = Self::Repr>
+        + BitXor<Output = Self::Repr>
+        + Default
+        + PartialEq
+        + Clone
+        + Copy;
     const ZERO: Self::Repr;
     #[inline(always)]
     fn bits(self) -> Self::Repr {
@@ -87,7 +96,6 @@ impl<F: BitFlag> BitAnd for BitFlags<F> {
     }
 }
 
-
 impl<F: BitFlag> BitOr for BitFlags<F> {
     type Output = Self;
 
@@ -106,7 +114,6 @@ impl<F: BitFlag> BitXor for BitFlags<F> {
     }
 }
 
-
 impl<F: BitFlag> BitAnd<F> for BitFlags<F> {
     type Output = Self;
 
@@ -115,7 +122,6 @@ impl<F: BitFlag> BitAnd<F> for BitFlags<F> {
         Self(self.bits() & rhs.bits())
     }
 }
-
 
 impl<F: BitFlag> BitOr<F> for BitFlags<F> {
     type Output = Self;

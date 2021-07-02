@@ -1,6 +1,6 @@
 pub mod round_robin;
 
-use crate::{task::*, arch::*};
+use crate::{arch::*, task::*};
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut};
 
@@ -22,7 +22,10 @@ pub enum RunState {
     Receiving,
 }
 
-pub trait AbstractSchedulerState: Clone + Default + ::core::fmt::Debug + Deref<Target=RunState> + DerefMut {}
+pub trait AbstractSchedulerState:
+    Clone + Default + ::core::fmt::Debug + Deref<Target = RunState> + DerefMut
+{
+}
 
 pub trait AbstractScheduler: Sized + 'static {
     type State: AbstractSchedulerState;
@@ -70,7 +73,12 @@ pub trait AbstractScheduler: Sized + 'static {
     fn block_current_task_as_receiving(&self) -> ! {
         Self::uninterruptable(|| {
             let task = self.get_current_task().unwrap();
-            assert!(**task.scheduler_state::<Self>().borrow() == RunState::Running, "{:?} {:?}", task.id(), **task.scheduler_state::<Self>().borrow());
+            assert!(
+                **task.scheduler_state::<Self>().borrow() == RunState::Running,
+                "{:?} {:?}",
+                task.id(),
+                **task.scheduler_state::<Self>().borrow()
+            );
             **task.scheduler_state::<Self>().borrow_mut() = RunState::Receiving;
             self.schedule();
         })
@@ -84,8 +92,6 @@ pub trait AbstractScheduler: Sized + 'static {
         TargetArch::uninterruptable(f)
     }
 }
-
-
 
 pub type Scheduler = impl AbstractScheduler;
 

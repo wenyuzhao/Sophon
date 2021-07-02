@@ -20,7 +20,12 @@ pub struct Message {
 impl Message {
     #[inline]
     pub fn new(sender: TaskId, receiver: TaskId, kind: usize) -> Self {
-        Self { sender, receiver, kind, data: [0; 5] }
+        Self {
+            sender,
+            receiver,
+            kind,
+            data: [0; 5],
+        }
     }
 
     #[inline]

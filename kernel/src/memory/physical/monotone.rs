@@ -4,8 +4,6 @@ use proton::memory::{Frame, PageSize};
 
 use super::PhysicalPageResource;
 
-
-
 pub struct Monotone {
     cursor: Frame,
     limit: Frame,
@@ -19,7 +17,7 @@ impl Monotone {
             cursor: Frame::ZERO,
             limit: Frame::ZERO,
             range_index: 0,
-            all_frames: &[]
+            all_frames: &[],
         }
     }
 

@@ -1,14 +1,11 @@
 // pub mod system;
 // pub mod user;
 
-
 pub trait KernelTask {
     fn run(&mut self) -> !;
 }
 
-
 pub struct TestKernelTaskA;
-
 
 impl KernelTask for TestKernelTaskA {
     fn run(&mut self) -> ! {
@@ -19,9 +16,7 @@ impl KernelTask for TestKernelTaskA {
     }
 }
 
-
 pub struct TestKernelTaskB;
-
 
 impl KernelTask for TestKernelTaskB {
     fn run(&mut self) -> ! {

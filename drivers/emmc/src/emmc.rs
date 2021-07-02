@@ -1,11 +1,10 @@
 use crate::constants::*;
-use proton::KernelCall;
 use proton::memory::*;
+use proton::KernelCall;
 
 static mut HV: u32 = 0;
 static mut RCA: u32 = 0;
 static mut SCR: [u32; 2] = [0; 2];
-
 
 pub type E = ();
 
@@ -27,7 +26,10 @@ impl EMMC {
         let m = mask | emmc::INT_ERROR_MASK;
         while emmc.interrupt & m == 0 {}
         let r = emmc.interrupt;
-        if (r & emmc::INT_CMD_TIMEOUT) != 0 || (r & emmc::INT_DATA_TIMEOUT) != 0 || (r & emmc::INT_ERROR_MASK) != 0 {
+        if (r & emmc::INT_CMD_TIMEOUT) != 0
+            || (r & emmc::INT_DATA_TIMEOUT) != 0
+            || (r & emmc::INT_ERROR_MASK) != 0
+        {
             emmc.interrupt = r;
             panic!();
         }
@@ -37,7 +39,8 @@ impl EMMC {
     unsafe fn cmd(mut code: u32, arg: u32) -> Result<u32, E> {
         let emmc = &mut *EMMCData::BASE;
         if code & cmd::NEED_APP != 0 {
-            let r = Self::cmd(cmd::APP_CMD | if RCA != 0 { cmd::RSPNS_48 } else { 0 }, RCA).unwrap();
+            let r =
+                Self::cmd(cmd::APP_CMD | if RCA != 0 { cmd::RSPNS_48 } else { 0 }, RCA).unwrap();
             if RCA != 0 && r == 0 {
                 panic!("ERROR: failed to send SD APP command");
             }
@@ -61,13 +64,27 @@ impl EMMC {
             x if x == cmd::GO_IDLE || x == cmd::APP_CMD => Ok(0),
             x if x == cmd::APP_CMD | cmd::RSPNS_48 => Ok(r & emmc::SR_APP_CMD),
             x if x == cmd::SEND_OP_COND => Ok(r),
-            x if x == cmd::SEND_IF_COND => if r == arg { Ok(0) } else { Err(()) },
+            x if x == cmd::SEND_IF_COND => {
+                if r == arg {
+                    Ok(0)
+                } else {
+                    Err(())
+                }
+            }
             x if x == cmd::ALL_SEND_CID => Ok(r | emmc.resp[3] | emmc.resp[2] | emmc.resp[1]),
             x if x == cmd::SEND_REL_ADDR => {
-                let err = (((r & 0x1fff)) | ((r & 0x2000) << 6) | ((r & 0x4000) << 8) | ((r & 0x8000) << 8)) & cmd::ERRORS_MASK;
-                if err == 0 { Ok(r & cmd::RCA_MASK) } else { Err(()) }
+                let err = ((r & 0x1fff)
+                    | ((r & 0x2000) << 6)
+                    | ((r & 0x4000) << 8)
+                    | ((r & 0x8000) << 8))
+                    & cmd::ERRORS_MASK;
+                if err == 0 {
+                    Ok(r & cmd::RCA_MASK)
+                } else {
+                    Err(())
+                }
             }
-            _ => Ok(r & cmd::ERRORS_MASK)
+            _ => Ok(r & cmd::ERRORS_MASK),
         }
     }
 
@@ -82,7 +99,7 @@ impl EMMC {
         while (emmc.status & (emmc::SR_CMD_INHIBIT | emmc::SR_DAT_INHIBIT)) != 0 {
             sleep(1);
         }
-    
+
         emmc.control1 &= !emmc::C1_CLK_EN;
         sleep(10);
         // wait_cycles(1000);
@@ -90,20 +107,39 @@ impl EMMC {
         if x == 0 {
             s = 0;
         } else {
-            if x & 0xffff0000 == 0 { /* x <<= 16; */ s -= 16; }
-            if x & 0xff000000 == 0 { /* x <<= 8;  */ s -= 8; }
-            if x & 0xf0000000 == 0 { /* x <<= 4;  */ s -= 4; }
-            if x & 0xc0000000 == 0 { /* x <<= 2;  */ s -= 2; }
-            if x & 0x80000000 == 0 { /* x <<= 1;  */ s -= 1; }
-            if s > 0 { s -= 1; }
-            if s > 7 { s=7; }
+            if x & 0xffff0000 == 0 {
+                /* x <<= 16; */
+                s -= 16;
+            }
+            if x & 0xff000000 == 0 {
+                /* x <<= 8;  */
+                s -= 8;
+            }
+            if x & 0xf0000000 == 0 {
+                /* x <<= 4;  */
+                s -= 4;
+            }
+            if x & 0xc0000000 == 0 {
+                /* x <<= 2;  */
+                s -= 2;
+            }
+            if x & 0x80000000 == 0 {
+                /* x <<= 1;  */
+                s -= 1;
+            }
+            if s > 0 {
+                s -= 1;
+            }
+            if s > 7 {
+                s = 7;
+            }
         }
         if HV > emmc::HOST_SPEC_V2 {
             d = c;
         } else {
             d = 1 << s;
         }
-        if d<=2 {
+        if d <= 2 {
             d = 2;
             s = 0;
         }
@@ -111,7 +147,7 @@ impl EMMC {
         if HV > emmc::HOST_SPEC_V2 {
             h = (d & 0x300) >> 2;
         }
-        d= ((d & 0xff) << 8) | h;
+        d = ((d & 0xff) << 8) | h;
         emmc.control1 = (emmc.control1 & 0xffff003f) | d;
         sleep(10);
         // wait_msec(10);
@@ -132,14 +168,24 @@ impl EMMC {
     pub fn read_block(lba: u32, buffer: &mut [u8], mut num: u32) -> Result<u32, E> {
         unsafe {
             let emmc = &mut *EMMCData::BASE;
-            if num == 0 { num = 1 }
+            if num == 0 {
+                num = 1
+            }
             Self::wait_for(emmc::SR_DAT_INHIBIT);
             if SCR[0] & emmc::SCR_SUPP_CCS != 0 {
                 if num > 1 && SCR[0] & emmc::SCR_SUPP_SET_BLKCNT != 0 {
                     Self::cmd(cmd::SET_BLOCKCNT, num).unwrap();
                 }
                 emmc.blksizecnt = (num << 16) | 512;
-                Self::cmd(if num == 1 { cmd::READ_SINGLE } else { cmd::READ_MULTI }, lba).unwrap();
+                Self::cmd(
+                    if num == 1 {
+                        cmd::READ_SINGLE
+                    } else {
+                        cmd::READ_MULTI
+                    },
+                    lba,
+                )
+                .unwrap();
             } else {
                 emmc.blksizecnt = (1 << 16) | 512;
             }
@@ -157,7 +203,10 @@ impl EMMC {
                 cursor += 128;
             }
             log!("cursor = {}", cursor);
-            if num > 1 && SCR[0] & emmc::SCR_SUPP_SET_BLKCNT == 0 && SCR[0] & emmc::SCR_SUPP_CCS != 0 {
+            if num > 1
+                && SCR[0] & emmc::SCR_SUPP_SET_BLKCNT == 0
+                && SCR[0] & emmc::SCR_SUPP_CCS != 0
+            {
                 Self::cmd(cmd::STOP_TRANS, 0).unwrap();
             }
             Ok(num * 512)
@@ -165,10 +214,21 @@ impl EMMC {
     }
 
     fn map_mempry() {
-        KernelCall::map_physical_memory(Page::new(GPIO_BASE.into()), Frame::new(GPIO_BASE.into())).unwrap();
-        log!("Device memory mapped {:?}", Page::<Size4K>::new(GPIO_BASE.into()));
-        KernelCall::map_physical_memory(Page::new(EMMCData::BASE.into()), Frame::new(EMMCData::BASE.into())).unwrap();
-        log!("Device memory mapped {:?}", Page::<Size4K>::new(EMMCData::BASE.into()));
+        KernelCall::map_physical_memory(Page::new(GPIO_BASE.into()), Frame::new(GPIO_BASE.into()))
+            .unwrap();
+        log!(
+            "Device memory mapped {:?}",
+            Page::<Size4K>::new(GPIO_BASE.into())
+        );
+        KernelCall::map_physical_memory(
+            Page::new(EMMCData::BASE.into()),
+            Frame::new(EMMCData::BASE.into()),
+        )
+        .unwrap();
+        log!(
+            "Device memory mapped {:?}",
+            Page::<Size4K>::new(EMMCData::BASE.into())
+        );
     }
 
     pub fn init() -> Result<(), ()> {
@@ -181,7 +241,7 @@ impl EMMC {
             *GPFSEL4 &= !(7 << (7 * 3));
             log!("THE FIRST WRITE!!!");
             // loop {}
-            *GPPUD=2;
+            *GPPUD = 2;
             wait_cycles(150);
             *GPPUDCLK1 = 1 << 15;
             wait_cycles(150);
@@ -190,9 +250,9 @@ impl EMMC {
             *GPHEN1 |= 1 << 15;
             // GPIO_CLK, GPIO_CMD
             *GPFSEL4 |= (7 << (8 * 3)) | (7 << (9 * 3));
-            *GPPUD=2;
+            *GPPUD = 2;
             wait_cycles(150);
-            *GPPUDCLK1= (1 << 16) | (1 << 17);
+            *GPPUDCLK1 = (1 << 16) | (1 << 17);
             wait_cycles(150);
             *GPPUD = 0;
             *GPPUDCLK1 = 0;
@@ -200,20 +260,19 @@ impl EMMC {
             *GPFSEL5 |= (7 << (0 * 3)) | (7 << (1 * 3)) | (7 << (2 * 3)) | (7 << (3 * 3));
             *GPPUD = 2;
             wait_cycles(150);
-            *GPPUDCLK1 = (1<<18) | (1<<19) | (1<<20) | (1<<21);
+            *GPPUDCLK1 = (1 << 18) | (1 << 19) | (1 << 20) | (1 << 21);
             wait_cycles(150);
             *GPPUD = 0;
             *GPPUDCLK1 = 0;
             HV = (emmc.slotisr_ver & emmc::HOST_SPEC_NUM) >> emmc::HOST_SPEC_NUM_SHIFT;
             log!("EMMC: GPIO set up");
 
-
             emmc.control0 = 0;
             emmc.control1 |= emmc::C1_SRST_HC;
             while emmc.control1 & emmc::C1_SRST_HC != 0 {
                 sleep(10);
             }
-            
+
             log!("EMMC: reset OK");
 
             emmc.control1 |= emmc::C1_CLK_INTLEN | emmc::C1_TOUNIT_MAX;
@@ -231,11 +290,24 @@ impl EMMC {
                 while (r & emmc::ACMD41_CMD_COMPLETE) == 0 {
                     wait_cycles(400);
                     r = Self::cmd(cmd::SEND_OP_COND, emmc::ACMD41_ARG_HC).unwrap();
-                    log!("EMMC: CMD_SEND_OP_COND returned 0x{:x} {} {} {}",
+                    log!(
+                        "EMMC: CMD_SEND_OP_COND returned 0x{:x} {} {} {}",
                         r,
-                        if (r & emmc::ACMD41_CMD_COMPLETE) != 0 { "COMPLETE" } else { "" },
-                        if (r & emmc::ACMD41_VOLTAGE) != 0 { "VOLTAGE" } else { "" },
-                        if (r & emmc::ACMD41_CMD_CCS) != 0 { "CCS" } else { "" },
+                        if (r & emmc::ACMD41_CMD_COMPLETE) != 0 {
+                            "COMPLETE"
+                        } else {
+                            ""
+                        },
+                        if (r & emmc::ACMD41_VOLTAGE) != 0 {
+                            "VOLTAGE"
+                        } else {
+                            ""
+                        },
+                        if (r & emmc::ACMD41_CMD_CCS) != 0 {
+                            "CCS"
+                        } else {
+                            ""
+                        },
                     );
                 }
                 assert!((r & emmc::ACMD41_CMD_COMPLETE) != 0);
@@ -265,12 +337,17 @@ impl EMMC {
                 }
             }
             if SCR[0] & emmc::SCR_SD_BUS_WIDTH_4 != 0 {
-                Self::cmd(cmd::SET_BUS_WIDTH,RCA | 2).unwrap();
+                Self::cmd(cmd::SET_BUS_WIDTH, RCA | 2).unwrap();
                 emmc.control0 |= emmc::C0_HCTL_DWITDH;
             }
             log!("0x{:x}", SCR[0]);
-            log!("EMMC: supports {} {}",
-                if SCR[0] & emmc::SCR_SUPP_SET_BLKCNT != 0 { "SET_BLKCNT" } else { "" },
+            log!(
+                "EMMC: supports {} {}",
+                if SCR[0] & emmc::SCR_SUPP_SET_BLKCNT != 0 {
+                    "SET_BLKCNT"
+                } else {
+                    ""
+                },
                 if ccs != 0 { "CCS" } else { "" },
             );
             SCR[0] &= !emmc::SCR_SUPP_CCS;
@@ -280,9 +357,9 @@ impl EMMC {
     }
 }
 
-#[cfg(feature="device-raspi3-qemu")]
+#[cfg(feature = "device-raspi3-qemu")]
 pub const MMIO_BASE: usize = 0xFFFF0000_3F000000;
-#[cfg(feature="device-raspi4")]
+#[cfg(feature = "device-raspi4")]
 pub const MMIO_BASE: usize = 0xFFFF0000_FE000000;
 
 #[repr(C)]
@@ -309,59 +386,59 @@ impl EMMCData {
 }
 
 mod emmc {
-    pub const SR_READ_AVAILABLE: u32 =   0x00000800;
-    pub const SR_DAT_INHIBIT: u32 =      0x00000002;
-    pub const SR_CMD_INHIBIT: u32 =      0x00000001;
-    pub const SR_APP_CMD: u32 =          0x00000020;
-    pub const INT_DATA_TIMEOUT: u32 =    0x00100000;
-    pub const INT_CMD_TIMEOUT: u32 =     0x00010000;
-    pub const INT_READ_RDY: u32 =        0x00000020;
-    pub const INT_CMD_DONE: u32 =        0x00000001;
-    pub const INT_ERROR_MASK: u32 =      0x017E8000;
-    pub const C0_SPI_MODE_EN: u32 =      0x00100000;
-    pub const C0_HCTL_HS_EN: u32 =       0x00000004;
-    pub const C0_HCTL_DWITDH: u32 =      0x00000002;
-    pub const C1_SRST_DATA: u32 =        0x04000000;
-    pub const C1_SRST_CMD: u32 =         0x02000000;
-    pub const C1_SRST_HC: u32 =          0x01000000;
-    pub const C1_TOUNIT_DIS: u32 =       0x000f0000;
-    pub const C1_TOUNIT_MAX: u32 =       0x000e0000;
-    pub const C1_CLK_GENSEL: u32 =       0x00000020;
-    pub const C1_CLK_EN: u32 =           0x00000004;
-    pub const C1_CLK_STABLE: u32 =       0x00000002;
-    pub const C1_CLK_INTLEN: u32 =       0x00000001;
-    pub const HOST_SPEC_NUM: u32 =       0x00ff0000;
+    pub const SR_READ_AVAILABLE: u32 = 0x00000800;
+    pub const SR_DAT_INHIBIT: u32 = 0x00000002;
+    pub const SR_CMD_INHIBIT: u32 = 0x00000001;
+    pub const SR_APP_CMD: u32 = 0x00000020;
+    pub const INT_DATA_TIMEOUT: u32 = 0x00100000;
+    pub const INT_CMD_TIMEOUT: u32 = 0x00010000;
+    pub const INT_READ_RDY: u32 = 0x00000020;
+    pub const INT_CMD_DONE: u32 = 0x00000001;
+    pub const INT_ERROR_MASK: u32 = 0x017E8000;
+    pub const C0_SPI_MODE_EN: u32 = 0x00100000;
+    pub const C0_HCTL_HS_EN: u32 = 0x00000004;
+    pub const C0_HCTL_DWITDH: u32 = 0x00000002;
+    pub const C1_SRST_DATA: u32 = 0x04000000;
+    pub const C1_SRST_CMD: u32 = 0x02000000;
+    pub const C1_SRST_HC: u32 = 0x01000000;
+    pub const C1_TOUNIT_DIS: u32 = 0x000f0000;
+    pub const C1_TOUNIT_MAX: u32 = 0x000e0000;
+    pub const C1_CLK_GENSEL: u32 = 0x00000020;
+    pub const C1_CLK_EN: u32 = 0x00000004;
+    pub const C1_CLK_STABLE: u32 = 0x00000002;
+    pub const C1_CLK_INTLEN: u32 = 0x00000001;
+    pub const HOST_SPEC_NUM: u32 = 0x00ff0000;
     pub const HOST_SPEC_NUM_SHIFT: u32 = 16;
-    pub const HOST_SPEC_V3: u32 =        2;
-    pub const HOST_SPEC_V2: u32 =        1;
-    pub const HOST_SPEC_V1: u32 =        0;
-    pub const SCR_SD_BUS_WIDTH_4: u32 =  0x00000400;
+    pub const HOST_SPEC_V3: u32 = 2;
+    pub const HOST_SPEC_V2: u32 = 1;
+    pub const HOST_SPEC_V1: u32 = 0;
+    pub const SCR_SD_BUS_WIDTH_4: u32 = 0x00000400;
     pub const SCR_SUPP_SET_BLKCNT: u32 = 0x02000000;
-    pub const SCR_SUPP_CCS: u32 =        0x00000001;
-    pub const ACMD41_VOLTAGE: u32 =      0x00ff8000;
+    pub const SCR_SUPP_CCS: u32 = 0x00000001;
+    pub const ACMD41_VOLTAGE: u32 = 0x00ff8000;
     pub const ACMD41_CMD_COMPLETE: u32 = 0x80000000;
-    pub const ACMD41_CMD_CCS: u32 =      0x40000000;
-    pub const ACMD41_ARG_HC: u32 =       0x51ff8000;
-} 
+    pub const ACMD41_CMD_CCS: u32 = 0x40000000;
+    pub const ACMD41_ARG_HC: u32 = 0x51ff8000;
+}
 
 mod cmd {
-    pub static NEED_APP: u32      =        0x80000000;
-    pub static RSPNS_48: u32      =        0x00020000;
-    pub static ERRORS_MASK: u32 =     0xfff9c004;
-    pub static RCA_MASK: u32 =        0xffff0000;
-    pub static GO_IDLE: u32 =         0x00000000;
-    pub static ALL_SEND_CID: u32 =    0x02010000;
-    pub static SEND_REL_ADDR: u32 =   0x03020000;
-    pub static CARD_SELECT: u32 =     0x07030000;
-    pub static SEND_IF_COND: u32 =    0x08020000;
-    pub static STOP_TRANS: u32 =      0x0C030000;
-    pub static READ_SINGLE: u32 =     0x11220010;
-    pub static READ_MULTI: u32 =      0x12220032;
-    pub static SET_BLOCKCNT: u32 =    0x17020000;
-    pub static APP_CMD: u32 =         0x37000000;
-    pub static SET_BUS_WIDTH: u32 =   0x06020000 | NEED_APP;
-    pub static SEND_OP_COND: u32 =    0x29020000 | NEED_APP;
-    pub static SEND_SCR: u32 =        0x33220010 | NEED_APP;
+    pub static NEED_APP: u32 = 0x80000000;
+    pub static RSPNS_48: u32 = 0x00020000;
+    pub static ERRORS_MASK: u32 = 0xfff9c004;
+    pub static RCA_MASK: u32 = 0xffff0000;
+    pub static GO_IDLE: u32 = 0x00000000;
+    pub static ALL_SEND_CID: u32 = 0x02010000;
+    pub static SEND_REL_ADDR: u32 = 0x03020000;
+    pub static CARD_SELECT: u32 = 0x07030000;
+    pub static SEND_IF_COND: u32 = 0x08020000;
+    pub static STOP_TRANS: u32 = 0x0C030000;
+    pub static READ_SINGLE: u32 = 0x11220010;
+    pub static READ_MULTI: u32 = 0x12220032;
+    pub static SET_BLOCKCNT: u32 = 0x17020000;
+    pub static APP_CMD: u32 = 0x37000000;
+    pub static SET_BUS_WIDTH: u32 = 0x06020000 | NEED_APP;
+    pub static SEND_OP_COND: u32 = 0x29020000 | NEED_APP;
+    pub static SEND_SCR: u32 = 0x33220010 | NEED_APP;
 }
 
 fn wait_cycles(n: usize) {

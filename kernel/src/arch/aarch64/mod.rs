@@ -1,12 +1,12 @@
+mod context;
 mod drivers;
 mod exception;
-mod context;
 
+use super::{Arch, ArchInterrupt, TargetArch};
+use crate::boot_driver::BootDriver;
 use alloc::boxed::Box;
 use context::AArch64Context;
 use device_tree::DeviceTree;
-use crate::boot_driver::BootDriver;
-use super::{TargetArch, Arch, ArchInterrupt};
 
 static mut INTERRUPT_CONTROLLER: Option<Box<dyn ArchInterrupt>> = None;
 

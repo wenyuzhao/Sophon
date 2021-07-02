@@ -1,11 +1,11 @@
 //! Abstractions for default-sized and huge virtual memory pages.
 
+use super::address::*;
 use core::fmt;
+use core::hash::Hash;
+use core::iter::Step;
 use core::marker::PhantomData;
 use core::ops::*;
-use super::address::*;
-use core::iter::Step;
-use core::hash::Hash;
 
 pub trait PageSize: Copy + Clone + PartialOrd + Ord + PartialEq + Eq + Hash {
     const NAME: &'static str;
@@ -36,7 +36,7 @@ pub struct Page<S: PageSize = Size4K, K: MemoryKind = V>(Address<K>, PhantomData
 
 pub type Frame<S = Size4K> = Page<S, P>;
 
-impl <S: PageSize, K: MemoryKind> Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Page<S, K> {
     pub const LOG_SIZE: usize = S::LOG_SIZE;
     pub const SIZE: usize = 1 << Self::LOG_SIZE;
     pub const MASK: usize = Self::SIZE - 1;
@@ -97,13 +97,13 @@ impl <S: PageSize, K: MemoryKind> Page<S, K> {
     }
 }
 
-impl <S: PageSize, K: MemoryKind> fmt::Debug for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> fmt::Debug for Page<S, K> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<{:?} {}>", self.0, S::NAME)
     }
 }
 
-impl <S: PageSize, K: MemoryKind> Add<usize> for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Add<usize> for Page<S, K> {
     type Output = Self;
     #[inline(always)]
     fn add(self, rhs: usize) -> Self {
@@ -111,7 +111,7 @@ impl <S: PageSize, K: MemoryKind> Add<usize> for Page<S, K> {
     }
 }
 
-impl <S: PageSize, K: MemoryKind> Add<isize> for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Add<isize> for Page<S, K> {
     type Output = Self;
     #[inline(always)]
     fn add(self, rhs: isize) -> Self {
@@ -123,7 +123,7 @@ impl <S: PageSize, K: MemoryKind> Add<isize> for Page<S, K> {
     }
 }
 
-impl <S: PageSize, K: MemoryKind> Add<i32> for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Add<i32> for Page<S, K> {
     type Output = Self;
     #[inline(always)]
     fn add(self, rhs: i32) -> Self {
@@ -131,7 +131,7 @@ impl <S: PageSize, K: MemoryKind> Add<i32> for Page<S, K> {
     }
 }
 
-impl <S: PageSize, K: MemoryKind> Sub<Page<S, K>> for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Sub<Page<S, K>> for Page<S, K> {
     type Output = usize;
     #[inline(always)]
     fn sub(self, rhs: Self) -> usize {
@@ -139,7 +139,7 @@ impl <S: PageSize, K: MemoryKind> Sub<Page<S, K>> for Page<S, K> {
     }
 }
 
-impl <S: PageSize, K: MemoryKind> Sub<usize> for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Sub<usize> for Page<S, K> {
     type Output = Self;
     #[inline(always)]
     fn sub(self, rhs: usize) -> Self {
@@ -147,8 +147,7 @@ impl <S: PageSize, K: MemoryKind> Sub<usize> for Page<S, K> {
     }
 }
 
-
-unsafe impl <S: PageSize, K: MemoryKind> Step for Page<S, K> {
+unsafe impl<S: PageSize, K: MemoryKind> Step for Page<S, K> {
     #[inline(always)]
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         if start > end {

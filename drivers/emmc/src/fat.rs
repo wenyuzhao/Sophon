@@ -1,4 +1,3 @@
-
 static mut MBR: [u8; 512] = [0; 512];
 static mut PARTITION_LBA: u32 = 0;
 
@@ -9,9 +8,17 @@ impl FAT {
         unsafe {
             let bpb = &mut *(&mut MBR[0] as *mut u8 as usize as *mut BPB);
             super::emmc::EMMC::read_block(0, &mut MBR, 1).unwrap();
-            assert!(MBR[510] == 0x55 && MBR[511] == 0xAA, "Bad magic: 0x{:02x}{:02x}", MBR[510], MBR[511]);
+            assert!(
+                MBR[510] == 0x55 && MBR[511] == 0xAA,
+                "Bad magic: 0x{:02x}{:02x}",
+                MBR[510],
+                MBR[511]
+            );
             // assert!(MBR[0x1C2] == 0xE || MBR[0x1C2] == 0xC, "Incorrect partition type: 0x{:x}", MBR[0x1C2]);
-            log!("MBR disk identifier: 0x{:x}", *(&MBR[0x1B8] as *const u8 as usize as *const u32));
+            log!(
+                "MBR disk identifier: 0x{:x}",
+                *(&MBR[0x1B8] as *const u8 as usize as *const u32)
+            );
             PARTITION_LBA = *(&MBR[0x1C6] as *const u8 as usize as *const u32);
             log!("FAT partition starts at: 0x{:x}", PARTITION_LBA);
             super::emmc::EMMC::read_block(PARTITION_LBA, &mut MBR, 1).unwrap();
@@ -19,7 +26,10 @@ impl FAT {
                 (bpb.fst[0] == 'F' as u8 && bpb.fst[1] == 'A' as u8 && bpb.fst[2] == 'T' as u8)
              || (bpb.fst2[0] == 'F' as u8 && bpb.fst2[1] == 'A' as u8 && bpb.fst2[2] == 'T' as u8)
             };
-            log!("FAT type: {}", if bpb.spf16 > 0 { "FAT16" } else { "FAT32" });
+            log!(
+                "FAT type: {}",
+                if bpb.spf16 > 0 { "FAT16" } else { "FAT32" }
+            );
         }
         Ok(())
     }
@@ -30,7 +40,11 @@ impl FAT {
             // unsigned int root_sec, s;
             // find the root directory's LBA
             let mut root_sec = {
-                let spf = if bpb.spf16 != 0 { bpb.spf16 as u32 } else { bpb.spf32 };
+                let spf = if bpb.spf16 != 0 {
+                    bpb.spf16 as u32
+                } else {
+                    bpb.spf32
+                };
                 spf * bpb.nf as u32 + bpb.rsc as u32
             };
             // root_sec=((bpb->spf16?bpb->spf16:bpb->spf32)*bpb->nf)+bpb->rsc;
@@ -47,7 +61,8 @@ impl FAT {
             root_sec += PARTITION_LBA;
             log!("FAT root directory LBA: 0x{:x}", root_sec);
             // load the root directory
-            super::emmc::EMMC::read_block(root_sec, &mut MBR, s / 512 + 1).expect("Unable to read root directory");
+            super::emmc::EMMC::read_block(root_sec, &mut MBR, s / 512 + 1)
+                .expect("Unable to read root directory");
             log!("Attrib Cluster  Size     Name");
             // iterate on each entry and print out
             let mut dir_ptr = &mut MBR[0] as *mut u8 as usize as *mut FATDir;

@@ -11,4 +11,5 @@ pub trait PhysicalPageResource: Sized {
 
 mod monotone;
 
-pub static PHYSICAL_PAGE_RESOURCE: Mutex<impl PhysicalPageResource> = Mutex::new(monotone::Monotone::new());
+pub static PHYSICAL_PAGE_RESOURCE: Mutex<impl PhysicalPageResource> =
+    Mutex::new(monotone::Monotone::new());

@@ -1,7 +1,7 @@
 use core::fmt;
 use core::fmt::Write;
-use spin::Mutex;
 use proton::IPC;
+use spin::Mutex;
 
 static WRITER: Mutex<Log> = Mutex::new(Log);
 

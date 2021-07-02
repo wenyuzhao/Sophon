@@ -2,4 +2,5 @@
 // pub use ::proton::{address, page};
 // #[macro_use]
 // pub mod macros;
-#[macro_use] pub mod bitflags;
+#[macro_use]
+pub mod bitflags;

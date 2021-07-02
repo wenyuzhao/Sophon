@@ -1,6 +1,6 @@
+use alloc::boxed::Box;
 use core::fmt;
 use core::fmt::Write;
-use alloc::boxed::Box;
 use spin::Mutex;
 
 #[allow(dead_code)]

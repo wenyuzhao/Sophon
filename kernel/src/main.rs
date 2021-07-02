@@ -1,5 +1,3 @@
-
-
 #![no_std]
 #![no_main]
 #![feature(global_asm)]
@@ -22,29 +20,29 @@
 extern crate alloc;
 extern crate device_tree;
 
-#[macro_use] mod log;
+#[macro_use]
+mod log;
 mod arch;
-mod heap;
 mod boot_driver;
-mod task;
-mod scheduler;
+mod heap;
 mod kernel_tasks;
 mod memory;
+mod scheduler;
+mod task;
 
-use core::{mem, panic::PanicInfo};
 use alloc::vec;
+use arch::*;
+use core::{mem, panic::PanicInfo};
 use kernel_tasks::{TestKernelTaskA, TestKernelTaskB};
 use memory::physical::*;
 use proton_kernel::BootInfo;
 use scheduler::*;
-use arch::*;
 use task::*;
-
 
 #[global_allocator]
 static ALLOCATOR: heap::GlobalAllocator = heap::GlobalAllocator::new();
 
-extern {
+extern "C" {
     static mut __bss_start: u8;
     static mut __bss_end: u8;
 }
@@ -61,20 +59,22 @@ unsafe fn zero_bss() {
 }
 
 #[no_mangle]
-pub extern fn _start(boot_info: &mut BootInfo) -> isize {
+pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     unsafe { zero_bss() }
 
     // loop {}
 
     // Initialize physical memory and kernel heap
-    PHYSICAL_PAGE_RESOURCE.lock().init(boot_info.available_physical_memory);
+    PHYSICAL_PAGE_RESOURCE
+        .lock()
+        .init(boot_info.available_physical_memory);
     ALLOCATOR.init();
 
     // Initialize arch and boot drivers
     let t = device_tree::DeviceTree::load(boot_info.device_tree).unwrap();
     TargetArch::init(&t);
     // loop {}
-    let x = vec![ 233usize ];
+    let x = vec![233usize];
     log!("Hello Proton! {:?}", x.as_ptr());
 
     ALLOCATOR.dump();
@@ -108,11 +108,8 @@ pub extern fn _start(boot_info: &mut BootInfo) -> isize {
     // }
     // log!("CurrentEL: {}", CurrentEL.get() >> 2);
 
-
     loop {}
 }
-
-
 
 // unsafe extern fn setup_vbar(ptr: u64) {
 //     log!("efi_main: {:?}", efi_main as *const fn());

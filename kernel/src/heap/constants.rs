@@ -26,9 +26,7 @@ pub const KERNEL_HEAP_LARGE_PAGES: usize = 128;
 
 #[inline]
 pub fn kernel_start() -> Address {
-    unsafe {
-        Address::from(&__kernel_start as *const _ as usize)
-    }
+    unsafe { Address::from(&__kernel_start as *const _ as usize) }
 }
 
 #[inline]
@@ -73,7 +71,7 @@ pub fn kernel_memory() -> Range<Page<Size2M>> {
 pub const LOG_MAX_HEAP_SIZE: usize = 32; // 4G
 pub const MAX_HEAP_SIZE: usize = 1 << LOG_MAX_HEAP_SIZE; // 4G
 
-extern {
+extern "C" {
     static __kernel_start: usize;
     static __kernel_end: usize;
 }
