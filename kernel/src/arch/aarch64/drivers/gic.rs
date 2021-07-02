@@ -184,6 +184,9 @@ impl BootDriver for GIC {
 
         unsafe { llvm_asm!("msr daifclr, #2") };
         unsafe { log!("Int enabled: {}", INTERRUPT_CONTROLLER.as_ref().unwrap().is_enabled()); }
+
+        unsafe { super::super::exception::setup_vbar(); }
+
         // unsafe { INTERRUPT_CONTROLLER.as_ref().unwrap().disable(); }
         // unsafe { log!("Int enabled: {}", INTERRUPT_CONTROLLER.as_ref().unwrap().is_enabled()); }
     }

@@ -64,6 +64,8 @@ unsafe fn zero_bss() {
 pub extern fn _start(boot_info: &mut BootInfo) -> isize {
     unsafe { zero_bss() }
 
+    // loop {}
+
     // Initialize physical memory and kernel heap
     PHYSICAL_PAGE_RESOURCE.lock().init(boot_info.available_physical_memory);
     ALLOCATOR.init();
@@ -71,7 +73,7 @@ pub extern fn _start(boot_info: &mut BootInfo) -> isize {
     // Initialize arch and boot drivers
     let t = device_tree::DeviceTree::load(boot_info.device_tree).unwrap();
     TargetArch::init(&t);
-
+    // loop {}
     let x = vec![ 233usize ];
     log!("Hello Proton! {:?}", x.as_ptr());
 
@@ -80,6 +82,7 @@ pub extern fn _start(boot_info: &mut BootInfo) -> isize {
 
     let task = Task::create_kernel_task(box TestKernelTaskA);
     log!("[kernel: created kernel process: {:?}]", task.id());
+    // loop {}
     let task = Task::create_kernel_task(box TestKernelTaskB);
     log!("[kernel: created kernel process: {:?}]", task.id());
 

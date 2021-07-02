@@ -36,7 +36,7 @@ impl <K: MemoryKind> Address<K> {
     pub const fn new(v: usize) -> Self {
         Self(v, PhantomData)
     }
-    
+
     #[inline]
     pub fn is_zero(&self) -> bool {
         self.0 == 0
@@ -56,7 +56,12 @@ impl <K: MemoryKind> Address<K> {
     pub const fn as_usize(&self) -> usize {
         self.0
     }
-    
+
+    #[inline]
+    pub const fn from_usize(v: usize) -> Self {
+        Self(v, PhantomData)
+    }
+
     #[inline]
     pub fn as_ptr<T>(&self) -> *const T {
         unsafe { ::core::mem::transmute(self.0) }

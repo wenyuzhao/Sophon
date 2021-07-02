@@ -1,5 +1,4 @@
 use proton::memory::*;
-use crate::AbstractKernel;
 use crate::arch::*;
 
 // Allocate a frame and map it to the given virtual address
@@ -16,7 +15,7 @@ pub fn memory_map<K: AbstractKernel>(address: Address, size: usize, flags: PageF
         debug!(K: "mapped {:?}", page);
         ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
         unsafe { page.zero(); }::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-        
+
     }
     Ok(address)
 }

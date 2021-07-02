@@ -27,30 +27,3 @@ impl PageFlags {
         Self::PRESENT | Self::ACCESSED// | Self::NO_WRITE
     }
 }
-
-pub struct PhysicalMemoryManager {
-    table: Option<&'static [u8]>,
-}
-
-impl PhysicalMemoryManager {
-    pub const fn new() -> Self {
-        Self {
-            table: None
-        }
-    }
-
-    // pub fn init(total_pages: usize, available_memory: impl Iterator<Item=(Address, usize)>) {
-    //     let log_total_pages =
-    //     for (start, pages) in available_memory {
-    //         self
-    //     }
-    // }
-
-    // pub fn alloc_fixed(&mut self, addr: Address, pages: usize) -> Address {
-
-    // }
-
-    // pub fn alloc(log_pages: usize) -> Address {
-
-    // }
-}

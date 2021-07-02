@@ -1,13 +1,13 @@
 pub mod constants;
 
-use core::{alloc::{GlobalAlloc, Layout}, ops::Add};
+use core::{alloc::{GlobalAlloc, Layout}, mem, ops::Add};
 use spin::Mutex;
 use core::cmp::{max, min};
 use proton::memory::*;
 use proton::utils::frame_allocator::FrameAllocator;
 use proton::utils::frame_allocator::bump_allocator::BumpFrameAllocator;
 
-use crate::{arch::*, memory::physical::*};
+use crate::{arch::*, memory::{self, physical::*}};
 
 const MIN_SIZE: usize = 1 << 3;
 
@@ -38,6 +38,32 @@ impl FreeListAllocator {
             self.push_cell(size_class, cursor);
             cursor += size;
         }
+        // // Allocate 256M as kernel heap
+        // let heap = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size2M>(constants::KERNEL_HEAP_LARGE_PAGES).unwrap();
+        // let heap_start_frame = Frame::<Size2M>::new(heap.start.start());
+        // let heap_end_frame = Frame::<Size2M>::new(heap.end.start());
+        // // Map physical memory
+        // let virtual_memory = constants::kernel_heap_memory();
+        // let mut current_frame = heap_start_frame;
+        // for page in virtual_memory {
+        //     // map page -> current_frame
+        //     proton::memory::
+        //     current_frame.memory
+        // }
+
+
+
+        // // println!("Heap: {:?}..{:?}", heap_start, heap_limit);
+        // let mut cursor = heap_start;
+        // while cursor < heap_limit {
+        //     let align = cursor.as_usize().trailing_zeros();
+        //     let size = min(1 << align, heap_limit - cursor);
+        //     assert!(size > 0);
+        //     let size_class = Self::size_class(size);
+        //     assert!(cursor.as_usize() & ((1 << (size_class + 3)) - 1) == 0);
+        //     self.push_cell(size_class, cursor);
+        //     cursor += size;
+        // }
     }
 
     fn push_cell(&mut self, size_class: usize, cell: Address) {

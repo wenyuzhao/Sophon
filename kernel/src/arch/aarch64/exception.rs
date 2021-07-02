@@ -1,3 +1,7 @@
+use cortex_a::{barrier, regs::{RegisterReadWrite, VBAR_EL1}};
+use proton::memory::Address;
+use proton_kernel::page_table::{L4, PageTable};
+
 // use super::gic::*;
 // use proton_kernel::task::Task;
 // use proton_kernel::arch::*;
@@ -103,12 +107,13 @@ pub unsafe extern fn handle_exception(exception_frame: *mut ExceptionFrame) {
 
 #[no_mangle]
 pub unsafe extern fn handle_exception_serror(exception_frame: *mut ExceptionFrame) {
-    log!("Exception SError received");
+    log!("SError received");
     loop {}
 }
 
 #[no_mangle]
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
+    log!("IRQ received");
     unreachable!()
     // Task::<Kernel>::current().unwrap().context.exception_frame = exception_frame;
     // ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
@@ -139,11 +144,23 @@ extern {
     pub fn exit_exception() -> !;
 }
 
+pub unsafe extern fn setup_vbar() {
+    // log!("efi_main: {:?}", efi_main as *const fn());
+    // log!("handle_exception: {:?}", exception::handle_exception as *const fn());
+    // log!("exception_handlers: {:?}", exception::exception_handlers as *const fn());
+    let v_ptr = exception_handlers as *const fn() as u64;
+    log!("exception_handlers virtual: {:#x}", v_ptr);
+    let p4 = PageTable::<L4>::get(false);
+    let p_ptr = p4.translate(Address::from(v_ptr as usize));
+    log!("exception_handlers real: {:?}", p_ptr);
+    let p_ptr = p_ptr.unwrap().0.as_usize();
+    VBAR_EL1.set(p_ptr as u64);
+    barrier::isb(barrier::SY);
+}
 
 // FIXME: We may need to switch stack after enter an exception,
 //        to avoid stack overflow.
 // Exception handlers table
-#[cfg(not(feature="rls"))]
 global_asm! {"
 .global exception_handlers
 .global exit_exception

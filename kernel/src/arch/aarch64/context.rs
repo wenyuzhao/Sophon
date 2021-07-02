@@ -1,13 +1,9 @@
 use alloc::boxed::Box;
-use proton::memory::*;
-use crate::{heap::constants::*, arch::*};
-// use crate::arch::*;
-// use super::mm::FRAME_ALLOCATOR;
-use proton_kernel::page_table::*;
-// use super::mm::page_table::PageFlags;
+use crate::{arch::*, heap::constants::*, memory::physical::*};
 use super::exception::ExceptionFrame;
 use cortex_a::regs::*;
-use proton::task::Message;
+use proton::{memory::{Frame, Size4K, PageSize}, task::Message};
+use proton_kernel::page_table::*;
 // use
 
 #[repr(C, align(4096))]
@@ -18,8 +14,10 @@ pub struct KernelStack {
 }
 
 impl KernelStack {
-    pub fn new() -> Box<Self> {
-        let mut kernel_stack = unsafe { Box::<KernelStack>::new_uninit().assume_init() };
+    pub fn new() -> &'static mut Self {
+        let pages = KERNEL_STACK_PAGES + 1;
+        let stack = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size4K>(pages).unwrap();
+        let mut kernel_stack = unsafe { stack.start.start().as_ref_mut::<Self>() };
         kernel_stack.init();
         kernel_stack
     }
@@ -89,7 +87,7 @@ pub struct AArch64Context {
     // q: [u128; 32], // Neon registers
 
     pub p4: Frame,
-    kernel_stack: Option<Box<KernelStack>>,
+    kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
     response_message: Option<Message>,
     response_status: Option<isize>,
@@ -103,36 +101,29 @@ impl ArchContext for AArch64Context {
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
     fn new(entry: *const extern fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
-        unreachable!();
-        log!("Content new 1");
-        // Alloc page table
-        // let p4 = unsafe {
-        //     log!("Content new 1.1");
-        //     let p4_frame = FRAME_ALLOCATOR.alloc::<Size4K>();
-        //     log!("Content new 1.2");
-        //     let p4_page = super::mm::page_table::map_kernel_temporarily(p4_frame, PageFlags::_PAGE_TABLE_FLAGS, None);
-        //     log!("Content new 1.3");
-        //     let p4 = p4_page.start().as_ref_mut::<PageTable<L4>>();
-        //     log!("Content new 1.4");
-        //     for i in 0..511 {
-        //         p4.entries[i].clear();
-        //     }
-        //     log!("Content new 1.5");
-        //     p4.entries[511].set(p4_frame, PageFlags::_PAGE_TABLE_FLAGS);
-        //     log!("Content new 1.6");
-        //     p4_frame
-        // };
-        log!("Content new 2");
-        // // Alloc kernel stack
-        // let kernel_stack = KernelStack::new();
-        // let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
-        // let mut ctx = Self::empty();
-        // ctx.entry_pc = entry as _;
-        // ctx.kernel_stack_top = sp;
-        // ctx.p4 = p4;
-        // ctx.kernel_stack = Some(kernel_stack);
-        // ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
-        // ctx
+        log!("AArch64Context::new 0");
+        // Create user page table
+        let p4_frame = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size4K>(1).unwrap().start;
+        unsafe { p4_frame.zero() };
+        let p4 = unsafe { p4_frame.start().as_ref_mut::<PageTable<L4>>() };
+        p4.entries[511].set(p4_frame, PageFlags::page_table_flags());
+        // Map kernel memory to user page table
+        let current_table = PageTable::<L4>::get(false);
+        log!("AArch64Context::new 1 {:?}", current_table as *mut _);
+        for i in 0..511 {
+            p4.entries[i] = current_table.entries[i].clone();
+        }
+        log!("AArch64Context::new 2");
+        // Alloc kernel stack (SP_EL1)
+        let kernel_stack = KernelStack::new();
+        let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
+        let mut ctx = Self::empty();
+        ctx.entry_pc = entry as _;
+        ctx.kernel_stack_top = sp;
+        ctx.p4 = p4_frame;
+        ctx.kernel_stack = Some(kernel_stack);
+        ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
+        ctx
     }
 
     fn set_response_message(&mut self, m: Message) {

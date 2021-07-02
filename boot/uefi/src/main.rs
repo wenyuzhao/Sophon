@@ -164,6 +164,9 @@ fn load_elf() -> extern "C" fn(&mut BootInfo) -> isize {
         let vaddr_end = Page::<Size4K>::align_up(load_end.unwrap());
         let pages = ((vaddr_end - vaddr_start) + ((1 << 12) - 1)) >> 12;
         log!("Map code start");
+        let p4 = unsafe { &mut *(TTBR0_EL1.get() as *mut PageTable<L4>) };
+        let addr = Address::from(p4 as *mut _);
+        p4.entries[511].set(Frame::<Size4K>::new(addr), PageFlags::page_table_flags());
         map_kernel_pages_4k(unsafe { &mut *(TTBR0_EL1.get() as *mut PageTable<L4>) }, vaddr_start.as_usize() as _, pages);
         log!("Map code end");
         // Copy data
