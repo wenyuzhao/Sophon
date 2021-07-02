@@ -1,9 +1,0 @@
-[target.aarch64-proton-uefi]
-runner = ".cargo/run-qemu.sh"
-
-[target.aarch64-unknown-none]
-# rustc-flags = ["link-arg=-Taarch64.ld"]
-
-[unstable]
-build-std = ["core", "compiler_builtins", "alloc"]
-build-std-features = ["compiler-builtins-mem"]
