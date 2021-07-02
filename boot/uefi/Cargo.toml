@@ -10,7 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 spin = "0.7"
-cortex-a = "3.0.3"
+cortex-a = "5.1.6"
 bitflags = "1.2.1"
 uefi = { version = "0.7.0" }
 elf_rs = "0.1.1"

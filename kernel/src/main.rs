@@ -12,11 +12,12 @@
 #![feature(never_type)]
 #![feature(step_trait_ext)]
 #![feature(const_fn_transmute)]
-#![feature(const_in_array_repeat_expressions)]
 #![feature(impl_trait_in_bindings)]
 #![feature(type_alias_impl_trait)]
 #![feature(const_impl_trait)]
 #![feature(const_fn_fn_ptr_basics)]
+#![feature(const_raw_ptr_to_usize_cast)]
+#![feature(min_type_alias_impl_trait)]
 
 extern crate alloc;
 extern crate device_tree;
@@ -63,13 +64,14 @@ unsafe fn zero_bss() {
 pub extern fn _start(boot_info: &mut BootInfo) -> isize {
     unsafe { zero_bss() }
 
+    // Initialize physical memory and kernel heap
     PHYSICAL_PAGE_RESOURCE.lock().init(boot_info.available_physical_memory);
     ALLOCATOR.init();
 
+    // Initialize arch and boot drivers
     let t = device_tree::DeviceTree::load(boot_info.device_tree).unwrap();
     TargetArch::init(&t);
 
-    // return 233;
     let x = vec![ 233usize ];
     log!("Hello Proton! {:?}", x.as_ptr());
 

@@ -9,7 +9,6 @@
 #![feature(never_type)]
 #![feature(step_trait_ext)]
 #![feature(const_fn_transmute)]
-#![feature(const_in_array_repeat_expressions)]
 #![feature(untagged_unions)]
 
 extern crate alloc;

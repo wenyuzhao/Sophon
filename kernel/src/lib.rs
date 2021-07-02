@@ -10,6 +10,7 @@
 #![feature(specialization)]
 #![feature(const_mut_refs)]
 #![feature(impl_trait_in_bindings)]
+#![feature(min_type_alias_impl_trait)]
 #![no_std]
 
 extern crate alloc;
