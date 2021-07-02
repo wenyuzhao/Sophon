@@ -1,6 +1,6 @@
 use core::fmt;
 use core::fmt::Write;
-use proton::IPC;
+use proton::scheduler::ipc::IPC;
 use spin::Mutex;
 
 static WRITER: Mutex<Log> = Mutex::new(Log);

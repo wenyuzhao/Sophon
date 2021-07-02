@@ -1,18 +1,16 @@
+use crate::arch::InterruptId;
 use cortex_a::{
     barrier,
     regs::{RegisterReadWrite, VBAR_EL1},
 };
-use proton::memory::Address;
-use proton_kernel::page_table::{PageTable, L4};
 
-// use super::gic::*;
-// use proton_kernel::task::Task;
-// use proton_kernel::arch::*;
 use crate::{
-    arch::aarch64::{
-        context::AArch64Context,
-        drivers::gic::{GIC, GICC},
+    arch::{
+        aarch64::{context::*, drivers::gic::*},
+        *,
     },
+    page_table::{PageTable, L4},
+    task::Task,
     *,
 };
 use core::intrinsics::{volatile_load, volatile_store};

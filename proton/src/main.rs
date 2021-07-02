@@ -21,26 +21,29 @@ extern crate alloc;
 extern crate device_tree;
 
 #[macro_use]
-mod log;
-mod arch;
-mod boot_driver;
-mod heap;
-mod kernel_tasks;
-mod memory;
-mod scheduler;
-mod task;
+extern crate proton;
+
+// mod log;
+// mod arch;
+// mod boot_driver;
+// mod heap;
+// mod kernel_tasks;
+// // mod memory;
+// mod scheduler;
+// mod task;
+
+use core::panic::PanicInfo;
 
 use alloc::vec;
-use arch::*;
-use core::{mem, panic::PanicInfo};
-use kernel_tasks::{TestKernelTaskA, TestKernelTaskB};
-use memory::physical::*;
-use proton_kernel::BootInfo;
-use scheduler::*;
-use task::*;
+use proton::arch::{Arch, TargetArch};
+use proton::kernel_tasks::{TestKernelTaskA, TestKernelTaskB};
+use proton::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
+use proton::scheduler::{AbstractScheduler, SCHEDULER};
+use proton::task::Task;
+use proton::BootInfo;
 
 #[global_allocator]
-static ALLOCATOR: heap::GlobalAllocator = heap::GlobalAllocator::new();
+static ALLOCATOR: proton::heap::GlobalAllocator = proton::heap::GlobalAllocator::new();
 
 extern "C" {
     static mut __bss_start: u8;
@@ -110,15 +113,6 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
 
     loop {}
 }
-
-// unsafe extern fn setup_vbar(ptr: u64) {
-//     log!("efi_main: {:?}", efi_main as *const fn());
-//     log!("handle_exception: {:?}", exception::handle_exception as *const fn());
-//     log!("exception_handlers: {:?}", exception::exception_handlers as *const fn());
-//     log!("exception_handlers real: {:#x}", ptr);
-//     VBAR_EL1.set(ptr);
-//     barrier::isb(barrier::SY);
-// }
 
 #[panic_handler]
 fn panic(info: &PanicInfo<'_>) -> ! {

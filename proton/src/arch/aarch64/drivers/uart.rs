@@ -3,9 +3,8 @@ use core::{
     mem, slice,
 };
 
-use crate::boot_driver::BootDriver;
+use crate::{boot_driver::BootDriver, utils::volatile::Volatile};
 use device_tree::Node;
-use proton::utils::volatile::Volatile;
 use spin::{Lazy, Mutex};
 
 #[repr(C)]

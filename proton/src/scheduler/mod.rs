@@ -1,3 +1,4 @@
+pub mod ipc;
 pub mod round_robin;
 
 use crate::{arch::*, task::*};

@@ -1,6 +1,6 @@
-use crate::*;
+use crate::{task::TaskId, *};
 
-pub use super::Message;
+pub use crate::task::Message;
 
 #[repr(usize)]
 pub enum IPC {

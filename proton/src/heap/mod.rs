@@ -1,14 +1,13 @@
 pub mod constants;
 
+use crate::utils::address::*;
+use crate::utils::page::*;
 use core::cmp::{max, min};
 use core::{
     alloc::{GlobalAlloc, Layout},
     mem,
     ops::Add,
 };
-use proton::memory::*;
-use proton::utils::frame_allocator::bump_allocator::BumpFrameAllocator;
-use proton::utils::frame_allocator::FrameAllocator;
 use spin::Mutex;
 
 use crate::{

@@ -1,6 +1,6 @@
 use core::ops::Range;
 
-use proton::memory::{Frame, PageSize};
+use crate::utils::page::*;
 use spin::Mutex;
 
 pub trait PhysicalPageResource: Sized {

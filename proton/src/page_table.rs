@@ -1,6 +1,7 @@
 use core::{fmt::Debug, marker::PhantomData, ops::BitOr};
 // use enumset::EnumSet;
-use proton::memory::*;
+use crate::utils::address::*;
+use crate::utils::page::*;
 
 use crate::utils::bitflags::*;
 // use bitflags::bitflags;

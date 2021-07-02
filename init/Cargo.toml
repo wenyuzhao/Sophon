@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 spin = "0.5.2"
-proton = { path = "../proton", features = ["user"] }
+proton = { path = "../proton" }
 
 [features]
 default = []

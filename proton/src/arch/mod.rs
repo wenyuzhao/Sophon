@@ -1,6 +1,6 @@
+use crate::utils::address::*;
 use alloc::boxed::Box;
 use device_tree::DeviceTree;
-use proton::memory::Address;
 
 #[repr(usize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

@@ -3,15 +3,26 @@ name = "proton"
 version = "0.1.0"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
-description = "Common types and APIs, used for both kernel and user programs."
+
+[[bin]]
+name = "proton"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-spin = "0.5.2"
-bitflags = "1.2.1"
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+spin = "0.7"
+cortex-a = "5.1.6"
+elf_rs = "0.1.1"
+device_tree = { git = "https://github.com/rcore-os/device_tree-rs" }
+# enumset/ = { git = "https://github.com/ocboogie/enumset", branch = "span-fix" }
+# enumflags2 = "0.7.0-preview1"
+
+# [patch.crates-io.enumset]
+# git = "https://github.com/ocboogie/enumset"
+# branch = "span-fix"
 
 [features]
 default = []
-kernel = []
-user = []
+rls = []

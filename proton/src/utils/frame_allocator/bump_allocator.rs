@@ -1,6 +1,6 @@
 use super::FrameAllocator;
-use crate::address::*;
-use crate::page::*;
+use crate::utils::address::*;
+use crate::utils::page::*;
 
 pub struct BumpFrameAllocator {
     start: Address<P>,

@@ -1,5 +1,5 @@
 build:
-	$(MAKE) -C ../../kernel build
+	$(MAKE) -C ../../proton build
 	cargo build
 
 run: build

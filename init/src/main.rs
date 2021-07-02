@@ -1,9 +1,15 @@
 #![feature(asm, llvm_asm)]
 #![feature(format_args_nl)]
+#![feature(default_alloc_error_handler)]
 #![no_std]
 #![no_main]
 
 extern crate proton;
+
+use proton::utils::no_alloc::NoAlloc;
+
+#[global_allocator]
+static ALLOCATOR: NoAlloc = NoAlloc;
 
 #[macro_use]
 mod log;

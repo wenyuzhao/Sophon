@@ -1,24 +1,24 @@
-use alloc::boxed::Box;
+use super::IPC;
 use core::fmt;
 use core::fmt::Write;
 use spin::Mutex;
 
 #[allow(dead_code)]
-pub static WRITER: Mutex<Option<Box<dyn Write + Send>>> = Mutex::new(None);
+static WRITER: Mutex<Log> = Mutex::new(Log);
 
-// pub struct Log;
+struct Log;
 
-// impl Write for Log {
-//     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-//         WRITER.lock().unwrap().write_str(s)
-//     }
-// }
+impl Write for Log {
+    fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
+        IPC::log(s);
+        Ok(())
+    }
+}
 
 #[doc(hidden)]
-#[inline(never)]
 pub fn _print(args: fmt::Arguments) {
     let mut writer = WRITER.lock();
-    writer.as_mut().unwrap().write_fmt(args).unwrap();
+    writer.write_fmt(args).unwrap();
 }
 
 #[macro_export]

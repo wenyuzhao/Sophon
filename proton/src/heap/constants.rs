@@ -1,6 +1,7 @@
 use core::ops::Range;
 
-use proton::memory::*;
+use crate::utils::address::*;
+use crate::utils::page::*;
 
 // pub const KERNEL_CORE0_STACK_START: usize = 0xffff0000_0007c000;
 // pub const KERNEL_CORE0_STACK_END:   usize = 0xffff0000_00080000;

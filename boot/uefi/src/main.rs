@@ -13,36 +13,19 @@
 
 extern crate alloc;
 
-use core::{
-    alloc::{GlobalAlloc, Layout},
-    intrinsics::transmute,
-    mem,
-    ops::Range,
-    panic::PanicInfo,
-    ptr, slice,
-};
+use core::alloc::Layout;
+use core::{intrinsics::transmute, mem, ops::Range, panic::PanicInfo, ptr, slice};
 use cortex_a::regs::*;
-use proton::memory::*;
-use proton_kernel::page_table::PageFlags;
-use proton_kernel::{page_table::*, BootInfo};
+use proton::utils::address::*;
+use proton::utils::page::*;
+use proton::{page_table::PageFlags, utils::no_alloc::NoAlloc};
+use proton::{page_table::*, BootInfo};
 use uefi::{prelude::*, table::boot::*};
 #[macro_use]
 mod log;
 use elf_rs::*;
 
 static DEVICE_TREE: &'static [u8] = include_bytes!("../../dtbs/qemu-virt.dtb");
-
-pub struct NoAlloc;
-
-unsafe impl GlobalAlloc for NoAlloc {
-    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
-        unreachable!()
-    }
-
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        unreachable!()
-    }
-}
 
 #[global_allocator]
 static ALLOCATOR: NoAlloc = NoAlloc;

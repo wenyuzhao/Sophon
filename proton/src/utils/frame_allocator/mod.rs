@@ -1,5 +1,6 @@
-use crate::page::*;
 use spin::Mutex;
+
+use super::page::*;
 
 pub trait FrameAllocator: Sized {
     fn identity_alloc<S: PageSize>(&mut self, frame: Frame<S>);
