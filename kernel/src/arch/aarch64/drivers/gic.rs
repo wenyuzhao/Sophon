@@ -1,9 +1,10 @@
 use core::{intrinsics::volatile_store, mem, slice};
 
 use cortex_a::{barrier, regs::*};
-use crate::{boot_driver::BootDriver, arch::{ArchInterrupt, aarch64::INTERRUPT_CONTROLLER}};
+use crate::{arch::{ArchInterrupt, aarch64::INTERRUPT_CONTROLLER}, boot_driver::BootDriver, scheduler::SCHEDULER};
 use spin::Lazy;
 use device_tree::Node;
+use crate::scheduler::AbstractScheduler;
 
 
 // pub const ARM_GICD_BASE: usize = super::timer::ARM_TIMER_BASE;
@@ -97,10 +98,10 @@ unsafe impl Send for GIC {}
 unsafe impl Sync for GIC {}
 
 impl GIC {
-    fn gicd(&self) -> &'static mut GICD {
+    pub fn gicd(&self) -> &'static mut GICD {
         unsafe { &mut *self.GICD.unwrap() }
     }
-    fn gicc(&self) -> &'static mut GICC {
+    pub fn gicc(&self) -> &'static mut GICC {
         unsafe { &mut *self.GICC.unwrap() }
     }
 
@@ -161,8 +162,18 @@ impl BootDriver for GIC {
         log!("GICD@{:#x} GICC@{:#x}", gicd_address, gicc_address);
         self.GICD = Some(unsafe { mem::transmute(gicd_address) });
         self.GICC = Some(unsafe { mem::transmute(gicc_address) });
+        let irq = box GICInterruptController::new();
+        irq.set_handler(crate::arch::InterruptId::Timer, Some(box |_, _, _, _, _, _| {
+            // Update compare value
+            let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
+            unsafe {
+                llvm_asm!("msr cntp_cval_el0, $0":: "r"(CNTPCT_EL0.get() + step));
+            }
+            SCHEDULER.timer_tick();
+            0
+        }));
         unsafe {
-            INTERRUPT_CONTROLLER = Some(box GICInterruptController::new());
+            INTERRUPT_CONTROLLER = Some(irq);
         }
 
         log!("Starting timer...");
@@ -182,8 +193,8 @@ impl BootDriver for GIC {
 
         log!("Timer started");
 
-        unsafe { llvm_asm!("msr daifclr, #2") };
-        unsafe { log!("Int enabled: {}", INTERRUPT_CONTROLLER.as_ref().unwrap().is_enabled()); }
+        // unsafe { llvm_asm!("msr daifclr, #2") };
+        // unsafe { log!("Int enabled: {}", INTERRUPT_CONTROLLER.as_ref().unwrap().is_enabled()); }
 
         unsafe { super::super::exception::setup_vbar(); }
 
@@ -216,10 +227,4 @@ impl ArchInterrupt for GICInterruptController {
     fn disable(&self) {
         unsafe { llvm_asm!("msr daifset, #2") };
     }
-
-    // fn set_handler(id: InterruptId, handler: Option<InterruptHandler>) {
-    //     unsafe {
-    //         INTERRUPT_HANDLERS[id as usize] = handler;
-    //     }
-    // }
 }

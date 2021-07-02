@@ -77,6 +77,8 @@ pub extern fn _start(boot_info: &mut BootInfo) -> isize {
     let x = vec![ 233usize ];
     log!("Hello Proton! {:?}", x.as_ptr());
 
+    ALLOCATOR.dump();
+
     let v = vec![1, 3, 5, 7, 9];
     log!("Test Alloc {:?} {:?}", v, v.as_ptr());
 

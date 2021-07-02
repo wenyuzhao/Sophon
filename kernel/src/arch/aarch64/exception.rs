@@ -5,7 +5,7 @@ use proton_kernel::page_table::{L4, PageTable};
 // use super::gic::*;
 // use proton_kernel::task::Task;
 // use proton_kernel::arch::*;
-use crate::*;
+use crate::{*, arch::aarch64::{context::AArch64Context, drivers::gic::{GIC, GICC}}};
 use core::intrinsics::{volatile_load, volatile_store};
 
 
@@ -114,29 +114,32 @@ pub unsafe extern fn handle_exception_serror(exception_frame: *mut ExceptionFram
 #[no_mangle]
 pub extern fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     log!("IRQ received");
-    unreachable!()
-    // Task::<Kernel>::current().unwrap().context.exception_frame = exception_frame;
-    // ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-    // #[allow(non_snake_case)]
-    // let GICC = GICC::get();
-    // let iar = unsafe { volatile_load(&GICC.IAR) };
-    // let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
-    // unsafe { volatile_store(&mut GICC.EOIR, iar) }; // FIXME: End of Interrupt ??? here ???
-    // if irq < 256 {
-    //     if irq == 30 {
-    //         unsafe { volatile_store(&mut GICC.EOIR, iar) };
-    //         super::interrupt::handle_interrupt(InterruptId::Timer, &mut *exception_frame);
-    //         return;
-    //     } else {
-    //         panic!("Unknown IRQ");
-    //     }
-    // }
+    // loop {}
+    Task::current().unwrap().get_context::<AArch64Context>().exception_frame = exception_frame;
+    ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
+    #[allow(non_snake_case)]
+    let GICC = GIC.gicc();
+    let iar = unsafe { volatile_load(&GICC.IAR) };
+    let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
+    unsafe { volatile_store(&mut GICC.EOIR, iar) }; // FIXME: End of Interrupt ??? here ???
+    if irq < 256 {
+        if irq == 30 || irq == 27 {
+            unsafe { volatile_store(&mut GICC.EOIR, iar) };
+            TargetArch::interrupt().handle(InterruptId::Timer, &[
+                exception_frame.x0, exception_frame.x1, exception_frame.x2,
+                exception_frame.x3, exception_frame.x4, exception_frame.x5,
+            ]);
+            return;
+        } else {
+            log!("Unknown IRQ #{}", irq);
+        }
+    }
 
-    // ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-    // unsafe {
-    //     // debug!(Kernel: "return_to_use00");
-    //     Task::<Kernel>::current().unwrap().context.return_to_user();
-    // }
+    ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
+    unsafe {
+        // debug!(Kernel: "return_to_use00");
+        Task::current().unwrap().context.return_to_user();
+    }
 }
 
 extern {
@@ -152,9 +155,9 @@ pub unsafe extern fn setup_vbar() {
     log!("exception_handlers virtual: {:#x}", v_ptr);
     let p4 = PageTable::<L4>::get(false);
     let p_ptr = p4.translate(Address::from(v_ptr as usize));
-    log!("exception_handlers real: {:?}", p_ptr);
+    log!("exception_handlers physical: {:?}", p_ptr);
     let p_ptr = p_ptr.unwrap().0.as_usize();
-    VBAR_EL1.set(p_ptr as u64);
+    VBAR_EL1.set(v_ptr as u64);
     barrier::isb(barrier::SY);
 }
 

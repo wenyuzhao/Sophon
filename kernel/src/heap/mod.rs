@@ -12,14 +12,22 @@ use crate::{arch::*, memory::{self, physical::*}};
 const MIN_SIZE: usize = 1 << 3;
 
 pub struct FreeListAllocator {
+    start: Address,
+    end: Address,
     cells: [Address; 28], // (1<<3), (1<<4), (1<<5), ..., (1<<30)
 }
 
 impl FreeListAllocator {
     const fn new() -> Self {
         Self {
+            start: Address::ZERO,
+            end: Address::ZERO,
             cells: [Address::ZERO; 28]
         }
+    }
+
+    fn dump(&self) {
+        log!("Heap: {:?}..{:?}", self.start, self.end);
     }
 
     fn init(&mut self) {
@@ -27,6 +35,8 @@ impl FreeListAllocator {
         let heap = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size2M>(128).unwrap();
         let heap_start: Address = Address::<V>::from(heap.start.start().as_usize());
         let heap_limit: Address = Address::<V>::from(heap.end.start().as_usize());
+        self.start = heap_start;
+        self.end = heap_limit;
         // println!("Heap: {:?}..{:?}", heap_start, heap_limit);
         let mut cursor = heap_start;
         while cursor < heap_limit {
@@ -144,6 +154,10 @@ impl GlobalAllocator {
 
     pub fn init(&self) {
         self.fa.lock().init()
+    }
+
+    pub fn dump(&self) {
+        self.fa.lock().dump()
     }
 }
 

@@ -142,6 +142,11 @@ impl Task {
     pub fn current() -> Option<&'static mut Self> {
         SCHEDULER.get_current_task()
     }
+
+    pub fn get_context<C: ArchContext>(&mut self) -> &mut C {
+        let ptr = &mut self.context as *mut _;
+        unsafe { &mut *(ptr as *mut C) }
+    }
 }
 
 unsafe impl Send for Task {}
