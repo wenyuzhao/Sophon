@@ -1,10 +1,8 @@
 use super::exception::ExceptionFrame;
 use crate::page_table::*;
 use crate::task::Message;
-use crate::utils::address::*;
 use crate::utils::page::*;
 use crate::{arch::*, heap::constants::*, memory::physical::*};
-use alloc::boxed::Box;
 use cortex_a::regs::*;
 // use
 
@@ -22,7 +20,7 @@ impl KernelStack {
             .lock()
             .acquire::<Size4K>(pages)
             .unwrap();
-        let mut kernel_stack = unsafe { stack.start.start().as_ref_mut::<Self>() };
+        let kernel_stack = unsafe { stack.start.start().as_ref_mut::<Self>() };
         kernel_stack.init();
         kernel_stack
     }

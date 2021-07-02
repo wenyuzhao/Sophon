@@ -76,7 +76,7 @@ impl Message {
     }
 
     #[inline]
-    pub fn receive(src: Option<TaskId>) -> Message {
+    pub fn receive(_src: Option<TaskId>) -> Message {
         // IPC::receive(src)
         unimplemented!()
     }

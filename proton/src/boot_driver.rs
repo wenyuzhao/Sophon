@@ -1,6 +1,3 @@
-use core::{any::Any, result};
-
-use alloc::boxed::Box;
 use device_tree::{DeviceTree, Node};
 
 pub trait BootDriver {

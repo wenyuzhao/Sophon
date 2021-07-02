@@ -2,18 +2,11 @@ pub mod constants;
 
 use crate::utils::address::*;
 use crate::utils::page::*;
+use core::alloc::{GlobalAlloc, Layout};
 use core::cmp::{max, min};
-use core::{
-    alloc::{GlobalAlloc, Layout},
-    mem,
-    ops::Add,
-};
 use spin::Mutex;
 
-use crate::{
-    arch::*,
-    memory::{self, physical::*},
-};
+use crate::{arch::*, memory::physical::*};
 
 const MIN_SIZE: usize = 1 << 3;
 

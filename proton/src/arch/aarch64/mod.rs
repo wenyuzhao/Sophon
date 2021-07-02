@@ -52,6 +52,7 @@ impl Arch for AArch64 {
     }
 }
 
+#[allow(unused)]
 pub const fn create() -> TargetArch {
     AArch64
 }

@@ -9,7 +9,6 @@ use crate::{
         aarch64::{context::*, drivers::gic::*},
         *,
     },
-    page_table::{PageTable, L4},
     task::Task,
     *,
 };
@@ -66,7 +65,7 @@ unsafe fn get_exception_class() -> ExceptionClass {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn handle_exception(exception_frame: *mut ExceptionFrame) {
+pub unsafe extern "C" fn handle_exception(_exception_frame: *mut ExceptionFrame) {
     log!("Exception received");
     loop {}
     // println!("EF = {:?}", exception_frame as *mut _);
@@ -166,11 +165,7 @@ pub unsafe extern "C" fn setup_vbar() {
     // log!("handle_exception: {:?}", exception::handle_exception as *const fn());
     // log!("exception_handlers: {:?}", exception::exception_handlers as *const fn());
     let v_ptr = exception_handlers as *const fn() as u64;
-    log!("exception_handlers virtual: {:#x}", v_ptr);
-    let p4 = PageTable::<L4>::get(false);
-    let p_ptr = p4.translate(Address::from(v_ptr as usize));
-    log!("exception_handlers physical: {:?}", p_ptr);
-    let p_ptr = p_ptr.unwrap().0.as_usize();
+    log!("exception_handlers: {:#x}", v_ptr);
     VBAR_EL1.set(v_ptr as u64);
     barrier::isb(barrier::SY);
 }

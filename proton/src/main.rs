@@ -9,9 +9,6 @@
 #![feature(new_uninit)]
 #![feature(never_type)]
 #![feature(step_trait_ext)]
-#![feature(const_fn_transmute)]
-#![feature(impl_trait_in_bindings)]
-#![feature(type_alias_impl_trait)]
 #![feature(const_impl_trait)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_raw_ptr_to_usize_cast)]
@@ -22,15 +19,6 @@ extern crate device_tree;
 
 #[macro_use]
 extern crate proton;
-
-// mod log;
-// mod arch;
-// mod boot_driver;
-// mod heap;
-// mod kernel_tasks;
-// // mod memory;
-// mod scheduler;
-// mod task;
 
 use core::panic::PanicInfo;
 
@@ -110,8 +98,6 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     //     *(0xdeadbeed as *mut u8) = 0;
     // }
     // log!("CurrentEL: {}", CurrentEL.get() >> 2);
-
-    loop {}
 }
 
 #[panic_handler]

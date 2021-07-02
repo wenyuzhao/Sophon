@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![feature(const_fn)]
 #![feature(format_args_nl)]
 #![feature(associated_type_defaults)]
