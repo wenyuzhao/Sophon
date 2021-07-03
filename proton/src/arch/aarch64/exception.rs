@@ -60,7 +60,7 @@ pub struct ExceptionFrame {
 
 unsafe fn get_exception_class() -> ExceptionClass {
     let esr_el1: u32;
-    llvm_asm!("mrs $0, esr_el1":"=r"(esr_el1));
+    asm!("mrs {:x}, esr_el1", out(reg) esr_el1);
     ::core::mem::transmute(esr_el1 >> 26)
 }
 

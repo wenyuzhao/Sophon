@@ -168,7 +168,7 @@ pub static GIC: Lazy<GIC> = Lazy::new(|| GIC {
 impl BootDriver for GIC {
     const COMPATIBLE: &'static str = "arm,cortex-a15-gic";
     fn init(&mut self, node: &Node) {
-        unsafe { llvm_asm!("msr daifset, #2") };
+        unsafe { asm!("msr daifset, #2") };
 
         assert!(node.prop_raw("#size-cells").unwrap() == &[0u8, 0, 0, 2]);
         assert!(node.prop_raw("#address-cells").unwrap() == &[0u8, 0, 0, 2]);
@@ -192,7 +192,7 @@ impl BootDriver for GIC {
                 // Update compare value
                 let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
                 unsafe {
-                    llvm_asm!("msr cntp_cval_el0, $0":: "r"(CNTPCT_EL0.get() + step));
+                    asm!("msr cntp_cval_el0, {}", in(reg) CNTPCT_EL0.get() + step);
                 }
                 SCHEDULER.timer_tick();
                 0
@@ -205,16 +205,16 @@ impl BootDriver for GIC {
         log!("Starting timer...");
 
         unsafe {
-            llvm_asm!("dsb SY":::"memory");
+            asm!("dsb SY");
             let timer_irq = 16 + 14;
             self.gicd().ISENABLER[timer_irq / 32] = 1 << (timer_irq % 32);
             let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
             assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
             let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;
             let n_cntpct: usize = CNTPCT_EL0.get() as _;
-            llvm_asm!("msr CNTP_CVAL_EL0, $0" :: "r" (n_cntpct + clock_ticks_per_timer_irq));
+            asm!("msr CNTP_CVAL_EL0, {}", in(reg) n_cntpct + clock_ticks_per_timer_irq);
             CNTP_CTL_EL0.set(1);
-            llvm_asm!("dmb SY":::"memory");
+            asm!("dmb SY");
         }
 
         log!("Timer started");
@@ -243,16 +243,16 @@ impl ArchInterrupt for GICInterruptController {
     fn is_enabled(&self) -> bool {
         unsafe {
             let daif: usize;
-            llvm_asm!("mrs $0, DAIF":"=r"(daif));
+            asm!("mrs {}, DAIF", out(reg) daif);
             daif & (1 << 7) == 0
         }
     }
 
     fn enable(&self) {
-        unsafe { llvm_asm!("msr daifclr, #2") };
+        unsafe { asm!("msr daifclr, #2") };
     }
 
     fn disable(&self) {
-        unsafe { llvm_asm!("msr daifset, #2") };
+        unsafe { asm!("msr daifset, #2") };
     }
 }

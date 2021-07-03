@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 #![feature(global_asm)]
-#![feature(llvm_asm)]
 #![feature(alloc_error_handler)]
 #![feature(format_args_nl)]
 #![feature(core_intrinsics)]
@@ -80,24 +79,6 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     log!("[kernel: created kernel process: {:?}]", task.id());
 
     SCHEDULER.schedule();
-
-    // let intc = t.find("/intc@8000000").unwrap();
-    // let reg = intc.prop_raw("reg").unwrap();
-    // log!("{:?}", intc);
-
-    // drivers::gic::GIC.init_with_device_tree(&t);
-
-    // unsafe {
-    //     log!("[boot: enable all co-processors]");
-    //     llvm_asm!("msr cpacr_el1, $0"::"r"(0xfffffff));
-    //     setup_vbar(exception::exception_handlers as *const fn() as u64);
-    //     crate::mm::paging::setup_ttbr();
-    // }
-
-    // unsafe {
-    //     *(0xdeadbeed as *mut u8) = 0;
-    // }
-    // log!("CurrentEL: {}", CurrentEL.get() >> 2);
 }
 
 #[panic_handler]

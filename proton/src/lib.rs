@@ -15,7 +15,7 @@
 #![feature(step_trait)]
 #![feature(step_trait_ext)]
 #![feature(global_asm)]
-#![feature(llvm_asm)]
+#![feature(asm)]
 #![feature(const_impl_trait)]
 #![feature(const_fn_fn_ptr_basics)]
 #![no_std]

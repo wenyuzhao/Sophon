@@ -1,4 +1,4 @@
-#![feature(asm, llvm_asm)]
+#![feature(asm)]
 #![feature(format_args_nl)]
 #![feature(default_alloc_error_handler)]
 #![no_std]

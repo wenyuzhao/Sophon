@@ -16,7 +16,7 @@ impl IPC {
     #[inline]
     pub fn log(message: &str) {
         unsafe {
-            llvm_asm!("svc #0"::"{x0}"(Self::Log as usize), "{x1}"(&message as *const &str): "x0" "x1" "memory");
+            asm!("svc #0", in("x0") Self::Log as usize, in("x1") &message as *const &str);
         }
     }
 
@@ -24,7 +24,7 @@ impl IPC {
     pub fn send(mut m: Message) {
         let ret: isize;
         unsafe {
-            llvm_asm!("svc #0":"={x0}"(ret):"{x0}"(Self::Send as usize), "{x1}"(&mut m as *mut Message): "x0" "x1" "memory");
+            asm!("svc #0", inout("x0") Self::Send as usize => ret, in("x1") &mut m as *mut Message);
         }
         assert!(ret == 0, "{:?}", ret);
     }
@@ -38,7 +38,7 @@ impl IPC {
                 None => -1,
             };
             let ret: isize;
-            llvm_asm!("svc #0":"={x0}"(ret):"{x0}"(Self::Receive as usize), "{x1}"(from_task), "{x2}"(&mut msg as *mut Message):"x0" "x1" "x2" "memory");
+            asm!("svc #0", inout("x0") Self::Receive as usize => ret, in("x1") from_task, in("x2") &mut msg as *mut Message);
             assert!(ret == 0, "{:?}", ret);
             msg
         }

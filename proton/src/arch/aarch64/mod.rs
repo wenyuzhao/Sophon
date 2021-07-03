@@ -16,7 +16,7 @@ impl Arch for AArch64 {
     type Context = AArch64Context;
 
     fn init(device_tree: &DeviceTree) {
-        unsafe { llvm_asm!("msr daifset, #2") };
+        unsafe { asm!("msr daifset, #2") };
 
         {
             let uart = drivers::uart::UART.lock();
@@ -38,15 +38,15 @@ impl Arch for AArch64 {
     fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
         let enabled = unsafe {
             let daif: usize;
-            llvm_asm!("mrs $0, DAIF":"=r"(daif));
+            asm!("mrs {}, DAIF", out(reg) daif);
             daif & (1 << 7) == 0
         };
         if enabled {
-            unsafe { llvm_asm!("msr daifset, #2") };
+            unsafe { asm!("msr daifset, #2") };
         }
         let ret = f();
         if enabled {
-            unsafe { llvm_asm!("msr daifclr, #2") };
+            unsafe { asm!("msr daifclr, #2") };
         }
         ret
     }

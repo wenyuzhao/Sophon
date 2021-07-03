@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(global_asm)]
-#![feature(llvm_asm)]
+#![feature(asm)]
 #![feature(alloc_error_handler)]
 #![feature(format_args_nl)]
 #![feature(core_intrinsics)]
@@ -108,7 +108,7 @@ fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
 
 fn invalidate_tlb() {
     unsafe {
-        llvm_asm! {"
+        asm! {"
             tlbi vmalle1is
             DSB SY
             isb

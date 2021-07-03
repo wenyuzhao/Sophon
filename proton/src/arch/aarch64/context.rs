@@ -144,13 +144,14 @@ impl ArchContext for AArch64Context {
         assert!(!TargetArch::interrupt().is_enabled());
         // Switch page table
         if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
-            llvm_asm! {"
-                msr	ttbr0_el1, $0
-                tlbi vmalle1is
-                DSB ISH
-                isb
-            "
-            ::   "r"(self.p4.start().as_usize())
+            asm! {
+                "
+                    msr	ttbr0_el1, {v}
+                    tlbi vmalle1is
+                    DSB ISH
+                    isb
+                ",
+                v = in(reg) self.p4.start().as_usize()
             }
         }
 
@@ -191,7 +192,7 @@ impl ArchContext for AArch64Context {
         }
         log!("Set SP {:?}", exception_frame);
         log!("Set IP 0x{:x}", (*exception_frame).elr_el1);
-        llvm_asm!("mov sp, $0"::"r"(exception_frame));
+        asm!("mov sp, {}", in(reg) exception_frame);
         // debug!(crate::Kernel: "exit_exception ");
         // Return from exception
         super::exception::exit_exception();
@@ -208,14 +209,16 @@ impl ArchContext for AArch64Context {
             sp
         );
         TargetArch::interrupt().disable();
-        llvm_asm! {
+        asm! {
             "
-            msr spsr_el1, $0
-            msr elr_el1, $1
-            msr sp_el0, $2
-            eret
-            "
-            ::"r"(0), "r"(entry), "r"(sp.as_usize())
+                msr spsr_el1, {0}
+                msr elr_el1, {1}
+                msr sp_el0, {2}
+                eret
+            ",
+            in(reg) 0usize,
+            in(reg) entry,
+            in(reg) sp.as_usize(),
         }
         unreachable!()
     }
