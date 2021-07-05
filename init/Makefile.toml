@@ -1,9 +1,0 @@
-[tasks.build-flow]
-dependencies = [
-  "build",
-  "post-build",
-]
-
-[tasks.build]
-command = "cargo"
-args = ["build", "--target", "../proton/aarch64-proton.json"]
