@@ -10,10 +10,12 @@
 #![feature(step_trait_ext)]
 #![feature(const_fn_transmute)]
 #![feature(untagged_unions)]
+#![feature(step_trait)]
 
 extern crate alloc;
 
 use core::alloc::Layout;
+use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, panic::PanicInfo, ptr, slice};
 use cortex_a::regs::*;
 use proton::utils::address::*;
@@ -147,28 +149,33 @@ fn load_elf() -> extern "C" fn(&mut BootInfo) -> isize {
         log!("Entry @ {:?}", entry as *mut ());
         let mut load_start = None;
         let mut load_end = None;
+        let mut update_load_range = |start: Address, end: Address| match (load_start, load_end) {
+            (None, None) => {
+                load_start = Some(start);
+                load_end = Some(end);
+            }
+            (Some(s), Some(e)) => {
+                if start < s {
+                    load_start = Some(start)
+                }
+                if end > e {
+                    load_end = Some(end)
+                }
+            }
+            _ => unreachable!(),
+        };
         for p in elf
             .program_header_iter()
             .filter(|p| p.ph.ph_type() == ProgramType::LOAD)
         {
-            // log!("{:?}", p.ph);
             let start: Address = (p.ph.vaddr() as usize).into();
             let end = start + (p.ph.filesz() as usize);
-            match (load_start, load_end) {
-                (None, None) => {
-                    load_start = Some(start);
-                    load_end = Some(end);
-                }
-                (Some(s), Some(e)) => {
-                    if start < s {
-                        load_start = Some(start)
-                    }
-                    if end > e {
-                        load_end = Some(end)
-                    }
-                }
-                _ => unreachable!(),
-            }
+            update_load_range(start, end);
+        }
+        if let Some(bss) = elf.lookup_section(".bss") {
+            let start = Address::<V>::from(bss.sh.addr() as usize);
+            let end = start + bss.sh.size() as usize;
+            update_load_range(start, end);
         }
         let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
         let vaddr_end = Page::<Size4K>::align_up(load_end.unwrap());
@@ -195,6 +202,7 @@ fn load_elf() -> extern "C" fn(&mut BootInfo) -> isize {
             let src = &KERNEL_ELF[offset] as *const u8;
             let dst = start.as_ptr_mut::<u8>();
             unsafe {
+                log!("Copy code {:?}", dst..dst.add(bytes));
                 ptr::copy_nonoverlapping(src, dst, bytes);
             }
         }
@@ -221,7 +229,7 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
     for desc in descriptors {
         if desc.ty == MemoryType::CONVENTIONAL {
             let start = Frame::<Size4K>::new((desc.phys_start as usize).into());
-            let end = start + (desc.page_count as usize);
+            let end = Step::forward(start, desc.page_count as usize);
             available_physical_memory_ranges[cursor] = start..end;
             cursor += 1;
         }
@@ -237,7 +245,7 @@ fn gen_boot_info() -> BootInfo {
 }
 
 #[no_mangle]
-pub extern "C" fn efi_main(_image: Handle, st: SystemTable<Boot>) -> Status {
+pub extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
     unsafe {
         BOOT_SYSTEM_TABLE = Some(st.unsafe_clone());
     }
@@ -253,6 +261,11 @@ pub extern "C" fn efi_main(_image: Handle, st: SystemTable<Boot>) -> Status {
     let mut boot_info = gen_boot_info();
 
     log!("Starting kernel...");
+
+    let buffer = new_page4k();
+    let buffer = unsafe { buffer.start().as_ref_mut::<[u8; 4096]>() };
+    st.boot_services().memory_map(buffer).unwrap().unwrap();
+    st.exit_boot_services(image, buffer).unwrap_success();
 
     let ret = start(&mut boot_info);
 

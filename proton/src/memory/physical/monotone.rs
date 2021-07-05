@@ -1,4 +1,4 @@
-use core::ops::Range;
+use core::{iter::Step, ops::Range};
 
 use crate::utils::page::*;
 
@@ -43,7 +43,7 @@ impl PhysicalPageResource for Monotone {
     #[inline(always)]
     fn acquire<S: PageSize>(&mut self, count: usize) -> Result<Range<Frame<S>>, ()> {
         let aligned_start = Frame::<S>::new(Frame::<S>::align_up(self.cursor.start()));
-        let end = aligned_start + count;
+        let end = Step::forward(aligned_start, count);
         if end.start() <= self.limit.start() {
             self.cursor = Frame::new(end.start());
             return Ok(aligned_start..end);

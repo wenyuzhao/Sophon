@@ -118,7 +118,7 @@ impl GIC {
         unsafe { &mut *self.GICC.unwrap() }
     }
 
-    pub fn init(&self) {
+    fn init_gic(&self) {
         #[allow(non_snake_case)]
         let (GICD, GICC) = (self.gicd(), self.gicc());
         unsafe { barrier::dsb(barrier::SY) };
@@ -185,49 +185,22 @@ impl BootDriver for GIC {
         log!("GICD@{:#x} GICC@{:#x}", gicd_address, gicc_address);
         self.GICD = Some(unsafe { mem::transmute(gicd_address) });
         self.GICC = Some(unsafe { mem::transmute(gicc_address) });
+        self.init_gic();
         let irq = box GICInterruptController::new();
         irq.set_handler(
             crate::arch::InterruptId::Timer,
             Some(box |_, _, _, _, _, _| {
                 // Update compare value
                 let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
-                unsafe {
-                    asm!("msr cntp_cval_el0, {}", in(reg) CNTPCT_EL0.get() + step);
-                }
+                CNTP_TVAL_EL0.set(step as u64);
                 SCHEDULER.timer_tick();
                 0
             }),
         );
         unsafe {
             INTERRUPT_CONTROLLER = Some(irq);
-        }
-
-        log!("Starting timer...");
-
-        unsafe {
-            asm!("dsb SY");
-            let timer_irq = 16 + 14;
-            self.gicd().ISENABLER[timer_irq / 32] = 1 << (timer_irq % 32);
-            let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
-            assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
-            let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;
-            let n_cntpct: usize = CNTPCT_EL0.get() as _;
-            asm!("msr CNTP_CVAL_EL0, {}", in(reg) n_cntpct + clock_ticks_per_timer_irq);
-            CNTP_CTL_EL0.set(1);
-            asm!("dmb SY");
-        }
-
-        log!("Timer started");
-
-        // unsafe { llvm_asm!("msr daifclr, #2") };
-        // unsafe { log!("Int enabled: {}", INTERRUPT_CONTROLLER.as_ref().unwrap().is_enabled()); }
-
-        unsafe {
             super::super::exception::setup_vbar();
         }
-
-        // unsafe { INTERRUPT_CONTROLLER.as_ref().unwrap().disable(); }
-        // unsafe { log!("Int enabled: {}", INTERRUPT_CONTROLLER.as_ref().unwrap().is_enabled()); }
     }
 }
 
@@ -254,5 +227,20 @@ impl ArchInterrupt for GICInterruptController {
 
     fn disable(&self) {
         unsafe { asm!("msr daifset, #2") };
+    }
+
+    fn start_timer(&self) {
+        debug_assert!(self.is_enabled());
+        unsafe {
+            asm!("dsb SY");
+            let timer_irq = 16 + 14;
+            GIC.gicd().ISENABLER[timer_irq / 32] = 1 << (timer_irq % 32);
+            let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
+            assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
+            let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;
+            CNTP_TVAL_EL0.set(clock_ticks_per_timer_irq as u64);
+            CNTP_CTL_EL0.set(1);
+            asm!("dmb SY");
+        }
     }
 }

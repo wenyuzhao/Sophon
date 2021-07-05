@@ -1,9 +1,4 @@
 use crate::arch::InterruptId;
-use cortex_a::{
-    barrier,
-    regs::{RegisterReadWrite, VBAR_EL1},
-};
-
 use crate::{
     arch::{
         aarch64::{context::*, drivers::gic::*},
@@ -13,6 +8,11 @@ use crate::{
     *,
 };
 use core::intrinsics::{volatile_load, volatile_store};
+use cortex_a::regs::*;
+use cortex_a::{
+    barrier,
+    regs::{RegisterReadWrite, VBAR_EL1},
+};
 
 #[repr(usize)]
 #[derive(Debug)]
@@ -43,7 +43,7 @@ pub enum ExceptionClass {
 #[derive(Debug)]
 pub struct ExceptionFrame {
     pub q: [u128; 32],
-    pub elr_el1: usize,
+    pub elr_el1: *mut u8,
     pub spsr_el1: usize,
     pub x30: usize,
     pub x31: usize,
@@ -67,40 +67,50 @@ unsafe fn get_exception_class() -> ExceptionClass {
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(_exception_frame: *mut ExceptionFrame) {
     log!("Exception received");
-    loop {}
     // println!("EF = {:?}", exception_frame as *mut _);
     // debug_assert!(Task::<Kernel>::current().unwrap().context.exception_frame as usize == 0);
     // Task::<Kernel>::current().map(|t| t.context.exception_frame = exception_frame);
-    // let exception = get_exception_class();
-    // log!("Exception received");
-    // match exception {
-    //     ExceptionClass::SVCAArch64 => {
-    //         log!("SVCAArch64 Start {:?}", Task::<Kernel>::current().unwrap().id());
-    //         let _r = super::interrupt::handle_interrupt(InterruptId::Soft, &mut *exception_frame);
-    //         ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-    //         // unsafe { (*exception_frame).x0 = ::core::mem::transmute(r) };
-    //         log!("SVCAArch64 End {:?}", Task::<Kernel>::current().unwrap().id());
-    //     },
-    //     ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
-    //         let far: usize;
-    //         llvm_asm!("mrs $0, far_el1":"=r"(far));
-    //         let elr: usize;
-    //         llvm_asm!("mrs $0, elr_el1":"=r"(elr));
-    //         log!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
-    //         // debug!(Kernel: "Data Abort {:?}", far as *mut ());
-    //         unreachable!()
-    //         // super::mm::handle_user_pagefault(far.into());
-    //     },
-    //     #[allow(unreachable_patterns)]
-    //     v => {
-    //         log!("Exception Frame: {:?} {:?}", exception_frame, *exception_frame);
-    //         let esr_el1: u32;
-    //         llvm_asm!("mrs $0, esr_el1":"=r"(esr_el1));
-    //         log!("ESR_EL1 = <EC={:x}, IL={:x}>", esr_el1 >> 26, esr_el1 & ((1 << 26) - 1));
-    //         // debug!(Kernel: "0x212ba4 -> 0x{:x}", *(0x212ba4usize as *const usize));
-    //         panic!("Unknown exception 0b{:b}", ::core::mem::transmute::<_, u32>(v))
-    //     },
-    // }
+    let exception = get_exception_class();
+    log!("Exception received");
+    match exception {
+        ExceptionClass::SVCAArch64 => {
+            log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
+            // let _r = super::interrupt::handle_interrupt(InterruptId::Soft, &mut *exception_frame);
+            // ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
+            // unsafe { (*exception_frame).x0 = ::core::mem::transmute(r) };
+            log!("SVCAArch64 End {:?}", Task::current().unwrap().id());
+        }
+        //     ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
+        //         let far: usize;
+        //         llvm_asm!("mrs $0, far_el1":"=r"(far));
+        //         let elr: usize;
+        //         llvm_asm!("mrs $0, elr_el1":"=r"(elr));
+        //         log!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
+        //         // debug!(Kernel: "Data Abort {:?}", far as *mut ());
+        //         unreachable!()
+        //         // super::mm::handle_user_pagefault(far.into());
+        //     },
+        #[allow(unreachable_patterns)]
+        v => {
+            // log!(
+            //     "Exception Frame: {:?} {:?}",
+            //     exception_frame,
+            //     *exception_frame
+            // );
+            // let esr_el1: u32;
+            // llvm_asm!("mrs $0, esr_el1":"=r"(esr_el1));
+            // log!(
+            //     "ESR_EL1 = <EC={:x}, IL={:x}>",
+            //     esr_el1 >> 26,
+            //     esr_el1 & ((1 << 26) - 1)
+            // );
+            // debug!(Kernel: "0x212ba4 -> 0x{:x}", *(0x212ba4usize as *const usize));
+            panic!(
+                "Unknown exception 0b{:b}",
+                ::core::mem::transmute::<_, u32>(v)
+            );
+        }
+    }
 
     // ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
 
@@ -116,8 +126,6 @@ pub unsafe extern "C" fn handle_exception_serror(exception_frame: *mut Exception
 
 #[no_mangle]
 pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
-    log!("IRQ received");
-    // loop {}
     Task::current()
         .unwrap()
         .get_context::<AArch64Context>()
@@ -127,10 +135,11 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     let GICC = GIC.gicc();
     let iar = unsafe { volatile_load(&GICC.IAR) };
     let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
-    unsafe { volatile_store(&mut GICC.EOIR, iar) }; // FIXME: End of Interrupt ??? here ???
+    // FIXME: End of Interrupt ??? here ???
+    unsafe { volatile_store(&mut GICC.EOIR, iar) };
+    log!("IRQ {}", irq);
     if irq < 256 {
-        if irq == 30 || irq == 27 {
-            unsafe { volatile_store(&mut GICC.EOIR, iar) };
+        if irq == 30 {
             TargetArch::interrupt().handle(
                 InterruptId::Timer,
                 &[

@@ -23,7 +23,7 @@ use core::panic::PanicInfo;
 
 use alloc::vec;
 use proton::arch::{Arch, TargetArch};
-use proton::kernel_tasks::{TestKernelTaskA, TestKernelTaskB};
+use proton::kernel_tasks::system::{Idle, System};
 use proton::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
 use proton::scheduler::{AbstractScheduler, SCHEDULER};
 use proton::task::Task;
@@ -52,8 +52,6 @@ unsafe fn zero_bss() {
 pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     unsafe { zero_bss() }
 
-    // loop {}
-
     // Initialize physical memory and kernel heap
     PHYSICAL_PAGE_RESOURCE
         .lock()
@@ -72,11 +70,15 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     let v = vec![1, 3, 5, 7, 9];
     log!("Test Alloc {:?} {:?}", v, v.as_ptr());
 
-    let task = Task::create_kernel_task(box TestKernelTaskA);
+    let task = Task::create_kernel_task(box System::new());
     log!("[kernel: created kernel process: {:?}]", task.id());
-    // loop {}
-    let task = Task::create_kernel_task(box TestKernelTaskB);
+
+    let task = Task::create_kernel_task(box Idle);
     log!("[kernel: created kernel process: {:?}]", task.id());
+
+    <TargetArch as Arch>::interrupt().enable();
+    <TargetArch as Arch>::interrupt().start_timer();
+    log!("[kernel: timer started]");
 
     SCHEDULER.schedule();
 }

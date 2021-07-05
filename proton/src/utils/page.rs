@@ -5,7 +5,6 @@ use core::fmt;
 use core::hash::Hash;
 use core::iter::Step;
 use core::marker::PhantomData;
-use core::ops::*;
 
 pub trait PageSize: Copy + Clone + PartialOrd + Ord + PartialEq + Eq + Hash {
     const NAME: &'static str;
@@ -103,65 +102,21 @@ impl<S: PageSize, K: MemoryKind> fmt::Debug for Page<S, K> {
     }
 }
 
-impl<S: PageSize, K: MemoryKind> Add<usize> for Page<S, K> {
-    type Output = Self;
-    #[inline(always)]
-    fn add(self, rhs: usize) -> Self {
-        Self(self.0 + (rhs << S::LOG_SIZE), PhantomData)
-    }
-}
-
-impl<S: PageSize, K: MemoryKind> Add<isize> for Page<S, K> {
-    type Output = Self;
-    #[inline(always)]
-    fn add(self, rhs: isize) -> Self {
-        if rhs >= 0 {
-            self + (rhs as usize)
-        } else {
-            self - ((-rhs) as usize)
-        }
-    }
-}
-
-impl<S: PageSize, K: MemoryKind> Add<i32> for Page<S, K> {
-    type Output = Self;
-    #[inline(always)]
-    fn add(self, rhs: i32) -> Self {
-        self + (rhs as isize)
-    }
-}
-
-impl<S: PageSize, K: MemoryKind> Sub<Page<S, K>> for Page<S, K> {
-    type Output = usize;
-    #[inline(always)]
-    fn sub(self, rhs: Self) -> usize {
-        (self.0 - rhs.0) >> S::LOG_SIZE
-    }
-}
-
-impl<S: PageSize, K: MemoryKind> Sub<usize> for Page<S, K> {
-    type Output = Self;
-    #[inline(always)]
-    fn sub(self, rhs: usize) -> Self {
-        Self(self.0 - (rhs << S::LOG_SIZE), PhantomData)
-    }
-}
-
 unsafe impl<S: PageSize, K: MemoryKind> Step for Page<S, K> {
     #[inline(always)]
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         if start > end {
             None
         } else {
-            Some(*end - *start)
+            Some((end.start() - start.start()) >> Self::LOG_SIZE)
         }
     }
     #[inline(always)]
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        Some(Self(start.0 + count, PhantomData))
+        Some(Self(start.0 + (count << Self::LOG_SIZE), PhantomData))
     }
     #[inline(always)]
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        Some(Self(start.0 - count, PhantomData))
+        Some(Self(start.0 - (count << Self::LOG_SIZE), PhantomData))
     }
 }

@@ -1,31 +1,27 @@
 // pub mod task;
 pub mod mem;
 
-use core::marker::PhantomData;
 use super::KernelTask;
-use proton::task::*;
-use proton::kernel_call::KernelCall;
+use crate::arch::{Arch, TargetArch};
+use crate::task::Message;
 
-
-pub struct System {
-}
+pub struct System {}
 
 impl System {
     pub fn new() -> Self {
-        Self {
-        }
+        Self {}
     }
 }
-
 
 impl KernelTask for System {
     fn run(&mut self) -> ! {
         log!("Kernel process start");
         loop {
-            log!("Kernel process loop");
-            // debug_assert!(<K::Arch as AbstractArch>::Interrupt::is_enabled());
+            // log!("Kernel process loop");
+            debug_assert!(<TargetArch as Arch>::interrupt().is_enabled());
+
             // let m = Message::receive(None);
-            // debug!(K: "Kernel received {:?}", m);
+            // log!("Kernel received {:?}", m);
             // let kind: KernelCall = unsafe { ::core::mem::transmute(m.kind) };
             // match kind {
             //     KernelCall::MapPhysicalMemory => mem::map_physical_memory::<K>(&m),
@@ -34,6 +30,17 @@ impl KernelTask for System {
             //     println!("Kernel received {:?}", m);
             //     HANDLERS[m.kind](&m);
             // }
+        }
+    }
+}
+pub struct Idle;
+
+impl KernelTask for Idle {
+    fn run(&mut self) -> ! {
+        loop {
+            unsafe {
+                asm!("wfe");
+            }
         }
     }
 }

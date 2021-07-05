@@ -103,23 +103,22 @@ impl ArchContext for AArch64Context {
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
-        log!("AArch64Context::new 0");
         // Create user page table
         let p4_frame = PHYSICAL_PAGE_RESOURCE
             .lock()
             .acquire::<Size4K>(1)
             .unwrap()
             .start;
-        unsafe { p4_frame.zero() };
-        let p4 = unsafe { p4_frame.start().as_ref_mut::<PageTable<L4>>() };
+        let current_table = PageTable::<L4>::get(false);
+        let p4_page =
+            current_table.map_temporarily::<Size4K>(p4_frame, PageFlags::page_table_flags());
+        unsafe { p4_page.zero() };
+        let p4 = unsafe { p4_page.start().as_ref_mut::<PageTable<L4>>() };
         p4.entries[511].set(p4_frame, PageFlags::page_table_flags());
         // Map kernel memory to user page table
-        let current_table = PageTable::<L4>::get(false);
-        log!("AArch64Context::new 1 {:?}", current_table as *mut _);
         for i in 0..511 {
             p4.entries[i] = current_table.entries[i].clone();
         }
-        log!("AArch64Context::new 2");
         // Alloc kernel stack (SP_EL1)
         let kernel_stack = KernelStack::new();
         let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
@@ -191,7 +190,7 @@ impl ArchContext for AArch64Context {
             self.response_status = None;
         }
         log!("Set SP {:?}", exception_frame);
-        log!("Set IP 0x{:x}", (*exception_frame).elr_el1);
+        log!("Set IP 0x{:?}", (*exception_frame).elr_el1);
         asm!("mov sp, {}", in(reg) exception_frame);
         // debug!(crate::Kernel: "exit_exception ");
         // Return from exception

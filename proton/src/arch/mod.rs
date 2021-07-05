@@ -18,12 +18,12 @@ pub trait ArchInterrupt {
     fn is_enabled(&self) -> bool;
     fn enable(&self);
     fn disable(&self);
+    fn start_timer(&self);
     fn handle(&self, id: InterruptId, args: &[usize]) -> usize {
         let mut x = [0usize; 6];
         for i in 0..args.len() {
             x[i] = args[i];
         }
-        log!("[Interrupt] {:?}", id);
         if let Some(handler) = unsafe { &INTERRUPT_HANDLERS[id as usize] } {
             handler(x[0], x[1], x[2], x[3], x[4], x[5]);
             0

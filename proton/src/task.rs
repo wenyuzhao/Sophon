@@ -2,6 +2,7 @@ use super::scheduler::*;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
+use crate::scheduler::ipc::IPC;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
@@ -76,9 +77,8 @@ impl Message {
     }
 
     #[inline]
-    pub fn receive(_src: Option<TaskId>) -> Message {
-        // IPC::receive(src)
-        unimplemented!()
+    pub fn receive(src: Option<TaskId>) -> Message {
+        IPC::receive(src)
     }
 
     #[inline]

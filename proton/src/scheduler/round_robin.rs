@@ -153,6 +153,7 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     fn timer_tick(&self) {
+        log!("Timer TICK");
         debug_assert!(!TargetArch::interrupt().is_enabled());
         let current_task = self.get_current_task().unwrap();
 
