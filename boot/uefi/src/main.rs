@@ -14,37 +14,36 @@
 
 extern crate alloc;
 
-use core::alloc::Layout;
+use alloc::vec;
+use alloc::vec::Vec;
 use core::iter::Step;
-use core::{intrinsics::transmute, mem, ops::Range, panic::PanicInfo, ptr, slice};
+use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
 use cortex_a::regs::*;
+use proton::page_table::PageFlags;
 use proton::utils::address::*;
 use proton::utils::page::*;
-use proton::{page_table::PageFlags, utils::no_alloc::NoAlloc};
 use proton::{page_table::*, BootInfo};
+use uefi::proto::media::file::File;
+use uefi::proto::media::file::FileAttribute;
+use uefi::proto::media::file::FileMode;
+use uefi::proto::media::file::FileType;
+// use uefi::alloc::Allocator;
+use uefi::proto::media::fs::SimpleFileSystem;
 use uefi::{prelude::*, table::boot::*};
 #[macro_use]
 mod log;
 use elf_rs::*;
 
-static DEVICE_TREE: &'static [u8] = include_bytes!("../../dtbs/qemu-virt.dtb");
+// #[global_allocator]
+// static ALLOCATOR: Allocator = Allocator;
 
-#[global_allocator]
-static ALLOCATOR: NoAlloc = NoAlloc;
+static DEVICE_TREE: &'static [u8] = include_bytes!("../../dtbs/qemu-virt.dtb");
 
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 
 fn boot_system_table() -> &'static SystemTable<Boot> {
     unsafe { BOOT_SYSTEM_TABLE.as_ref().unwrap() }
 }
-
-#[cfg(debug_assertions)]
-static KERNEL_ELF: &'static [u8] =
-    include_bytes!("../../../target/aarch64-unknown-none/debug/proton");
-
-#[cfg(not(debug_assertions))]
-static KERNEL_ELF: &'static [u8] =
-    include_bytes!("../../../target/aarch64-unknown-none/release/proton");
 
 fn new_page4k() -> Frame {
     let page = boot_system_table()
@@ -139,9 +138,9 @@ pub unsafe fn setup_tcr() {
     log!("Setup TCR Done");
 }
 
-fn load_elf() -> extern "C" fn(&mut BootInfo) -> isize {
+fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
     log!("Parse Kernel ELF");
-    let elf = Elf::from_bytes(KERNEL_ELF).unwrap();
+    let elf = Elf::from_bytes(elf_data).unwrap();
     log!("Parse Kernel ELF Done");
     if let Elf::Elf64(elf) = elf {
         let entry: extern "C" fn(&mut BootInfo) =
@@ -199,7 +198,7 @@ fn load_elf() -> extern "C" fn(&mut BootInfo) -> isize {
             let start: Address = (p.ph.vaddr() as usize).into();
             let bytes = p.ph.filesz() as usize;
             let offset = p.ph.offset() as usize;
-            let src = &KERNEL_ELF[offset] as *const u8;
+            let src = &elf_data[offset] as *const u8;
             let dst = start.as_ptr_mut::<u8>();
             unsafe {
                 log!("Copy code {:?}", dst..dst.add(bytes));
@@ -244,8 +243,48 @@ fn gen_boot_info() -> BootInfo {
     }
 }
 
+fn read_file(path: &str) -> Vec<u8> {
+    if let Ok(sfs) = boot_system_table()
+        .boot_services()
+        .locate_protocol::<SimpleFileSystem>()
+    {
+        log!("`SimpleFileSystem` protocol is available");
+        let sfs = sfs.expect("Cannot open `SimpleFileSystem` protocol");
+        let sfs = unsafe { &mut *sfs.get() };
+        let mut directory = sfs.open_volume().unwrap().unwrap();
+        let file = directory
+            .open(path, FileMode::Read, FileAttribute::empty())
+            .unwrap()
+            .unwrap()
+            .into_type()
+            .unwrap()
+            .unwrap();
+        if let FileType::Regular(mut file) = file {
+            let mut buffer = vec![];
+            let mut buf = vec![0; 4096];
+            let mut total_size = 0usize;
+            loop {
+                let size = file.read(&mut buf).unwrap().unwrap();
+                if size == 0 {
+                    break;
+                } else {
+                    total_size += size;
+                    buffer.extend_from_slice(&buf);
+                }
+            }
+            buffer.resize(total_size, 0);
+            buffer
+        } else {
+            panic!("{:?} is not a file.", path);
+        }
+    } else {
+        panic!("`SimpleFileSystem` protocol is not available");
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
+    uefi_services::init(&st).expect_success("Failed to initialize utilities");
     unsafe {
         BOOT_SYSTEM_TABLE = Some(st.unsafe_clone());
     }
@@ -256,12 +295,14 @@ pub extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
         setup_tcr();
     }
 
-    let start = load_elf();
+    log!("Loading kernel...");
 
-    let mut boot_info = gen_boot_info();
+    let kernel_elf = read_file("proton");
+    let start = load_elf(&kernel_elf);
 
     log!("Starting kernel...");
 
+    let mut boot_info = gen_boot_info();
     let buffer = new_page4k();
     let buffer = unsafe { buffer.start().as_ref_mut::<[u8; 4096]>() };
     st.boot_services().memory_map(buffer).unwrap().unwrap();
@@ -274,16 +315,5 @@ pub extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
     loop {}
 }
 
-#[panic_handler]
-fn panic(info: &PanicInfo<'_>) -> ! {
-    log!("{}", info);
-    loop {}
-}
-
 #[no_mangle]
 pub extern "C" fn __chkstk() {}
-
-#[alloc_error_handler]
-fn alloc_error_handler(layout: Layout) -> ! {
-    panic!("Allocation error: {:?}", layout)
-}
