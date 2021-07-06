@@ -4,9 +4,9 @@ use super::KernelTask;
 use crate::arch::*;
 use crate::memory::physical::PhysicalPageResource;
 use crate::memory::physical::PHYSICAL_PAGE_RESOURCE;
-use crate::page_table::PageFlags;
-use crate::page_table::PageTable;
-use crate::page_table::L4;
+// use crate::page_table::PageFlags;
+// use crate::page_table::PageTable;
+// use crate::page_table::L4;
 use crate::utils::address::*;
 use crate::utils::page::*;
 use elf_rs::*;
@@ -70,11 +70,12 @@ impl UserTask {
                 .acquire::<Size4K>(pages)
                 .unwrap();
             let mut page = Page::<Size4K>::new(vaddr_start);
-            let pt = PageTable::<L4>::get(false);
-            for f in frames {
-                pt.map(page, f, PageFlags::user_code_flags_4k());
-                page = Step::forward(page, 1);
-            }
+            unimplemented!();
+            // let pt = PageTable::<L4>::get(false);
+            // for f in frames {
+            //     pt.map(page, f, PageFlags::user_code_flags_4k());
+            //     page = Step::forward(page, 1);
+            // }
             // Copy data
             for p in elf
                 .program_header_iter()
@@ -111,16 +112,17 @@ impl KernelTask for UserTask {
         // )
         // .unwrap();
         {
-            let frames = PHYSICAL_PAGE_RESOURCE
-                .lock()
-                .acquire::<Size4K>(USER_STACK_PAGES)
-                .unwrap();
-            let mut page = Page::<Size4K>::new(USER_STACK_START);
-            let pt = PageTable::<L4>::get(false);
-            for f in frames {
-                pt.map(page, f, PageFlags::page_table_flags());
-                page = Step::forward(page, 1);
-            }
+            unimplemented!()
+            // let frames = PHYSICAL_PAGE_RESOURCE
+            //     .lock()
+            //     .acquire::<Size4K>(USER_STACK_PAGES)
+            //     .unwrap();
+            // let mut page = Page::<Size4K>::new(USER_STACK_START);
+            // let pt = PageTable::<L4>::get(false);
+            // for f in frames {
+            //     pt.map(page, f, PageFlags::page_table_flags());
+            //     page = Step::forward(page, 1);
+            // }
         }
         log!("Stack memory mapped");
         // <K::Arch as AbstractArch>::Interrupt::disable();

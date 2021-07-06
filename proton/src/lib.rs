@@ -18,6 +18,7 @@
 #![feature(asm)]
 #![feature(const_impl_trait)]
 #![feature(const_fn_fn_ptr_basics)]
+#![feature(const_trait_impl)]
 #![no_std]
 
 use core::ops::Range;
@@ -36,7 +37,7 @@ pub mod boot_driver;
 pub mod heap;
 pub mod kernel_tasks;
 pub mod memory;
-pub mod page_table;
+// pub mod page_table;
 pub mod scheduler;
 pub mod task;
 

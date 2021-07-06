@@ -1,5 +1,5 @@
 use super::exception::ExceptionFrame;
-use crate::page_table::*;
+use crate::memory::page_table::kernel::*;
 use crate::task::Message;
 use crate::utils::page::*;
 use crate::{arch::*, heap::constants::*, memory::physical::*};
@@ -109,15 +109,12 @@ impl ArchContext for AArch64Context {
             .acquire::<Size4K>(1)
             .unwrap()
             .start;
-        let current_table = PageTable::<L4>::get(false);
-        let p4_page =
-            current_table.map_temporarily::<Size4K>(p4_frame, PageFlags::page_table_flags());
-        unsafe { p4_page.zero() };
-        let p4 = unsafe { p4_page.start().as_ref_mut::<PageTable<L4>>() };
-        p4.entries[511].set(p4_frame, PageFlags::page_table_flags());
+        let current_table = KernelPageTable::get();
+        unsafe { p4_frame.zero() };
+        let p4 = unsafe { p4_frame.start().as_ref_mut::<KernelPageTable>() };
         // Map kernel memory to user page table
         for i in 0..511 {
-            p4.entries[i] = current_table.entries[i].clone();
+            p4[i] = current_table[i].clone();
         }
         // Alloc kernel stack (SP_EL1)
         let kernel_stack = KernelStack::new();
@@ -143,6 +140,11 @@ impl ArchContext for AArch64Context {
         assert!(!TargetArch::interrupt().is_enabled());
         // Switch page table
         if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
+            log!(
+                "Switch page table {:?} -> {:?}",
+                TTBR0_EL1.get() as *mut u8,
+                self.p4
+            );
             asm! {
                 "
                     msr	ttbr0_el1, {v}
@@ -234,7 +236,6 @@ extern "C" {
     fn switch_context(from: &mut AArch64Context, to: &AArch64Context, p4: usize);
 }
 
-#[cfg(not(feature = "rls"))]
 global_asm! {"
 .global switch_context
 

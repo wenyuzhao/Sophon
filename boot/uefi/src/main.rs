@@ -1,15 +1,9 @@
 #![no_std]
 #![no_main]
-#![feature(global_asm)]
 #![feature(asm)]
-#![feature(alloc_error_handler)]
 #![feature(format_args_nl)]
 #![feature(core_intrinsics)]
-#![feature(box_syntax)]
-#![feature(never_type)]
 #![feature(step_trait_ext)]
-#![feature(const_fn_transmute)]
-#![feature(untagged_unions)]
 #![feature(step_trait)]
 
 extern crate alloc;
@@ -19,23 +13,16 @@ use alloc::vec::Vec;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
 use cortex_a::regs::*;
-use proton::page_table::PageFlags;
+use proton::memory::page_table::{kernel::*, *};
 use proton::utils::address::*;
 use proton::utils::page::*;
-use proton::{page_table::*, BootInfo};
-use uefi::proto::media::file::File;
-use uefi::proto::media::file::FileAttribute;
-use uefi::proto::media::file::FileMode;
-use uefi::proto::media::file::FileType;
-// use uefi::alloc::Allocator;
+use proton::BootInfo;
+use uefi::proto::media::file::*;
 use uefi::proto::media::fs::SimpleFileSystem;
 use uefi::{prelude::*, table::boot::*};
 #[macro_use]
 mod log;
 use elf_rs::*;
-
-// #[global_allocator]
-// static ALLOCATOR: Allocator = Allocator;
 
 static DEVICE_TREE: &'static [u8] = include_bytes!("../../dtbs/qemu-virt.dtb");
 
@@ -56,49 +43,45 @@ fn new_page4k() -> Frame {
     page
 }
 
-fn get_next_table<L: TableLevel>(
-    table: &mut PageTable<L>,
-    index: usize,
-) -> Option<&'static mut PageTable<L::NextLevel>> {
-    if table.entries[index].present() && !table.entries[index].is_block() {
-        let addr = table.entries[index].address();
-        Some(unsafe { transmute(addr) })
-    } else {
-        None
+fn map_kernel_page_4k(p4: &mut KernelPageTable<L4>, page: Page<Size4K>) {
+    fn get_next_table<L: TableLevel>(
+        p: &mut KernelPageTable<L>,
+        i: usize,
+    ) -> &'static mut KernelPageTable<L::NextLevel> {
+        if p[i].present() && !p[i].is_block() {
+            let addr = p[i].address();
+            unsafe { transmute(addr) }
+        } else {
+            panic!()
+        }
     }
-}
-
-fn map_kernel_page_4k(p4: &mut PageTable<L4>, page: Page<Size4K>) {
     let table = p4;
     // Get p3
-    let index = PageTable::<L4>::get_index(page.start());
-    if table.entries[index].is_empty() {
-        table.entries[index].set(new_page4k(), PageFlags::page_table_flags());
+    let index = KernelPageTable::<L4>::get_index(page.start());
+    if table[index].is_empty() {
+        table[index].set(new_page4k(), PageFlags::page_table_flags());
     }
-    let table = get_next_table(table, index).unwrap();
+    let table = get_next_table(table, index);
     // Get p2
-    let index = PageTable::<L3>::get_index(page.start());
-    if table.entries[index].is_empty() {
-        table.entries[index].set(new_page4k(), PageFlags::page_table_flags());
+    let index = KernelPageTable::<L3>::get_index(page.start());
+    if table[index].is_empty() {
+        table[index].set(new_page4k(), PageFlags::page_table_flags());
     }
-    let table = get_next_table(table, index).unwrap();
+    let table = get_next_table(table, index);
     // Get p1
-    let index = PageTable::<L2>::get_index(page.start());
-    if table.entries[index].is_empty() {
-        table.entries[index].set(new_page4k(), PageFlags::page_table_flags());
+    let index = KernelPageTable::<L2>::get_index(page.start());
+    if table[index].is_empty() {
+        table[index].set(new_page4k(), PageFlags::page_table_flags());
     }
-    let table = get_next_table(table, index).unwrap();
+    let table = get_next_table(table, index);
     // Map
-    let index = PageTable::<L1>::get_index(page.start());
+    let index = KernelPageTable::<L1>::get_index(page.start());
     let frame = new_page4k();
-    table.entries[index].set(
-        frame,
-        PageFlags::kernel_code_flags_2m() | PageFlag::SMALL_PAGE,
-    );
+    table[index].set(frame, PageFlags::kernel_code_flags_4k());
     log!("Mapped {:?} -> {:?}", page, frame);
 }
 
-fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
+fn map_kernel_pages_4k(p4: &mut KernelPageTable<L4>, start: u64, pages: usize) {
     for i in 0..pages {
         map_kernel_page_4k(
             p4,
@@ -180,11 +163,8 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
         let vaddr_end = Page::<Size4K>::align_up(load_end.unwrap());
         let pages = ((vaddr_end - vaddr_start) + ((1 << 12) - 1)) >> 12;
         log!("Map code start");
-        let p4 = unsafe { &mut *(TTBR0_EL1.get() as *mut PageTable<L4>) };
-        let addr = Address::from(p4 as *mut _);
-        p4.entries[511].set(Frame::<Size4K>::new(addr), PageFlags::page_table_flags());
         map_kernel_pages_4k(
-            unsafe { &mut *(TTBR0_EL1.get() as *mut PageTable<L4>) },
+            KernelPageTable::<L4>::get(),
             vaddr_start.as_usize() as _,
             pages,
         );
@@ -233,6 +213,7 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
             cursor += 1;
         }
     }
+    let available_physical_memory_ranges = &available_physical_memory_ranges[..cursor];
     return available_physical_memory_ranges;
 }
 

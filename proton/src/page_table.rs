@@ -83,7 +83,7 @@ compile_error!("Only supports 64bit machines");
 
 #[repr(C)]
 #[derive(Clone)]
-pub struct PageTableEntry(u64);
+pub struct PageTableEntry(pub(crate) u64);
 
 impl core::fmt::Debug for PageTableEntry {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
