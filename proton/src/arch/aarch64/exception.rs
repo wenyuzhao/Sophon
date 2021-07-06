@@ -8,7 +8,6 @@ use crate::{
     *,
 };
 use core::intrinsics::{volatile_load, volatile_store};
-use cortex_a::regs::*;
 use cortex_a::{
     barrier,
     regs::{RegisterReadWrite, VBAR_EL1},
@@ -16,6 +15,7 @@ use cortex_a::{
 
 #[repr(usize)]
 #[derive(Debug)]
+#[allow(unused)]
 pub enum ExceptionLevel {
     EL0 = 0,
     EL1 = 1,
@@ -24,6 +24,7 @@ pub enum ExceptionLevel {
 
 #[repr(usize)]
 #[derive(Debug)]
+#[allow(unused)]
 pub enum ExceptionKind {
     Synchronous = 0,
     IRQ = 1,
@@ -33,6 +34,7 @@ pub enum ExceptionKind {
 
 #[repr(u32)]
 #[derive(Debug)]
+#[allow(unused)]
 pub enum ExceptionClass {
     SVCAArch64 = 0b010101,
     DataAbortLowerEL = 0b100100,
@@ -119,7 +121,7 @@ pub unsafe extern "C" fn handle_exception(_exception_frame: *mut ExceptionFrame)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn handle_exception_serror(exception_frame: *mut ExceptionFrame) {
+pub unsafe extern "C" fn handle_exception_serror(_exception_frame: *mut ExceptionFrame) {
     log!("SError received");
     loop {}
 }

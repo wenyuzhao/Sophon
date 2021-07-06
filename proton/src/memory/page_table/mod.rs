@@ -1,4 +1,5 @@
 pub mod kernel;
+pub mod user;
 
 use crate::utils::address::*;
 use crate::utils::bitflags::{BitFlag, BitFlags};
