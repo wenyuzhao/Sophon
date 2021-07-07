@@ -17,4 +17,10 @@ impl<T: Copy> Volatile<T> {
     pub fn set(&mut self, value: T) {
         unsafe { volatile_store(&mut self.0, value) }
     }
+
+    #[inline]
+    pub fn update(&mut self, f: impl Fn(T) -> T) {
+        let t = self.get();
+        self.set(f(t));
+    }
 }

@@ -13,7 +13,7 @@ use elf_rs::*;
 
 const USER_STACK_START: Address<V> = Address::new(0x111900000);
 const USER_STACK_PAGES: usize = 4; // Too many???
-const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::SIZE;
+const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::BYTES;
 const USER_STACK_END: Address<V> = Address::new(USER_STACK_START.as_usize() + USER_STACK_SIZE);
 
 pub struct UserTask {
@@ -63,8 +63,8 @@ impl UserTask {
                 load_end.unwrap()
             );
             let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
-            let vaddr_end = Page::<Size4K>::align_up(load_end.unwrap());
-            let pages = (vaddr_end - vaddr_start) >> Page::<Size4K>::LOG_SIZE;
+            let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
+            let pages = (vaddr_end - vaddr_start) >> Page::<Size4K>::LOG_BYTES;
             let frames = PHYSICAL_PAGE_RESOURCE
                 .lock()
                 .acquire::<Size4K>(pages)

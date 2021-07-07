@@ -99,7 +99,7 @@ impl KernelPageTable<L4> {
             table.entries[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
         }
         let table = table.get_next_table(index).unwrap();
-        if S::LOG_SIZE == Size2M::LOG_SIZE {
+        if S::BYTES == Size2M::BYTES {
             table.entries[KernelPageTable::<L2>::get_index(page.start())].set(frame, flags);
         }
         // P1

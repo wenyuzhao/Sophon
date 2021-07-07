@@ -19,6 +19,7 @@
 #![feature(const_impl_trait)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_trait_impl)]
+#![feature(const_raw_ptr_to_usize_cast)]
 #![no_std]
 
 use core::ops::Range;

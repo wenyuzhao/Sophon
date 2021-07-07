@@ -167,7 +167,7 @@ impl GlobalAllocator {
 
 unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let a = TargetArch::uninterruptable(|| self.fa.lock().alloc(&layout).as_ptr_mut());
+        let a = TargetArch::uninterruptable(|| self.fa.lock().alloc(&layout).as_mut_ptr());
         a
     }
 

@@ -93,17 +93,17 @@ impl<L: TableLevel> PageTable<L> {
         debug_assert!(L::ID != 0);
         let index = Self::get_index(address);
         if L::ID == 2 && self.entries[index].present() && self.entries[index].is_block() {
-            debug_assert!(S::LOG_SIZE != Size4K::LOG_SIZE);
+            debug_assert!(S::BYTES != Size4K::BYTES);
             return (L::ID, unsafe {
                 ::core::mem::transmute(&mut self.entries[index])
             });
         }
-        if S::LOG_SIZE == Size4K::LOG_SIZE && L::ID == 1 {
+        if S::BYTES == Size4K::BYTES && L::ID == 1 {
             return (L::ID, unsafe {
                 ::core::mem::transmute(&mut self.entries[index])
             });
         }
-        if S::LOG_SIZE == Size2M::LOG_SIZE && L::ID == 2 {
+        if S::BYTES == Size2M::BYTES && L::ID == 2 {
             return (L::ID, unsafe {
                 ::core::mem::transmute(&mut self.entries[index])
             });
@@ -126,9 +126,9 @@ impl PageTable<L4> {
     #[inline]
     pub fn get(high: bool) -> &'static mut Self {
         if high {
-            unsafe { Address::<V>::new(0xffff_ffff_ffff_f000).as_ref_mut() }
+            unsafe { Address::<V>::new(0xffff_ffff_ffff_f000).as_mut() }
         } else {
-            unsafe { Address::<V>::new(0x0000_ffff_ffff_f000).as_ref_mut() }
+            unsafe { Address::<V>::new(0x0000_ffff_ffff_f000).as_mut() }
         }
     }
 
@@ -157,13 +157,13 @@ impl PageTable<L4> {
         let (level, entry) = self.get_entry_create::<S>(page.start());
 
         if cfg!(debug_assertions) {
-            if S::LOG_SIZE == Size4K::LOG_SIZE {
+            if S::BYTES == Size4K::BYTES {
                 assert!(level == 1, "{:?} {:?} {}", page, frame, level);
-            } else if S::LOG_SIZE == Size2M::LOG_SIZE {
+            } else if S::BYTES == Size2M::BYTES {
                 assert!(level == 2);
             }
         }
-        if S::LOG_SIZE != Size4K::LOG_SIZE {
+        if S::BYTES != Size4K::BYTES {
             debug_assert!(flags.bits() & 0b10 == 0);
         }
         debug_assert!(!entry.present());
@@ -181,13 +181,13 @@ impl PageTable<L4> {
     ) -> Page<S> {
         let (level, entry) = self.get_entry_create::<S>(page.start());
         if cfg!(debug_assertions) {
-            if S::LOG_SIZE == Size4K::LOG_SIZE {
+            if S::BYTES == Size4K::BYTES {
                 assert!(level == 1, "{:?} {:?} {}", page, frame, level);
-            } else if S::LOG_SIZE == Size2M::LOG_SIZE {
+            } else if S::BYTES == Size2M::BYTES {
                 assert!(level == 2);
             }
         }
-        if S::LOG_SIZE != Size4K::LOG_SIZE {
+        if S::BYTES != Size4K::BYTES {
             debug_assert!(flags.bits() & 0b10 == 0);
         }
         let flags = flags | PageFlag::PRESENT;
@@ -198,13 +198,13 @@ impl PageTable<L4> {
     pub fn update_flags<S: PageSize>(&mut self, page: Page<S>, flags: PageFlags) -> Page<S> {
         let (level, entry) = self.get_entry_create::<S>(page.start());
         if cfg!(debug_assertions) {
-            if S::LOG_SIZE == Size4K::LOG_SIZE {
+            if S::BYTES == Size4K::BYTES {
                 assert!(level == 1, "{:?} {}", page, level);
-            } else if S::LOG_SIZE == Size2M::LOG_SIZE {
+            } else if S::BYTES == Size2M::BYTES {
                 assert!(level == 2);
             }
         }
-        if S::LOG_SIZE != Size4K::LOG_SIZE {
+        if S::BYTES != Size4K::BYTES {
             debug_assert!(flags.bits() & 0b10 == 0);
         }
         let flags = flags | PageFlag::PRESENT;
@@ -215,9 +215,9 @@ impl PageTable<L4> {
     pub fn unmap<S: PageSize>(&mut self, page: Page<S>) {
         let (level, entry) = self.get_entry(page.start()).unwrap();
         if cfg!(debug_assertions) {
-            if S::LOG_SIZE == Size4K::LOG_SIZE {
+            if S::BYTES == Size4K::BYTES {
                 assert!(level == 1);
-            } else if S::LOG_SIZE == Size2M::LOG_SIZE {
+            } else if S::BYTES == Size2M::BYTES {
                 assert!(level == 2);
             }
         }

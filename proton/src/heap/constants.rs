@@ -8,7 +8,7 @@ use crate::utils::page::*;
 
 /// Kernel process stack
 pub const KERNEL_STACK_PAGES: usize = 8; // Too many???
-pub const KERNEL_STACK_SIZE: usize = KERNEL_STACK_PAGES * Size4K::SIZE;
+pub const KERNEL_STACK_SIZE: usize = KERNEL_STACK_PAGES * Size4K::BYTES;
 
 // /// User heap layout
 // pub const USER_STACK_START: Address<V> = Address::new(0x111900000);
@@ -37,12 +37,12 @@ pub fn kernel_end() -> Address {
 
 #[inline]
 pub fn kernel_heap_start() -> Address {
-    Page::<Size2M>::align_up(kernel_end())
+    kernel_end().align_up(Size2M::BYTES)
 }
 
 #[inline]
 pub fn kernel_heap_end() -> Address {
-    kernel_start() + (KERNEL_HEAP_LARGE_PAGES << Page::<Size2M>::LOG_SIZE)
+    kernel_start() + (KERNEL_HEAP_LARGE_PAGES << Page::<Size2M>::LOG_BYTES)
 }
 
 #[inline]

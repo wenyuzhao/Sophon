@@ -1,186 +1,282 @@
+use core::cmp::Ordering;
 use core::convert::From;
 use core::fmt;
-use core::hash::Hash;
+use core::iter::Step;
 use core::marker::PhantomData;
 use core::ops::*;
 
-pub trait MemoryKind: Copy + Clone + PartialOrd + Ord + PartialEq + Eq + Hash {}
+pub trait MemoryKind: 'static + Sized {}
 
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Virtual;
 
 pub type V = Virtual;
 
 impl MemoryKind for Virtual {}
 
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Physical;
 
 pub type P = Physical;
 
 impl MemoryKind for Physical {}
 
-#[repr(C)]
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[repr(transparent)]
 pub struct Address<K: MemoryKind = Virtual>(usize, PhantomData<K>);
 
 impl<K: MemoryKind> Address<K> {
     pub const ZERO: Self = Address::new(0usize);
     #[cfg(target_pointer_width = "32")]
-    pub const LOG_SIZE: usize = 2;
+    pub const LOG_BYTES: usize = 2;
     #[cfg(target_pointer_width = "64")]
-    pub const LOG_SIZE: usize = 3;
-    pub const SIZE: usize = 1 << Self::LOG_SIZE;
+    pub const LOG_BYTES: usize = 3;
+    pub const BYTES: usize = 1 << Self::LOG_BYTES;
 
-    #[inline]
     pub const fn new(v: usize) -> Self {
         Self(v, PhantomData)
     }
 
-    #[inline]
-    pub fn is_zero(&self) -> bool {
+    pub const fn is_zero(&self) -> bool {
         self.0 == 0
     }
 
-    #[inline]
+    pub const fn align_up(&self, align: usize) -> Self {
+        debug_assert!(align.is_power_of_two());
+        let mask = align - 1;
+        Self::new((self.0 + mask) & !mask)
+    }
+
+    pub const fn align_down(&self, align: usize) -> Self {
+        debug_assert!(align.is_power_of_two());
+        let mask = align - 1;
+        Self::new(self.0 & !mask)
+    }
+
+    pub const fn is_aligned_to(&self, align: usize) -> bool {
+        debug_assert!(align.is_power_of_two());
+        (self.0 & (align - 1)) == 0
+    }
+
+    pub const fn as_usize(&self) -> usize {
+        self.0
+    }
+
+    pub const fn as_ptr<T>(&self) -> *const T {
+        self.0 as _
+    }
+
+    pub const fn as_mut_ptr<T>(&self) -> *mut T {
+        self.0 as _
+    }
+
+    pub const unsafe fn as_ref<T: 'static>(&self) -> &'static T {
+        debug_assert!(!self.is_zero());
+        &*self.as_ptr()
+    }
+
+    pub const unsafe fn as_mut<T: 'static>(&self) -> &'static mut T {
+        debug_assert!(!self.is_zero());
+        &mut *self.as_mut_ptr()
+    }
+
+    #[inline(always)]
     pub unsafe fn load<T: Copy>(&self) -> T {
         ::core::intrinsics::volatile_load(self.0 as *mut T)
     }
 
-    #[inline]
+    #[inline(always)]
     pub unsafe fn store<T: Copy>(&self, value: T) {
         ::core::intrinsics::volatile_store(self.0 as *mut T, value)
     }
 
     #[inline]
-    pub const fn as_usize(&self) -> usize {
-        self.0
-    }
-
-    #[inline]
-    pub const fn from_usize(v: usize) -> Self {
-        Self(v, PhantomData)
-    }
-
-    #[inline]
-    pub fn as_ptr<T>(&self) -> *const T {
-        unsafe { ::core::mem::transmute(self.0) }
-    }
-
-    #[inline]
-    pub fn as_ptr_mut<T>(&self) -> *mut T {
-        unsafe { ::core::mem::transmute(self.0) }
-    }
-
-    #[inline]
-    pub unsafe fn as_ref<T>(&self) -> &'static T {
-        ::core::mem::transmute(self.0)
-    }
-
-    #[inline]
-    pub unsafe fn as_ref_mut<T>(&self) -> &'static mut T {
-        ::core::mem::transmute(self.0)
+    pub unsafe fn zero(range: Range<Self>) {
+        let size = range.end - range.start;
+        core::ptr::write_bytes::<u8>(range.start.as_mut_ptr(), 0, size);
     }
 }
 
-impl<K: MemoryKind> From<usize> for Address<K> {
-    fn from(v: usize) -> Self {
-        Self(v, PhantomData)
+unsafe impl<K: MemoryKind> const Send for Address<K> {}
+unsafe impl<K: MemoryKind> const Sync for Address<K> {}
+
+impl<K: MemoryKind> const Clone for Address<K> {
+    fn clone(&self) -> Self {
+        Self(self.0, PhantomData)
     }
 }
 
-impl<K: MemoryKind, T> From<*const T> for Address<K> {
-    fn from(v: *const T) -> Self {
-        Self(v as _, PhantomData)
+impl<K: MemoryKind> const Copy for Address<K> {}
+
+impl<K: MemoryKind> const From<usize> for Address<K> {
+    fn from(value: usize) -> Self {
+        Self::new(value)
     }
 }
 
-impl<K: MemoryKind, T> From<*mut T> for Address<K> {
-    fn from(v: *mut T) -> Self {
-        Self(v as _, PhantomData)
+impl<K: MemoryKind, T> const From<*const T> for Address<K> {
+    fn from(value: *const T) -> Self {
+        unsafe { Self::new(value as _) }
     }
 }
 
-impl Into<usize> for Address {
-    #[inline(always)]
-    fn into(self) -> usize {
-        self.0
+impl<K: MemoryKind, T> const From<*mut T> for Address<K> {
+    fn from(value: *mut T) -> Self {
+        unsafe { Self::new(value as _) }
     }
 }
 
-impl<T> Into<*const T> for Address {
-    #[inline(always)]
-    fn into(self) -> *const T {
-        self.0 as _
+impl<K: MemoryKind, T> const From<&T> for Address<K> {
+    fn from(value: &T) -> Self {
+        unsafe { Self::new(value as *const T as _) }
     }
 }
 
-impl<T> Into<*mut T> for Address {
-    #[inline(always)]
-    fn into(self) -> *mut T {
-        self.0 as _
+impl<K: MemoryKind, T> const From<&mut T> for Address<K> {
+    fn from(value: &mut T) -> Self {
+        unsafe { Self::new(value as *const T as _) }
+    }
+}
+
+impl<K: MemoryKind> const From<Address<K>> for usize {
+    fn from(value: Address<K>) -> usize {
+        value.0
+    }
+}
+
+impl<K: MemoryKind, T> const From<Address<K>> for *const T {
+    fn from(value: Address<K>) -> *const T {
+        value.0 as _
+    }
+}
+
+impl<K: MemoryKind, T> const From<Address<K>> for *mut T {
+    fn from(value: Address<K>) -> *mut T {
+        value.0 as _
+    }
+}
+
+impl<K: MemoryKind> const Deref for Address<K> {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<K: MemoryKind> const PartialEq for Address<K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<K: MemoryKind> const Eq for Address<K> {}
+
+impl<K: MemoryKind> const PartialOrd for Address<K> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<K: MemoryKind> const Ord for Address<K> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self.0, other.0) {
+            (x, y) if x == y => Ordering::Equal,
+            (x, y) if x < y => Ordering::Less,
+            _ => Ordering::Greater,
+        }
+    }
+}
+
+impl<K: MemoryKind> const Add<usize> for Address<K> {
+    type Output = Self;
+    fn add(self, other: usize) -> Self::Output {
+        Self::new(*self + other)
+    }
+}
+
+impl<K: MemoryKind> const AddAssign<usize> for Address<K> {
+    fn add_assign(&mut self, other: usize) {
+        *self = *self + other
+    }
+}
+
+impl<K: MemoryKind> const Add<Self> for Address<K> {
+    type Output = Self;
+    fn add(self, other: Self) -> Self::Output {
+        self + *other
+    }
+}
+
+impl<K: MemoryKind> const AddAssign<Self> for Address<K> {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other
+    }
+}
+
+impl<K: MemoryKind> const Add<isize> for Address<K> {
+    type Output = Self;
+    fn add(self, other: isize) -> Self::Output {
+        Self::new((*self as isize + other) as usize)
+    }
+}
+
+impl<K: MemoryKind> const AddAssign<isize> for Address<K> {
+    fn add_assign(&mut self, other: isize) {
+        *self = *self + other
+    }
+}
+
+impl<K: MemoryKind> const Add<i32> for Address<K> {
+    type Output = Self;
+    fn add(self, other: i32) -> Self::Output {
+        self + other as isize
+    }
+}
+
+impl<K: MemoryKind> const AddAssign<i32> for Address<K> {
+    fn add_assign(&mut self, other: i32) {
+        *self = *self + other
+    }
+}
+
+impl<K: MemoryKind> const Sub<Self> for Address<K> {
+    type Output = usize;
+    fn sub(self, other: Self) -> Self::Output {
+        debug_assert!(self.0 >= other.0);
+        *self - *other
+    }
+}
+
+impl<K: MemoryKind> const Sub<usize> for Address<K> {
+    type Output = Self;
+    fn sub(self, other: usize) -> Self::Output {
+        Self::new(self.0 - other)
+    }
+}
+
+impl<K: MemoryKind> const SubAssign<usize> for Address<K> {
+    fn sub_assign(&mut self, other: usize) {
+        *self = *self - other
     }
 }
 
 impl<K: MemoryKind> fmt::Debug for Address<K> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:#x}", self.0)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.as_ptr::<u8>())
     }
 }
 
-macro_rules! impl_address_add {
-    ($t: ty, $apply: expr) => {
-        impl<K: MemoryKind> Add<$t> for Address<K> {
-            type Output = Self;
-            #[inline(always)]
-            fn add(self, rhs: $t) -> Self {
-                $apply(self, rhs)
-            }
+unsafe impl<K: MemoryKind> const Step for Address<K> {
+    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+        if start.0 > end.0 {
+            None
+        } else {
+            Some(*end - *start)
         }
-        impl<K: MemoryKind> AddAssign<$t> for Address<K> {
-            #[inline(always)]
-            fn add_assign(&mut self, rhs: $t) {
-                *self = *self + rhs;
-            }
-        }
-    };
-}
+    }
 
-impl_address_add!(usize, |l: Address<_>, r| Address(l.0 + r, PhantomData));
-impl_address_add!(isize, |l: Address<_>, r| Address(
-    (l.0 as isize + r) as _,
-    PhantomData
-));
-impl_address_add!(i32, |l, r| l + r as isize);
+    fn forward_checked(start: Self, count: usize) -> Option<Self> {
+        Some(start + count)
+    }
 
-macro_rules! impl_address_sub {
-    ($t: ty, $apply: expr) => {
-        impl<K: MemoryKind> Sub<$t> for Address<K> {
-            type Output = Self;
-            #[inline(always)]
-            fn sub(self, rhs: $t) -> Self {
-                $apply(self, rhs)
-            }
-        }
-        impl<K: MemoryKind> SubAssign<$t> for Address<K> {
-            #[inline(always)]
-            fn sub_assign(&mut self, rhs: $t) {
-                *self = *self - rhs;
-            }
-        }
-    };
-}
-
-impl_address_sub!(usize, |l: Address<_>, r| Address(l.0 - r, PhantomData));
-impl_address_sub!(isize, |l: Address<_>, r| Address(
-    (l.0 as isize - r) as _,
-    PhantomData
-));
-impl_address_sub!(i32, |l, r| l - r as isize);
-impl<K: MemoryKind> Sub<Address<K>> for Address<K> {
-    type Output = usize;
-    #[inline(always)]
-    fn sub(self, rhs: Address<K>) -> usize {
-        self.0 - rhs.0
+    fn backward_checked(start: Self, count: usize) -> Option<Self> {
+        Some(start - count)
     }
 }

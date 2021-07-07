@@ -9,7 +9,7 @@ use cortex_a::regs::*;
 #[repr(C, align(4096))]
 pub struct KernelStack {
     /// This page is protected to trap stack overflow
-    guard: [u8; Size4K::SIZE],
+    guard: [u8; Size4K::BYTES],
     stack: [u8; KERNEL_STACK_SIZE],
 }
 
@@ -20,7 +20,7 @@ impl KernelStack {
             .lock()
             .acquire::<Size4K>(pages)
             .unwrap();
-        let kernel_stack = unsafe { stack.start.start().as_ref_mut::<Self>() };
+        let kernel_stack = unsafe { stack.start.start().as_mut::<Self>() };
         kernel_stack.init();
         kernel_stack
     }
@@ -88,7 +88,7 @@ pub struct AArch64Context {
     entry_pc: *mut u8, // x30
 
     // q: [u128; 32], // Neon registers
-    pub p4: Frame,
+    pub p4: Address<P>,
     kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
     response_message: Option<Message>,
@@ -111,18 +111,18 @@ impl ArchContext for AArch64Context {
             .start;
         let current_table = KernelPageTable::get();
         unsafe { p4_frame.zero() };
-        let p4 = unsafe { p4_frame.start().as_ref_mut::<KernelPageTable>() };
+        let p4 = unsafe { p4_frame.start().as_mut::<KernelPageTable>() };
         // Map kernel memory to user page table
         for i in 0..511 {
             p4[i] = current_table[i].clone();
         }
         // Alloc kernel stack (SP_EL1)
         let kernel_stack = KernelStack::new();
-        let sp: *mut u8 = kernel_stack.end_address().as_ptr_mut();
+        let sp: *mut u8 = kernel_stack.end_address().as_mut_ptr();
         let mut ctx = Self::empty();
         ctx.entry_pc = entry as _;
         ctx.kernel_stack_top = sp;
-        ctx.p4 = p4_frame;
+        ctx.p4 = p4_frame.start();
         ctx.kernel_stack = Some(kernel_stack);
         ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
         ctx
@@ -139,7 +139,7 @@ impl ArchContext for AArch64Context {
     unsafe extern "C" fn return_to_user(&mut self) -> ! {
         assert!(!TargetArch::interrupt().is_enabled());
         // Switch page table
-        if self.p4.start().as_usize() as u64 != TTBR0_EL1.get() {
+        if self.p4.as_usize() as u64 != TTBR0_EL1.get() {
             log!(
                 "Switch page table {:?} -> {:?}",
                 TTBR0_EL1.get() as *mut u8,
@@ -152,7 +152,7 @@ impl ArchContext for AArch64Context {
                     DSB ISH
                     isb
                 ",
-                v = in(reg) self.p4.start().as_usize()
+                v = in(reg) self.p4.as_usize()
             }
         }
 

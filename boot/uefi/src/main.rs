@@ -160,7 +160,7 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
             update_load_range(start, end);
         }
         let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
-        let vaddr_end = Page::<Size4K>::align_up(load_end.unwrap());
+        let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
         let pages = ((vaddr_end - vaddr_start) + ((1 << 12) - 1)) >> 12;
         log!("Map code start");
         map_kernel_pages_4k(
@@ -179,7 +179,7 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
             let bytes = p.ph.filesz() as usize;
             let offset = p.ph.offset() as usize;
             let src = &elf_data[offset] as *const u8;
-            let dst = start.as_ptr_mut::<u8>();
+            let dst = start.as_mut_ptr::<u8>();
             unsafe {
                 log!("Copy code {:?}", dst..dst.add(bytes));
                 ptr::copy_nonoverlapping(src, dst, bytes);
@@ -198,12 +198,12 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
     let buffer = new_page4k();
     let (_, descriptors) = bt
         .boot_services()
-        .memory_map(unsafe { buffer.start().as_ref_mut::<[u8; 4096]>() })
+        .memory_map(unsafe { buffer.start().as_mut::<[u8; 4096]>() })
         .unwrap()
         .unwrap();
-    let count = Frame::<Size4K>::SIZE / mem::size_of::<Range<Frame>>();
+    let count = Frame::<Size4K>::BYTES / mem::size_of::<Range<Frame>>();
     let available_physical_memory_ranges: &'static mut [Range<Frame>] =
-        unsafe { slice::from_raw_parts_mut(buffer.start().as_ptr_mut(), count) };
+        unsafe { slice::from_raw_parts_mut(buffer.start().as_mut_ptr(), count) };
     let mut cursor = 0;
     for desc in descriptors {
         if desc.ty == MemoryType::CONVENTIONAL {
@@ -285,7 +285,7 @@ pub extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
 
     let mut boot_info = gen_boot_info();
     let buffer = new_page4k();
-    let buffer = unsafe { buffer.start().as_ref_mut::<[u8; 4096]>() };
+    let buffer = unsafe { buffer.start().as_mut::<[u8; 4096]>() };
     st.boot_services().memory_map(buffer).unwrap().unwrap();
     st.exit_boot_services(image, buffer).unwrap_success();
 

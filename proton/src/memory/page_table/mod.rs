@@ -114,7 +114,7 @@ impl PageTableEntry {
         }
     }
     pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) {
-        if S::LOG_SIZE == Size2M::LOG_SIZE {
+        if S::BYTES == Size2M::BYTES {
             debug_assert!(flags.bits() & 0b10 == 0);
         } else {
             debug_assert!(flags.bits() & 0b10 == 0b10);
