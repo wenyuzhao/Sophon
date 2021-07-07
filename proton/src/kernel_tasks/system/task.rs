@@ -1,5 +1,5 @@
-use crate::task::*;
 use crate::arch::*;
+use crate::task::*;
 
 pub fn fork(m: &Message) {
     println!("fork {:?}", m.sender);
@@ -7,16 +7,17 @@ pub fn fork(m: &Message) {
     loop {
         debug_assert!(Target::Interrupt::is_enabled());
         let block_to_receive_from = parent_task.block_to_receive_from.lock();
-        if block_to_receive_from.is_some() && *block_to_receive_from.as_ref().unwrap() == Some(Task::current().unwrap().id()) {
-            break
+        if block_to_receive_from.is_some()
+            && *block_to_receive_from.as_ref().unwrap() == Some(Task::current().unwrap().id())
+        {
+            break;
         }
     }
     println!("Fork task start");
     let child_task = Target::Interrupt::uninterruptable(|| parent_task.fork());
     println!("Fork task end");
 
-    let reply_parent = Message::new(m.receiver, parent_task.id(), 0)
-        .with_data(child_task.id());
+    let reply_parent = Message::new(m.receiver, parent_task.id(), 0).with_data(child_task.id());
     println!("Start send to {:?}", parent_task.id());
     reply_parent.send();
     println!("Finish send to {:?}", parent_task.id());

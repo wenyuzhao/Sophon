@@ -3,6 +3,7 @@ use crate::memory::page_table::kernel::*;
 use crate::task::Message;
 use crate::utils::page::*;
 use crate::{arch::*, heap::constants::*, memory::physical::*};
+use core::ops::Range;
 use cortex_a::regs::*;
 // use
 
@@ -38,18 +39,10 @@ impl KernelStack {
             }
         }
     }
-    pub fn start_address(&self) -> Address {
-        let stack_start = Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]);
-        stack_start
-    }
-    pub fn end_address(&self) -> Address {
-        let stack_start = Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]);
-        stack_start + KERNEL_STACK_SIZE
-    }
-    pub fn copy_from(&mut self, other: &Self) {
-        for i in 0..KERNEL_STACK_SIZE {
-            self.stack[i] = other.stack[i];
-        }
+    pub const fn range(&self) -> Range<Address> {
+        let start = Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]);
+        let end = start + KERNEL_STACK_SIZE;
+        start..end
     }
 }
 
@@ -103,26 +96,13 @@ impl ArchContext for AArch64Context {
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
-        // Create user page table
-        let p4_frame = PHYSICAL_PAGE_RESOURCE
-            .lock()
-            .acquire::<Size4K>(1)
-            .unwrap()
-            .start;
-        let current_table = KernelPageTable::get();
-        unsafe { p4_frame.zero() };
-        let p4 = unsafe { p4_frame.start().as_mut::<KernelPageTable>() };
-        // Map kernel memory to user page table
-        for i in 0..511 {
-            p4[i] = current_table[i].clone();
-        }
         // Alloc kernel stack (SP_EL1)
         let kernel_stack = KernelStack::new();
-        let sp: *mut u8 = kernel_stack.end_address().as_mut_ptr();
+        let sp: *mut u8 = kernel_stack.range().end.as_mut_ptr();
         let mut ctx = Self::empty();
         ctx.entry_pc = entry as _;
         ctx.kernel_stack_top = sp;
-        ctx.p4 = p4_frame.start();
+        ctx.p4 = KernelPageTable::get().into();
         ctx.kernel_stack = Some(kernel_stack);
         ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
         ctx

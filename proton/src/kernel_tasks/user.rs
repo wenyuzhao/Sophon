@@ -25,6 +25,8 @@ impl UserTask {
         Self { elf_data }
     }
 
+    fn create_user_pagetable() {}
+
     fn load_elf(&self) -> extern "C" fn(isize, *const *const u8) {
         let elf = Elf::from_bytes(&self.elf_data).unwrap();
         if let Elf::Elf64(elf) = elf {

@@ -25,6 +25,7 @@ use alloc::vec;
 use proton::arch::{Arch, TargetArch};
 use proton::kernel_tasks::system::{Idle, System};
 use proton::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
+use proton::scheduler::ipc::IPC;
 use proton::scheduler::{AbstractScheduler, SCHEDULER};
 use proton::task::Task;
 use proton::BootInfo;
@@ -69,6 +70,9 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
 
     let v = vec![1, 3, 5, 7, 9];
     log!("Test Alloc {:?} {:?}", v, v.as_ptr());
+
+    IPC::init();
+    log!("[kernel: ipc initialized]");
 
     let task = Task::create_kernel_task(box System::new());
     log!("[kernel: created kernel process: {:?}]", task.id());

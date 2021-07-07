@@ -66,7 +66,7 @@ unsafe fn get_exception_class() -> ExceptionClass {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn handle_exception(_exception_frame: *mut ExceptionFrame) {
+pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
     log!("Exception received");
     // println!("EF = {:?}", exception_frame as *mut _);
     // debug_assert!(Task::<Kernel>::current().unwrap().context.exception_frame as usize == 0);
@@ -76,9 +76,18 @@ pub unsafe extern "C" fn handle_exception(_exception_frame: *mut ExceptionFrame)
     match exception {
         ExceptionClass::SVCAArch64 => {
             log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
-            // let _r = super::interrupt::handle_interrupt(InterruptId::Soft, &mut *exception_frame);
-            // ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-            // unsafe { (*exception_frame).x0 = ::core::mem::transmute(r) };
+            let r = TargetArch::interrupt().handle(
+                InterruptId::Soft,
+                &[
+                    exception_frame.x0,
+                    exception_frame.x1,
+                    exception_frame.x2,
+                    exception_frame.x3,
+                    exception_frame.x4,
+                    exception_frame.x5,
+                ],
+            );
+            exception_frame.x0 = ::core::mem::transmute(r);
             log!("SVCAArch64 End {:?}", Task::current().unwrap().id());
         }
         //     ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {

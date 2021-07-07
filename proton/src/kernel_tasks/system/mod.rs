@@ -17,11 +17,9 @@ impl KernelTask for System {
     fn run(&mut self) -> ! {
         log!("Kernel process start");
         loop {
-            // log!("Kernel process loop");
             debug_assert!(<TargetArch as Arch>::interrupt().is_enabled());
-
-            // let m = Message::receive(None);
-            // log!("Kernel received {:?}", m);
+            let m = Message::receive(None);
+            log!("Kernel received {:?}", m);
             // let kind: KernelCall = unsafe { ::core::mem::transmute(m.kind) };
             // match kind {
             //     KernelCall::MapPhysicalMemory => mem::map_physical_memory::<K>(&m),
