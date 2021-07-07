@@ -1,6 +1,7 @@
-use core::{intrinsics::volatile_store, mem, slice};
+use core::{mem, slice};
 
 use crate::scheduler::AbstractScheduler;
+use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use crate::{
     arch::{aarch64::INTERRUPT_CONTROLLER, ArchInterrupt},
     boot_driver::BootDriver,
@@ -16,47 +17,32 @@ const TIMER_INTERRUPT_FREQUENCY: usize = 1; // Hz
 
 pub const IRQ_LINES: usize = 256;
 
-macro_rules! u32_array {
-    ($start: literal - $end: literal) => {
-        [u32; ($end - $start + 4) / 4]
-    };
-}
-
-macro_rules! pad {
-    ($curr_end: literal - $next_start: literal) => {
-        [u8; $next_start - $curr_end - 4]
-    };
-    (bytes: $bytes: literal) => {
-        [u8; $bytes]
-    };
-}
-
 #[repr(C)]
 #[allow(non_snake_case)]
 pub struct GICD {
-    pub CTLR: u32,
-    /* 0x0000 */ _0: pad![0x0000 - 0x0080],
-    pub IGROUPR: u32_array![0x0080 - 0x00F8],
-    _1: pad![bytes: 1],
-    pub ISENABLER: u32_array![0x0100 - 0x0178],
-    _2: pad![bytes: 1],
-    pub ICENABLER: u32_array![0x0180 - 0x01F8],
-    _3: pad![bytes: 1],
-    pub ISPENDR: u32_array![0x0200 - 0x0278],
-    _4: pad![bytes: 1],
-    pub ICPENDR: u32_array![0x0280 - 0x02F8],
-    _5: pad![bytes: 1],
-    pub ISACTIVER: u32_array![0x0300 - 0x0378],
-    _6: pad![bytes: 1],
-    pub ICACTIVER: u32_array![0x0380 - 0x03F8],
-    _7: pad![bytes: 1],
-    pub IPRIORITYR: u32_array![0x0400 - 0x07DC],
-    _8: pad![0x07DC - 0x0800],
-    pub ITARGETSR: u32_array![0x0800 - 0x0BDC],
-    _9: pad![0x0BDC - 0x0C00],
-    pub ICFGR: u32_array![0x0C00 - 0x0CF4],
-    _10: pad![0x0CF4 - 0x0F00],
-    pub SGIR: u32, /* 0x0F00 */
+    pub CTLR: Volatile<u32>,
+    _0: PaddingForRange<{ 0x0004..0x0080 }>,
+    pub IGROUPR: VolatileArrayForRange<u32, { 0x0080..0x00FC }>,
+    _1: PaddingForRange<{ 0x00FC..0x0100 }>,
+    pub ISENABLER: VolatileArrayForRange<u32, { 0x0100..0x017C }>,
+    _2: PaddingForRange<{ 0x017C..0x0180 }>,
+    pub ICENABLER: VolatileArrayForRange<u32, { 0x0180..0x01FC }>,
+    _3: PaddingForRange<{ 0x01FC..0x0200 }>,
+    pub ISPENDR: VolatileArrayForRange<u32, { 0x0200..0x027C }>,
+    _4: PaddingForRange<{ 0x027C..0x0280 }>,
+    pub ICPENDR: VolatileArrayForRange<u32, { 0x0280..0x02FC }>,
+    _5: PaddingForRange<{ 0x02FC..0x0300 }>,
+    pub ISACTIVER: VolatileArrayForRange<u32, { 0x0300..0x037C }>,
+    _6: PaddingForRange<{ 0x037C..0x0380 }>,
+    pub ICACTIVER: VolatileArrayForRange<u32, { 0x0380..0x03FC }>,
+    _7: PaddingForRange<{ 0x03FC..0x0400 }>,
+    pub IPRIORITYR: VolatileArrayForRange<u32, { 0x0400..0x07E0 }>,
+    _8: PaddingForRange<{ 0x07E0..0x0800 }>,
+    pub ITARGETSR: VolatileArrayForRange<u32, { 0x0800..0x0BE0 }>,
+    _9: PaddingForRange<{ 0x0BE0..0x0C00 }>,
+    pub ICFGR: VolatileArrayForRange<u32, { 0x0C00..0x0CF8 }>,
+    _10: PaddingForRange<{ 0x0CF8..0x0F00 }>,
+    pub SGIR: Volatile<u32>, /* 0x0F00 */
 }
 
 #[allow(unused)]
@@ -78,11 +64,11 @@ impl GICD {
 #[repr(C)]
 #[allow(non_snake_case)]
 pub struct GICC {
-    pub CTLR: u32, // 0x000
-    pub PMR: u32,  // 0x004;
-    _0: pad![0x004 - 0x00C],
-    pub IAR: u32,  // 0x00C
-    pub EOIR: u32, // 0x010
+    pub CTLR: Volatile<u32>, // 0x000
+    pub PMR: Volatile<u32>,  // 0x004;
+    _0: PaddingForRange<{ 0x0008..0x00C }>,
+    pub IAR: Volatile<u32>,  // 0x00C
+    pub EOIR: Volatile<u32>, // 0x010
 }
 
 #[allow(unused)]
@@ -124,23 +110,21 @@ impl GIC {
         unsafe { barrier::dsb(barrier::SY) };
         unsafe {
             // Disable all interrupts
-            volatile_store(&mut GICD.CTLR, GICD::CTLR_DISABLE);
+            GICD.CTLR.set(GICD::CTLR_DISABLE);
             for n in 0..(IRQ_LINES / 32) {
-                volatile_store(&mut GICD.ICENABLER[n], !0);
-                volatile_store(&mut GICD.ICPENDR[n], !0);
-                volatile_store(&mut GICD.ICACTIVER[n], !0);
+                GICD.ICENABLER[n].set(!0);
+                GICD.ICPENDR[n].set(!0);
+                GICD.ICACTIVER[n].set(!0);
             }
             // Connect interrupts to core#0
             for n in 0..(IRQ_LINES / 4) {
-                volatile_store(
-                    &mut GICD.IPRIORITYR[n],
+                GICD.IPRIORITYR[n].set(
                     GICD::IPRIORITYRAULT
                         | GICD::IPRIORITYRAULT << 8
                         | GICD::IPRIORITYRAULT << 16
                         | GICD::IPRIORITYRAULT << 24,
                 );
-                volatile_store(
-                    &mut GICD.ITARGETSR[n],
+                GICD.ITARGETSR[n].set(
                     GICD::ITARGETSR_CORE0
                         | GICD::ITARGETSR_CORE0 << 8
                         | GICD::ITARGETSR_CORE0 << 16
@@ -149,12 +133,12 @@ impl GIC {
             }
             // set all interrupts to level triggered
             for n in 0..(IRQ_LINES / 16) {
-                volatile_store(&mut GICD.ICFGR[n], 0);
+                GICD.ICFGR[n].set(0);
             }
             // Enable GIC
-            volatile_store(&mut GICD.CTLR, GICD::CTLR_ENABLE);
-            volatile_store(&mut GICC.PMR, GICC::PMR_PRIORITY);
-            volatile_store(&mut GICC.CTLR, GICC::CTLR_ENABLE);
+            GICD.CTLR.set(GICD::CTLR_ENABLE);
+            GICC.PMR.set(GICC::PMR_PRIORITY);
+            GICC.CTLR.set(GICC::CTLR_ENABLE);
             barrier::dmb(barrier::SY);
         }
     }
@@ -234,7 +218,7 @@ impl ArchInterrupt for GICInterruptController {
         unsafe {
             asm!("dsb SY");
             let timer_irq = 16 + 14;
-            GIC.gicd().ISENABLER[timer_irq / 32] = 1 << (timer_irq % 32);
+            GIC.gicd().ISENABLER[timer_irq / 32].set(1 << (timer_irq % 32));
             let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
             assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
             let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;

@@ -7,7 +7,6 @@ use crate::{
     task::Task,
     *,
 };
-use core::intrinsics::{volatile_load, volatile_store};
 use cortex_a::{
     barrier,
     regs::{RegisterReadWrite, VBAR_EL1},
@@ -135,10 +134,10 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     #[allow(non_snake_case)]
     let GICC = GIC.gicc();
-    let iar = unsafe { volatile_load(&GICC.IAR) };
+    let iar = GICC.IAR.get();
     let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
     // FIXME: End of Interrupt ??? here ???
-    unsafe { volatile_store(&mut GICC.EOIR, iar) };
+    GICC.EOIR.set(iar);
     log!("IRQ {}", irq);
     if irq < 256 {
         if irq == 30 {
