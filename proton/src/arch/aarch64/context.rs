@@ -108,6 +108,10 @@ impl ArchContext for AArch64Context {
         ctx
     }
 
+    fn set_page_table(&mut self, page_table: &'static mut KernelPageTable) {
+        self.p4 = page_table.into();
+    }
+
     fn set_response_message(&mut self, m: Message) {
         self.response_message = Some(m);
     }
@@ -182,6 +186,7 @@ impl ArchContext for AArch64Context {
     unsafe fn enter_usermode(
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,
+        page_table: &mut KernelPageTable,
     ) -> ! {
         log!(
             "TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}",
@@ -195,11 +200,16 @@ impl ArchContext for AArch64Context {
                 msr spsr_el1, {0}
                 msr elr_el1, {1}
                 msr sp_el0, {2}
+                msr	ttbr0_el1, {3}
+                tlbi vmalle1is
+                DSB ISH
+                isb
                 eret
             ",
             in(reg) 0usize,
             in(reg) entry,
             in(reg) sp.as_usize(),
+            in(reg) page_table as *const _
         }
         unreachable!()
     }

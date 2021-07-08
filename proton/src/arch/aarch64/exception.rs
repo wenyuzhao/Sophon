@@ -102,19 +102,16 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
         //     },
         #[allow(unreachable_patterns)]
         v => {
-            // log!(
-            //     "Exception Frame: {:?} {:?}",
-            //     exception_frame,
-            //     *exception_frame
-            // );
-            // let esr_el1: u32;
-            // llvm_asm!("mrs $0, esr_el1":"=r"(esr_el1));
-            // log!(
-            //     "ESR_EL1 = <EC={:x}, IL={:x}>",
-            //     esr_el1 >> 26,
-            //     esr_el1 & ((1 << 26) - 1)
-            // );
-            // debug!(Kernel: "0x212ba4 -> 0x{:x}", *(0x212ba4usize as *const usize));
+            log!(
+                "Exception Frame: {:?} {:?}",
+                exception_frame,
+                *exception_frame
+            );
+            let far: usize;
+            asm!("mrs {}, far_el1", out(reg) far);
+            let elr: usize;
+            asm!("mrs {}, elr_el1", out(reg) elr);
+            log!("Abort FAR={:?} ELR={:?}", far as *mut (), elr as *mut ());
             panic!(
                 "Unknown exception 0b{:b}",
                 ::core::mem::transmute::<_, u32>(v)

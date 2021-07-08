@@ -51,10 +51,11 @@ impl<L: TableLevel> KernelPageTable<L> {
 }
 
 impl KernelPageTable<L4> {
-    pub const fn new() -> Self {
-        Self {
-            entries: unsafe { ::core::mem::transmute([0u64; 512]) },
-            phantom: PhantomData,
+    pub fn alloc() -> &'static mut Self {
+        let frame = Self::alloc_frame4k();
+        unsafe {
+            frame.zero();
+            frame.start().as_mut()
         }
     }
 
@@ -93,6 +94,9 @@ impl KernelPageTable<L4> {
             table[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
         }
         let table = table.get_next_table(index).unwrap();
+        if S::BYTES == Size1G::BYTES {
+            table.entries[KernelPageTable::<L3>::get_index(page.start())].set(frame, flags);
+        }
         // P2
         let index = KernelPageTable::<L3>::get_index(page.start());
         if table.entries[index].is_empty() {

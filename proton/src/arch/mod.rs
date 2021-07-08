@@ -1,4 +1,4 @@
-use crate::utils::address::*;
+use crate::{memory::page_table::kernel::KernelPageTable, utils::address::*};
 use alloc::boxed::Box;
 use device_tree::DeviceTree;
 
@@ -44,12 +44,14 @@ pub trait ArchInterrupt {
 pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
+    fn set_page_table(&mut self, page_table: &'static mut KernelPageTable);
     fn set_response_message(&mut self, m: crate::task::Message);
     fn set_response_status(&mut self, s: isize);
     unsafe extern "C" fn return_to_user(&mut self) -> !;
     unsafe fn enter_usermode(
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,
+        page_table: &mut KernelPageTable,
     ) -> !;
 }
 

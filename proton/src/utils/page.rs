@@ -28,6 +28,12 @@ impl PageSize for Size2M {
     const NAME: &'static str = "2M";
     const LOG_BYTES: usize = 21;
 }
+pub struct Size1G;
+
+impl PageSize for Size1G {
+    const NAME: &'static str = "1G";
+    const LOG_BYTES: usize = 30;
+}
 
 #[repr(transparent)]
 pub struct Page<S: PageSize = Size4K, K: MemoryKind = V>(NonZeroUsize, PhantomData<(S, K)>);
@@ -84,7 +90,7 @@ impl<S: PageSize, K: MemoryKind> Page<S, K> {
 
 impl<S: PageSize, K: MemoryKind> fmt::Debug for Page<S, K> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<{:?} {}>", self.0, S::NAME)
+        write!(f, "<{:x} {}>", self.0, S::NAME)
     }
 }
 

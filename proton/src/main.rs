@@ -24,6 +24,7 @@ use core::panic::PanicInfo;
 use alloc::vec;
 use proton::arch::{Arch, TargetArch};
 use proton::kernel_tasks::system::{Idle, System};
+use proton::kernel_tasks::user::UserTask;
 use proton::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
 use proton::scheduler::ipc::IPC;
 use proton::scheduler::{AbstractScheduler, SCHEDULER};
@@ -37,6 +38,8 @@ extern "C" {
     static mut __bss_start: u8;
     static mut __bss_end: u8;
 }
+
+const INIT: &'static [u8] = include_bytes!("../../target/aarch64-proton/debug/init");
 
 #[inline(never)]
 unsafe fn zero_bss() {
@@ -79,6 +82,9 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
 
     let task = Task::create_kernel_task(box Idle);
     log!("[kernel: created kernel process: {:?}]", task.id());
+
+    // let task = Task::create_kernel_task(box UserTask::new(INIT));
+    // log!("[kernel: created init process: {:?}]", task.id());
 
     <TargetArch as Arch>::interrupt().enable();
     <TargetArch as Arch>::interrupt().start_timer();

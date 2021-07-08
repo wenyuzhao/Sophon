@@ -62,6 +62,21 @@ impl PageFlags {
     pub fn user_code_flags_4k() -> PageFlags {
         Self::kernel_code_flags_4k() | PageFlag::USER
     }
+    pub fn user_stack_flags() -> PageFlags {
+        PageFlag::NORMAL_MEMORY
+            | PageFlag::PRESENT
+            | PageFlag::SMALL_PAGE
+            | PageFlag::OUTER_SHARE
+            | PageFlag::ACCESSED
+            | PageFlag::USER
+    }
+    pub fn device() -> PageFlags {
+        PageFlag::DEVICE_MEMORY
+            | PageFlag::PRESENT
+            | PageFlag::SMALL_PAGE
+            | PageFlag::OUTER_SHARE
+            | PageFlag::ACCESSED
+    }
 }
 
 #[cfg(not(target_pointer_width = "64"))]
@@ -114,7 +129,7 @@ impl PageTableEntry {
         }
     }
     pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) {
-        if S::BYTES == Size2M::BYTES {
+        if S::BYTES != Size4K::BYTES {
             debug_assert!(flags.bits() & 0b10 == 0);
         } else {
             debug_assert!(flags.bits() & 0b10 == 0b10);

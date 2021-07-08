@@ -2,8 +2,12 @@ use core::iter::Step;
 
 use super::KernelTask;
 use crate::arch::*;
+use crate::memory::page_table::kernel::KernelPageTable;
+use crate::memory::page_table::PageFlags;
+use crate::memory::page_table::L4;
 use crate::memory::physical::PhysicalPageResource;
 use crate::memory::physical::PHYSICAL_PAGE_RESOURCE;
+use crate::task::Task;
 // use crate::page_table::PageFlags;
 // use crate::page_table::PageTable;
 // use crate::page_table::L4;
@@ -25,9 +29,34 @@ impl UserTask {
         Self { elf_data }
     }
 
-    fn create_user_pagetable() {}
+    fn setup_user_pagetable() -> &'static mut KernelPageTable {
+        let page_table = KernelPageTable::alloc();
+        // Map kernel code
+        let kernel_memory = crate::heap::constants::kernel_memory();
+        debug_assert!((kernel_memory.end.start() - kernel_memory.start.start()) <= 1 << 30);
+        debug_assert!(kernel_memory.start.start().is_aligned_to(Size1G::BYTES));
+        let index = KernelPageTable::<L4>::get_index(kernel_memory.start.start());
+        page_table[index] = KernelPageTable::get()[index].clone();
+        Task::current()
+            .unwrap()
+            .context
+            .set_page_table(unsafe { &mut *(page_table as *mut _) });
+        page_table
+    }
 
-    fn load_elf(&self) -> extern "C" fn(isize, *const *const u8) {
+    fn setup_user_stack(page_table: &mut KernelPageTable) {
+        let frames = PHYSICAL_PAGE_RESOURCE
+            .lock()
+            .acquire::<Size4K>(USER_STACK_PAGES)
+            .unwrap();
+        let mut page = Page::<Size4K>::new(USER_STACK_START);
+        for f in frames {
+            page_table.map(page, f, PageFlags::user_stack_flags());
+            page = Step::forward(page, 1);
+        }
+    }
+
+    fn load_elf(&self, page_table: &mut KernelPageTable) -> extern "C" fn(isize, *const *const u8) {
         let elf = Elf::from_bytes(&self.elf_data).unwrap();
         if let Elf::Elf64(elf) = elf {
             log!("Parsed ELF file");
@@ -71,13 +100,12 @@ impl UserTask {
                 .lock()
                 .acquire::<Size4K>(pages)
                 .unwrap();
+            let paddr_start = frames.start.start();
             let mut page = Page::<Size4K>::new(vaddr_start);
-            unimplemented!();
-            // let pt = PageTable::<L4>::get(false);
-            // for f in frames {
-            //     pt.map(page, f, PageFlags::user_code_flags_4k());
-            //     page = Step::forward(page, 1);
-            // }
+            for f in frames {
+                page_table.map(page, f, PageFlags::user_code_flags_4k());
+                page = Step::forward(page, 1);
+            }
             // Copy data
             for p in elf
                 .program_header_iter()
@@ -88,8 +116,10 @@ impl UserTask {
                 let offset = p.ph.offset() as usize;
                 for i in 0..bytes {
                     let v = self.elf_data[offset + i];
+                    let vaddr = start + i;
                     unsafe {
-                        (start + i).store(v);
+                        (paddr_start + (vaddr - vaddr_start)).store(v)
+                        // (start + i).store(v);
                     }
                 }
             }
@@ -104,8 +134,12 @@ impl KernelTask for UserTask {
     fn run(&mut self) -> ! {
         log!("User task start (kernel)");
         log!("Execute user program");
-        let entry = self.load_elf();
+        let page_table = Self::setup_user_pagetable();
+        log!("User page-table created");
+        let entry = self.load_elf(page_table);
         log!("ELF File loaded");
+        Self::setup_user_stack(page_table);
+        log!("User stack created");
         // Allocate user stack
         // memory_map::<K>(
         //     USER_STACK_START,
@@ -114,7 +148,7 @@ impl KernelTask for UserTask {
         // )
         // .unwrap();
         {
-            unimplemented!()
+            // unimplemented!()
             // let frames = PHYSICAL_PAGE_RESOURCE
             //     .lock()
             //     .acquire::<Size4K>(USER_STACK_PAGES)
@@ -126,13 +160,13 @@ impl KernelTask for UserTask {
             //     page = Step::forward(page, 1);
             // }
         }
-        log!("Stack memory mapped");
+        // log!("Stack memory mapped");
         // <K::Arch as AbstractArch>::Interrupt::disable();
         log!(
             "Start to enter usermode: {:?}",
             crate::task::Task::current().map(|t| t.id())
         );
         // Enter usermode
-        unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, USER_STACK_END) }
+        unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, USER_STACK_END, page_table) }
     }
 }

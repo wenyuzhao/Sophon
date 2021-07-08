@@ -7,12 +7,12 @@ use core::{fmt::Debug, marker::PhantomData};
 
 #[repr(C, align(4096))]
 #[derive(Debug)]
-pub struct PageTable<L: TableLevel> {
+pub struct UserPageTable<L: TableLevel> {
     pub entries: [PageTableEntry; 512],
     phantom: PhantomData<L>,
 }
 
-impl<L: TableLevel> PageTable<L> {
+impl<L: TableLevel> UserPageTable<L> {
     const MASK: usize = 0b111111111 << L::SHIFT;
 
     fn zero(&mut self) {
@@ -43,7 +43,7 @@ impl<L: TableLevel> PageTable<L> {
         }
     }
 
-    pub fn next_table(&self, index: usize) -> Option<&'static mut PageTable<L::NextLevel>> {
+    pub fn next_table(&self, index: usize) -> Option<&'static mut UserPageTable<L::NextLevel>> {
         debug_assert!(L::ID > 1);
         if let Some(address) = self.next_table_address(index) {
             Some(unsafe { &mut *(address as *mut _) })
@@ -52,7 +52,7 @@ impl<L: TableLevel> PageTable<L> {
         }
     }
 
-    fn next_table_create(&mut self, index: usize) -> &'static mut PageTable<L::NextLevel> {
+    fn next_table_create(&mut self, index: usize) -> &'static mut UserPageTable<L::NextLevel> {
         debug_assert!(L::ID > 1);
         if let Some(address) = self.next_table_address(index) {
             return unsafe { &mut *(address as *mut _) };
@@ -115,7 +115,7 @@ impl<L: TableLevel> PageTable<L> {
     }
 }
 
-impl PageTable<L4> {
+impl UserPageTable<L4> {
     pub const fn new() -> Self {
         Self {
             entries: unsafe { ::core::mem::transmute([0u64; 512]) },
@@ -124,18 +124,12 @@ impl PageTable<L4> {
     }
 
     #[inline]
-    pub fn get(high: bool) -> &'static mut Self {
-        if high {
-            unsafe { Address::<V>::new(0xffff_ffff_ffff_f000).as_mut() }
-        } else {
-            unsafe { Address::<V>::new(0x0000_ffff_ffff_f000).as_mut() }
-        }
+    pub fn get() -> &'static mut Self {
+        unsafe { Address::<V>::new(0x0000_ffff_ffff_f000).as_mut() }
     }
 
     pub fn translate(&mut self, a: Address<V>) -> Option<(Address<P>, PageFlags)> {
-        // crate::debug_boot::log("get_entry start");
         let (_level, entry) = self.get_entry(a)?;
-        // crate::debug_boot::log("get_entry finished");
         if entry.present() {
             let page_offset = a.as_usize() & 0xfff;
             Some((entry.address() + page_offset, entry.flags()))
@@ -236,14 +230,42 @@ impl PageTable<L4> {
         TemporaryKernelPage(page)
     }
 
-    // pub fn with_temporary_low_table<R>(new_p4_frame: Frame, f: impl Fn(&'static mut PageTable<L4>) -> R) -> R {
-    //     let old_p4_frame = Frame::<Size4K>::new((TTBR0_EL1.get() as usize).into());
-    //     TTBR0_EL1.set(new_p4_frame.start().as_usize() as u64);
-    //     super::paging::invalidate_tlb();
-    //     let r = f(Self::get(false));
-    //     TTBR0_EL1.set(old_p4_frame.start().as_usize() as u64);
-    //     super::paging::invalidate_tlb();
-    //     r
+    // pub fn inactive_map<S: PageSize>(
+    //     &mut self,
+    //     page: Page<S>,
+    //     frame: Frame<S>,
+    //     flags: PageFlags,
+    // ) -> Page<S> {
+    //     // P4
+    //     let table = self;
+    //     // P3
+    //     let index = KernelPageTable::<L4>::get_index(page.start());
+    //     if table[index].is_empty() {
+    //         table[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
+    //     }
+    //     let table = table.get_next_table(index).unwrap();
+    //     // P2
+    //     let index = KernelPageTable::<L3>::get_index(page.start());
+    //     if table.entries[index].is_empty() {
+    //         table.entries[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
+    //     }
+    //     let table = table.get_next_table(index).unwrap();
+    //     if S::BYTES == Size2M::BYTES {
+    //         table.entries[KernelPageTable::<L2>::get_index(page.start())].set(frame, flags);
+    //     }
+    //     // P1
+    //     let index = KernelPageTable::<L2>::get_index(page.start());
+    //     if table.entries[index].is_empty() {
+    //         table.entries[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
+    //     }
+    //     let table = table.get_next_table(index).unwrap();
+    //     table.entries[KernelPageTable::<L1>::get_index(page.start())]
+    //         .set(frame, flags | PageFlag::SMALL_PAGE);
+    //     page
+    // }
+
+    // pub fn unmap<S: PageSize>(&mut self, _page: Page<S>) {
+    //     unimplemented!()
     // }
 }
 
@@ -366,7 +388,7 @@ impl<S: PageSize> Deref for TemporaryKernelPage<S> {
 
 impl<S: PageSize> Drop for TemporaryKernelPage<S> {
     fn drop(&mut self) {
-        PageTable::<L4>::get(false).unmap(self.0);
+        UserPageTable::<L4>::get().unmap(self.0);
         invalidate_tlb();
     }
 }

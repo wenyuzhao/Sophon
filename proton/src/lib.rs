@@ -21,6 +21,7 @@
 #![feature(const_trait_impl)]
 #![feature(const_raw_ptr_to_usize_cast)]
 #![feature(const_generics)]
+#![feature(const_maybe_uninit_assume_init)]
 #![no_std]
 
 use core::ops::Range;

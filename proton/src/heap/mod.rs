@@ -10,6 +10,15 @@ use crate::{arch::*, memory::physical::*};
 
 const MIN_SIZE: usize = 1 << 3;
 
+// pub const KERNEL_HEAP_PAGES: usize = 1 << LOG_KERNEL_HEAP_PAGES;
+// pub const KERNEL_HEAP_SIZE: usize = KERNEL_HEAP_PAGES * Size4K::SIZE;
+const HEAP_SIZE: usize = 32 * 1024 * 1024;
+
+#[repr(C, align(4096))]
+struct HeapData([u8; HEAP_SIZE]);
+
+static HEAP_DATA: HeapData = HeapData([0; HEAP_SIZE]);
+
 pub struct FreeListAllocator {
     start: Address,
     end: Address,
@@ -31,19 +40,19 @@ impl FreeListAllocator {
 
     fn init(&mut self) {
         // Allocate 128M as kernel heap
-        let heap = PHYSICAL_PAGE_RESOURCE
-            .lock()
-            .acquire::<Size2M>(128)
-            .unwrap();
-        let heap_start: Address = Address::<V>::from(heap.start.start().as_usize());
-        let heap_limit: Address = Address::<V>::from(heap.end.start().as_usize());
-        self.start = heap_start;
-        self.end = heap_limit;
+        // let heap = PHYSICAL_PAGE_RESOURCE
+        //     .lock()
+        //     .acquire::<Size2M>(128)
+        //     .unwrap();
+        // let heap_start: Address = Address::<V>::from(heap.start.start().as_usize());
+        // let heap_limit: Address = Address::<V>::from(heap.end.start().as_usize());
+        self.start = Address::from(&HEAP_DATA.0[0]);
+        self.end = self.start + HEAP_SIZE;
         // println!("Heap: {:?}..{:?}", heap_start, heap_limit);
-        let mut cursor = heap_start;
-        while cursor < heap_limit {
+        let mut cursor = self.start;
+        while cursor < self.end {
             let align = cursor.as_usize().trailing_zeros();
-            let size = min(1 << align, heap_limit - cursor);
+            let size = min(1 << align, self.end - cursor);
             assert!(size > 0);
             let size_class = Self::size_class(size);
             assert!(cursor.as_usize() & ((1 << (size_class + 3)) - 1) == 0);
