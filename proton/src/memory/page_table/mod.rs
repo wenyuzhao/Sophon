@@ -50,6 +50,9 @@ impl PageFlags {
             | PageFlag::ACCESSED
             | PageFlag::USER
     }
+    pub fn kernel_data_flags_2m() -> PageFlags {
+        PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
+    }
     pub fn kernel_code_flags_2m() -> PageFlags {
         PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
     }

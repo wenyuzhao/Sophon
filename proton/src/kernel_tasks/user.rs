@@ -36,6 +36,7 @@ impl UserTask {
         debug_assert!((kernel_memory.end.start() - kernel_memory.start.start()) <= 1 << 30);
         debug_assert!(kernel_memory.start.start().is_aligned_to(Size1G::BYTES));
         let index = KernelPageTable::<L4>::get_index(kernel_memory.start.start());
+        log!("Duplicate index: {:?}", index);
         page_table[index] = KernelPageTable::get()[index].clone();
         Task::current()
             .unwrap()

@@ -17,9 +17,9 @@ const HEAP_SIZE: usize = 32 * 1024 * 1024;
 #[repr(C, align(4096))]
 struct HeapData([u8; HEAP_SIZE]);
 
-static HEAP_DATA: HeapData = HeapData([0; HEAP_SIZE]);
+// static HEAP_DATA: HeapData = HeapData([0; HEAP_SIZE]);
 
-pub struct FreeListAllocator {
+struct FreeListAllocator {
     start: Address,
     end: Address,
     cells: [Address; 28], // (1<<3), (1<<4), (1<<5), ..., (1<<30)
@@ -40,14 +40,14 @@ impl FreeListAllocator {
 
     fn init(&mut self) {
         // Allocate 128M as kernel heap
-        // let heap = PHYSICAL_PAGE_RESOURCE
-        //     .lock()
-        //     .acquire::<Size2M>(128)
-        //     .unwrap();
-        // let heap_start: Address = Address::<V>::from(heap.start.start().as_usize());
-        // let heap_limit: Address = Address::<V>::from(heap.end.start().as_usize());
-        self.start = Address::from(&HEAP_DATA.0[0]);
-        self.end = self.start + HEAP_SIZE;
+        let heap = PHYSICAL_PAGE_RESOURCE
+            .lock()
+            .acquire::<Size2M>(128)
+            .unwrap();
+        let heap_start: Address = Address::<V>::from(heap.start.start().as_usize());
+        let heap_limit: Address = Address::<V>::from(heap.end.start().as_usize());
+        self.start = heap_start;
+        self.end = heap_limit;
         // println!("Heap: {:?}..{:?}", heap_start, heap_limit);
         let mut cursor = self.start;
         while cursor < self.end {
@@ -154,7 +154,7 @@ impl FreeListAllocator {
 }
 
 /// FIXME: Bad performance!
-pub struct GlobalAllocator {
+struct GlobalAllocator {
     fa: Mutex<FreeListAllocator>,
 }
 

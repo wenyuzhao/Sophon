@@ -1,5 +1,10 @@
 use device_tree::{DeviceTree, Node};
 
+use crate::{
+    memory::{heap::KERNEL_HEAP, mapper::KERNEL_MEMORY_MAPPER, page_table::PageFlags},
+    utils::page::*,
+};
+
 pub trait BootDriver {
     const COMPATIBLE: &'static str;
     fn init(&mut self, node: &Node);
@@ -11,6 +16,11 @@ pub trait BootDriver {
             }
             _ => false,
         });
+    }
+    fn map_device_page(frame: Frame) -> Page {
+        let page = KERNEL_HEAP.virtual_allocate::<Size4K>(1).start;
+        KERNEL_MEMORY_MAPPER.map_fixed(page, frame, PageFlags::device());
+        page
     }
 }
 

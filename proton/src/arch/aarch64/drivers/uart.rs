@@ -1,14 +1,11 @@
 use core::{
     fmt::{self, Write},
-    mem, slice,
+    slice,
 };
 
 use crate::{
     boot_driver::BootDriver,
-    utils::{
-        page::{Frame, Size4K},
-        volatile::Volatile,
-    },
+    utils::{page::Frame, volatile::Volatile},
 };
 use device_tree::Node;
 use spin::{Lazy, Mutex};
@@ -95,9 +92,10 @@ impl BootDriver for UART0 {
         let reg = node.prop_raw("reg").unwrap();
         let len = reg.len() / 4;
         let data = unsafe { slice::from_raw_parts(reg.as_ptr() as *const u32, len) };
-        let uart_frame = ((u32::from_be(data[0]) as u64) << 32) | (u32::from_be(data[1]) as u64);
-        let uart_frame = Frame::<Size4K>::new((uart_frame as usize).into());
-        self.uart = Some(uart_frame.start().as_mut_ptr());
+        let uart_frame =
+            ((u32::from_be(data[0]) as usize) << 32) | (u32::from_be(data[1]) as usize);
+        let uart_page = Self::map_device_page(Frame::new(uart_frame.into()));
+        self.uart = Some(uart_page.start().as_mut_ptr());
         self.init_uart();
         *crate::log::WRITER.lock() = Some(box Log);
     }

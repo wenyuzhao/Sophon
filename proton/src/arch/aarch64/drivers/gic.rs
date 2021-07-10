@@ -1,12 +1,12 @@
-use core::{mem, slice};
-
 use crate::scheduler::AbstractScheduler;
+use crate::utils::page::Frame;
 use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use crate::{
     arch::{aarch64::INTERRUPT_CONTROLLER, ArchInterrupt},
     boot_driver::BootDriver,
     scheduler::SCHEDULER,
 };
+use core::slice;
 use cortex_a::{barrier, regs::*};
 use device_tree::Node;
 use spin::Lazy;
@@ -162,13 +162,17 @@ impl BootDriver for GIC {
         let len = reg.len() / 4;
         let data = unsafe { slice::from_raw_parts(reg.as_ptr() as *const u32, len) };
         log!("reg: {:?}", data);
-        let gicd_address = ((u32::from_be(data[0]) as u64) << 32) | (u32::from_be(data[1]) as u64);
+        let gicd_address =
+            ((u32::from_be(data[0]) as usize) << 32) | (u32::from_be(data[1]) as usize);
         // let gicd_size = ((u32::from_be(data[2]) as u64) << 32) | (u32::from_be(data[3]) as u64);
-        let gicc_address = ((u32::from_be(data[4]) as u64) << 32) | (u32::from_be(data[5]) as u64);
+        let gicc_address =
+            ((u32::from_be(data[4]) as usize) << 32) | (u32::from_be(data[5]) as usize);
         // let gicc_size = ((u32::from_be(data[6]) as u64) << 32) | (u32::from_be(data[7]) as u64);
         log!("GICD@{:#x} GICC@{:#x}", gicd_address, gicc_address);
-        self.GICD = Some(unsafe { mem::transmute(gicd_address) });
-        self.GICC = Some(unsafe { mem::transmute(gicc_address) });
+        let gicd_page = Self::map_device_page(Frame::new(gicd_address.into()));
+        let gicc_page = Self::map_device_page(Frame::new(gicc_address.into()));
+        self.GICD = Some(gicd_page.start().as_mut_ptr());
+        self.GICC = Some(gicc_page.start().as_mut_ptr());
         self.init_gic();
         let irq = box GICInterruptController::new();
         irq.set_handler(

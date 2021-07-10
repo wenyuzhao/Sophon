@@ -96,6 +96,7 @@ impl KernelPageTable<L4> {
         let table = table.get_next_table(index).unwrap();
         if S::BYTES == Size1G::BYTES {
             table.entries[KernelPageTable::<L3>::get_index(page.start())].set(frame, flags);
+            return page;
         }
         // P2
         let index = KernelPageTable::<L3>::get_index(page.start());
@@ -105,6 +106,7 @@ impl KernelPageTable<L4> {
         let table = table.get_next_table(index).unwrap();
         if S::BYTES == Size2M::BYTES {
             table.entries[KernelPageTable::<L2>::get_index(page.start())].set(frame, flags);
+            return page;
         }
         // P1
         let index = KernelPageTable::<L2>::get_index(page.start());

@@ -25,6 +25,8 @@ use alloc::vec;
 use proton::arch::{Arch, TargetArch};
 use proton::kernel_tasks::system::{Idle, System};
 use proton::kernel_tasks::user::UserTask;
+use proton::memory::heap::{KernelHeapAllocator, KERNEL_HEAP};
+use proton::memory::mapper::KERNEL_MEMORY_MAPPER;
 use proton::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
 use proton::scheduler::ipc::IPC;
 use proton::scheduler::{AbstractScheduler, SCHEDULER};
@@ -32,7 +34,7 @@ use proton::task::Task;
 use proton::BootInfo;
 
 #[global_allocator]
-static ALLOCATOR: proton::heap::GlobalAllocator = proton::heap::GlobalAllocator::new();
+static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
 
 extern "C" {
     static mut __bss_start: u8;
@@ -60,7 +62,8 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     PHYSICAL_PAGE_RESOURCE
         .lock()
         .init(boot_info.available_physical_memory);
-    ALLOCATOR.init();
+    KERNEL_MEMORY_MAPPER.init();
+    KERNEL_HEAP.init();
 
     // Initialize arch and boot drivers
     let t = device_tree::DeviceTree::load(boot_info.device_tree).unwrap();
@@ -69,7 +72,7 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     let x = vec![233usize];
     log!("Hello Proton! {:?}", x.as_ptr());
 
-    ALLOCATOR.dump();
+    KERNEL_HEAP.dump();
 
     let v = vec![1, 3, 5, 7, 9];
     log!("Test Alloc {:?} {:?}", v, v.as_ptr());
@@ -83,8 +86,8 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     let task = Task::create_kernel_task(box Idle);
     log!("[kernel: created kernel process: {:?}]", task.id());
 
-    // let task = Task::create_kernel_task(box UserTask::new(INIT));
-    // log!("[kernel: created init process: {:?}]", task.id());
+    let task = Task::create_kernel_task(box UserTask::new(INIT));
+    log!("[kernel: created init process: {:?}]", task.id());
 
     <TargetArch as Arch>::interrupt().enable();
     <TargetArch as Arch>::interrupt().start_timer();

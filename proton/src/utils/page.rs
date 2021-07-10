@@ -90,7 +90,7 @@ impl<S: PageSize, K: MemoryKind> Page<S, K> {
 
 impl<S: PageSize, K: MemoryKind> fmt::Debug for Page<S, K> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<{:x} {}>", self.0, S::NAME)
+        write!(f, "<0x{:x} {}>", self.0, S::NAME)
     }
 }
 

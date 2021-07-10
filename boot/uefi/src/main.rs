@@ -214,6 +214,10 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
         }
     }
     let available_physical_memory_ranges = &available_physical_memory_ranges[..cursor];
+    log!(
+        "Available physical memory: {:?}",
+        available_physical_memory_ranges
+    );
     return available_physical_memory_ranges;
 }
 
