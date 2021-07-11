@@ -1,5 +1,5 @@
 use crate::{
-    memory::page_table::kernel::KernelPageTable,
+    memory::page_table::kernel::PageTable,
     scheduler::task::Message,
     utils::{address::*, page::Frame},
 };
@@ -48,7 +48,7 @@ pub trait ArchInterrupt {
 pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
-    fn set_page_table(&mut self, page_table: &'static mut KernelPageTable);
+    fn set_page_table(&mut self, page_table: &'static mut PageTable);
     fn set_response_message(&mut self, m: Message);
     fn set_response_status(&mut self, s: isize);
 
@@ -56,7 +56,7 @@ pub trait ArchContext: Sized + 'static {
     unsafe fn enter_usermode(
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,
-        page_table: &mut KernelPageTable,
+        page_table: &mut PageTable,
     ) -> !;
 }
 

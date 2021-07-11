@@ -114,13 +114,13 @@ impl ArchContext for AArch64Context {
         let mut ctx = Self::empty();
         ctx.entry_pc = entry as _;
         ctx.kernel_stack_top = sp;
-        ctx.p4 = KernelPageTable::get().into();
+        ctx.p4 = PageTable::get().into();
         ctx.kernel_stack = Some(kernel_stack);
         ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
         ctx
     }
 
-    fn set_page_table(&mut self, page_table: &'static mut KernelPageTable) {
+    fn set_page_table(&mut self, page_table: &'static mut PageTable) {
         self.p4 = page_table.into();
     }
 
@@ -193,7 +193,7 @@ impl ArchContext for AArch64Context {
     unsafe fn enter_usermode(
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,
-        page_table: &mut KernelPageTable,
+        page_table: &mut PageTable,
     ) -> ! {
         log!(
             "TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}",

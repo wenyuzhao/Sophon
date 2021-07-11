@@ -2,7 +2,7 @@ use super::KernelTask;
 use crate::arch::*;
 use crate::memory::kernel::mapper::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::KERNEL_MEMORY_RANGE;
-use crate::memory::page_table::kernel::KernelPageTable;
+use crate::memory::page_table::kernel::PageTable;
 use crate::memory::page_table::PageFlags;
 use crate::memory::page_table::L4;
 use crate::memory::physical::PhysicalPageResource;
@@ -28,17 +28,14 @@ impl UserTask {
         Self { elf_data }
     }
 
-    fn setup_user_pagetable() -> &'static mut KernelPageTable {
-        let page_table = KernelPageTable::alloc();
+    fn setup_user_pagetable() -> &'static mut PageTable {
+        let page_table = PageTable::alloc();
         // Map kernel code
         let kernel_memory = KERNEL_MEMORY_RANGE;
-        let index = KernelPageTable::<L4>::get_index(kernel_memory.start);
-        debug_assert_eq!(
-            index,
-            KernelPageTable::<L4>::get_index(kernel_memory.end - 1)
-        );
+        let index = PageTable::<L4>::get_index(kernel_memory.start);
+        debug_assert_eq!(index, PageTable::<L4>::get_index(kernel_memory.end - 1));
         log!("Duplicate index: {:?}", index);
-        page_table[index] = KernelPageTable::get()[index].clone();
+        page_table[index] = PageTable::get()[index].clone();
         Task::current()
             .unwrap()
             .context
@@ -46,7 +43,7 @@ impl UserTask {
         page_table
     }
 
-    fn setup_user_stack(page_table: &mut KernelPageTable) {
+    fn setup_user_stack(page_table: &mut PageTable) {
         let frames = PHYSICAL_PAGE_RESOURCE
             .lock()
             .acquire::<Size4K>(USER_STACK_PAGES)
@@ -61,7 +58,7 @@ impl UserTask {
         }
     }
 
-    fn load_elf(&self, page_table: &mut KernelPageTable) -> extern "C" fn(isize, *const *const u8) {
+    fn load_elf(&self, page_table: &mut PageTable) -> extern "C" fn(isize, *const *const u8) {
         let elf = Elf::from_bytes(&self.elf_data).unwrap();
         if let Elf::Elf64(elf) = elf {
             log!("Parsed ELF file");

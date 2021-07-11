@@ -43,11 +43,11 @@ fn new_page4k() -> Frame {
     page
 }
 
-fn map_kernel_page_4k(p4: &mut KernelPageTable<L4>, page: Page<Size4K>) {
+fn map_kernel_page_4k(p4: &mut PageTable<L4>, page: Page<Size4K>) {
     fn get_next_table<L: TableLevel>(
-        p: &mut KernelPageTable<L>,
+        p: &mut PageTable<L>,
         i: usize,
-    ) -> &'static mut KernelPageTable<L::NextLevel> {
+    ) -> &'static mut PageTable<L::NextLevel> {
         if p[i].present() && !p[i].is_block() {
             let addr = p[i].address();
             unsafe { transmute(addr) }
@@ -57,31 +57,31 @@ fn map_kernel_page_4k(p4: &mut KernelPageTable<L4>, page: Page<Size4K>) {
     }
     let table = p4;
     // Get p3
-    let index = KernelPageTable::<L4>::get_index(page.start());
+    let index = PageTable::<L4>::get_index(page.start());
     if table[index].is_empty() {
         table[index].set(new_page4k(), PageFlags::page_table_flags());
     }
     let table = get_next_table(table, index);
     // Get p2
-    let index = KernelPageTable::<L3>::get_index(page.start());
+    let index = PageTable::<L3>::get_index(page.start());
     if table[index].is_empty() {
         table[index].set(new_page4k(), PageFlags::page_table_flags());
     }
     let table = get_next_table(table, index);
     // Get p1
-    let index = KernelPageTable::<L2>::get_index(page.start());
+    let index = PageTable::<L2>::get_index(page.start());
     if table[index].is_empty() {
         table[index].set(new_page4k(), PageFlags::page_table_flags());
     }
     let table = get_next_table(table, index);
     // Map
-    let index = KernelPageTable::<L1>::get_index(page.start());
+    let index = PageTable::<L1>::get_index(page.start());
     let frame = new_page4k();
     table[index].set(frame, PageFlags::kernel_code_flags_4k());
     // log!("Mapped {:?} -> {:?}", page, frame);
 }
 
-fn map_kernel_pages_4k(p4: &mut KernelPageTable<L4>, start: u64, pages: usize) {
+fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
     for i in 0..pages {
         map_kernel_page_4k(
             p4,
@@ -163,11 +163,7 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
         let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
         let pages = ((vaddr_end - vaddr_start) + ((1 << 12) - 1)) >> 12;
         log!("Map code start");
-        map_kernel_pages_4k(
-            KernelPageTable::<L4>::get(),
-            vaddr_start.as_usize() as _,
-            pages,
-        );
+        map_kernel_pages_4k(PageTable::<L4>::get(), vaddr_start.as_usize() as _, pages);
         log!("Map code end");
         // Copy data
         log!("Copy code start");

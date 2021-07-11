@@ -1,4 +1,4 @@
-use super::super::page_table::{kernel::KernelPageTable, PageFlags};
+use super::super::page_table::{kernel::PageTable, PageFlags};
 use crate::{
     arch::{Arch, TargetArch},
     memory::kernel::KERNEL_HEAP_RANGE,
@@ -19,11 +19,11 @@ impl KernelMemoryMapper {
     }
 
     pub fn init(&self) {
-        let page_table = KernelPageTable::get();
+        let page_table = PageTable::get();
         *self.page_table.lock() = Some(Frame::new(page_table.into()))
     }
 
-    pub fn with_kernel_page_table(&self) -> impl Drop + DerefMut + Deref<Target = KernelPageTable> {
+    pub fn with_kernel_page_table(&self) -> impl Drop + DerefMut + Deref<Target = PageTable> {
         struct PageTables {
             old: Frame,
             new: Frame,
@@ -36,7 +36,7 @@ impl KernelMemoryMapper {
             }
         }
         impl Deref for PageTables {
-            type Target = KernelPageTable;
+            type Target = PageTable;
             fn deref(&self) -> &Self::Target {
                 unsafe { self.new.start().as_ref() }
             }

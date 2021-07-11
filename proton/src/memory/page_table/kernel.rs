@@ -10,12 +10,12 @@ use cortex_a::regs::*;
 
 #[repr(C, align(4096))]
 #[derive(Debug)]
-pub struct KernelPageTable<L: TableLevel = L4> {
+pub struct PageTable<L: TableLevel = L4> {
     entries: [PageTableEntry; 512],
     phantom: PhantomData<L>,
 }
 
-impl<L: TableLevel> const Index<usize> for KernelPageTable<L> {
+impl<L: TableLevel> const Index<usize> for PageTable<L> {
     type Output = PageTableEntry;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -23,13 +23,13 @@ impl<L: TableLevel> const Index<usize> for KernelPageTable<L> {
     }
 }
 
-impl<L: TableLevel> const IndexMut<usize> for KernelPageTable<L> {
+impl<L: TableLevel> const IndexMut<usize> for PageTable<L> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.entries[index]
     }
 }
 
-impl<L: TableLevel> KernelPageTable<L> {
+impl<L: TableLevel> PageTable<L> {
     const MASK: usize = 0b111111111 << L::SHIFT;
 
     #[inline]
@@ -37,10 +37,7 @@ impl<L: TableLevel> KernelPageTable<L> {
         (a.as_usize() & Self::MASK) >> L::SHIFT
     }
 
-    fn get_next_table(
-        &mut self,
-        index: usize,
-    ) -> Option<&'static mut KernelPageTable<L::NextLevel>> {
+    fn get_next_table(&mut self, index: usize) -> Option<&'static mut PageTable<L::NextLevel>> {
         if self.entries[index].present() && !self.entries[index].is_block() {
             let addr = self.entries[index].address();
             Some(unsafe { transmute(addr) })
@@ -50,7 +47,7 @@ impl<L: TableLevel> KernelPageTable<L> {
     }
 }
 
-impl KernelPageTable<L4> {
+impl PageTable<L4> {
     pub fn alloc() -> &'static mut Self {
         let frame = Self::alloc_frame4k();
         unsafe {
@@ -89,32 +86,32 @@ impl KernelPageTable<L4> {
         // P4
         let table = self;
         // P3
-        let index = KernelPageTable::<L4>::get_index(page.start());
+        let index = PageTable::<L4>::get_index(page.start());
         if table[index].is_empty() {
             table[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
         }
         let table = table.get_next_table(index).unwrap();
         if S::BYTES == Size1G::BYTES {
-            table.entries[KernelPageTable::<L3>::get_index(page.start())].set(frame, flags);
+            table.entries[PageTable::<L3>::get_index(page.start())].set(frame, flags);
             return page;
         }
         // P2
-        let index = KernelPageTable::<L3>::get_index(page.start());
+        let index = PageTable::<L3>::get_index(page.start());
         if table.entries[index].is_empty() {
             table.entries[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
         }
         let table = table.get_next_table(index).unwrap();
         if S::BYTES == Size2M::BYTES {
-            table.entries[KernelPageTable::<L2>::get_index(page.start())].set(frame, flags);
+            table.entries[PageTable::<L2>::get_index(page.start())].set(frame, flags);
             return page;
         }
         // P1
-        let index = KernelPageTable::<L2>::get_index(page.start());
+        let index = PageTable::<L2>::get_index(page.start());
         if table.entries[index].is_empty() {
             table.entries[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
         }
         let table = table.get_next_table(index).unwrap();
-        table.entries[KernelPageTable::<L1>::get_index(page.start())]
+        table.entries[PageTable::<L1>::get_index(page.start())]
             .set(frame, flags | PageFlag::SMALL_PAGE);
         page
     }
