@@ -68,14 +68,11 @@ unsafe fn get_exception_class() -> ExceptionClass {
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
     log!("Exception received");
-    // println!("EF = {:?}", exception_frame as *mut _);
-    // debug_assert!(Task::<Kernel>::current().unwrap().context.exception_frame as usize == 0);
-    // Task::<Kernel>::current().map(|t| t.context.exception_frame = exception_frame);
+    Task::current().map(|t| t.get_context::<AArch64Context>().exception_frame = exception_frame);
     let exception = get_exception_class();
-    log!("Exception received");
     match exception {
         ExceptionClass::SVCAArch64 => {
-            log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
+            // log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
             let r = TargetArch::interrupt().handle(
                 InterruptId::Soft,
                 &[
@@ -88,7 +85,7 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
                 ],
             );
             exception_frame.x0 = ::core::mem::transmute(r);
-            log!("SVCAArch64 End {:?}", Task::current().unwrap().id());
+            // log!("SVCAArch64 End {:?}", Task::current().unwrap().id());
         }
         //     ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
         //         let far: usize;
@@ -118,11 +115,7 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
             );
         }
     }
-
-    // ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-
-    // log!("return_to_use00");
-    // Task::<Kernel>::current().unwrap().context.return_to_user();
+    Task::current().unwrap().context.return_to_user();
 }
 
 #[no_mangle]

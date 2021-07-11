@@ -1,8 +1,11 @@
 use super::exception::ExceptionFrame;
-use crate::memory::page_table::kernel::*;
+use crate::memory::heap::KERNEL_HEAP;
+use crate::memory::mapper::KERNEL_MEMORY_MAPPER;
+use crate::memory::page_table::{kernel::*, PageFlags};
 use crate::task::Message;
 use crate::utils::page::*;
 use crate::{arch::*, heap::constants::*, memory::physical::*};
+use core::iter::Step;
 use core::ops::Range;
 use cortex_a::regs::*;
 // use
@@ -17,10 +20,18 @@ pub struct KernelStack {
 impl KernelStack {
     pub fn new() -> &'static mut Self {
         let pages = KERNEL_STACK_PAGES + 1;
-        let stack = PHYSICAL_PAGE_RESOURCE
+        let stack_frames = PHYSICAL_PAGE_RESOURCE
             .lock()
             .acquire::<Size4K>(pages)
             .unwrap();
+        let stack = KERNEL_HEAP.virtual_allocate::<Size4K>(pages);
+        for i in 0..pages {
+            KERNEL_MEMORY_MAPPER.map_fixed(
+                Page::forward(stack.start, i),
+                Page::forward(stack_frames.start, i),
+                PageFlags::kernel_data_flags_4k(),
+            );
+        }
         let kernel_stack = unsafe { stack.start.start().as_mut::<Self>() };
         kernel_stack.init();
         kernel_stack

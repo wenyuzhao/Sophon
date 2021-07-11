@@ -53,6 +53,9 @@ impl PageFlags {
     pub fn kernel_data_flags_2m() -> PageFlags {
         PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
     }
+    pub fn kernel_data_flags_4k() -> PageFlags {
+        Self::kernel_data_flags_2m() | PageFlag::SMALL_PAGE
+    }
     pub fn kernel_code_flags_2m() -> PageFlags {
         PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
     }

@@ -11,8 +11,8 @@ use spin::Mutex;
 
 use crate::{arch::*, memory::physical::*};
 
-const HEAP_VIRTUAL_START: Address = Address::new(0xff8000000000);
-const HEAP_VIRTUAL_END: Address = Address::new(0xff9000000000);
+const HEAP_VIRTUAL_START: Address = Address::new(0xff4000000000);
+const HEAP_VIRTUAL_END: Address = Address::new(0xff8000000000);
 const HEAP_VIRTUAL_SIZE: usize = HEAP_VIRTUAL_END - HEAP_VIRTUAL_START; // 64G is enough
 
 static VIRTUAL_PAGE_ALLOCATOR: Mutex<VirtualPageAllocator> =
