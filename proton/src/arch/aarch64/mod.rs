@@ -2,19 +2,40 @@ mod context;
 mod drivers;
 mod exception;
 
-use super::{Arch, ArchInterrupt, TargetArch};
+use super::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
 use crate::{boot_driver::BootDriver, utils::page::Frame};
 use alloc::boxed::Box;
 use context::AArch64Context;
 use cortex_a::regs::*;
 use device_tree::DeviceTree;
 
-static mut INTERRUPT_CONTROLLER: Option<Box<dyn ArchInterrupt>> = None;
+static mut INTERRUPT_CONTROLLER: Option<Box<dyn ArchInterruptController>> = None;
+
+pub struct AArch64Interrupt;
+
+impl ArchInterrupt for AArch64Interrupt {
+    fn is_enabled() -> bool {
+        unsafe {
+            let daif: usize;
+            asm!("mrs {}, DAIF", out(reg) daif);
+            daif & (1 << 7) == 0
+        }
+    }
+
+    fn enable() {
+        unsafe { asm!("msr daifclr, #2") };
+    }
+
+    fn disable() {
+        unsafe { asm!("msr daifset, #2") };
+    }
+}
 
 pub struct AArch64;
 
 impl Arch for AArch64 {
     type Context = AArch64Context;
+    type Interrupt = AArch64Interrupt;
 
     fn init(device_tree: &DeviceTree) {
         unsafe { asm!("msr daifset, #2") };
@@ -31,7 +52,7 @@ impl Arch for AArch64 {
         drivers::gic::GIC.init_with_device_tree(device_tree);
     }
 
-    fn interrupt() -> &'static dyn ArchInterrupt {
+    fn interrupt() -> &'static dyn ArchInterruptController {
         unsafe { &**INTERRUPT_CONTROLLER.as_ref().unwrap() }
     }
 

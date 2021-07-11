@@ -60,7 +60,7 @@ impl AbstractScheduler for RoundRobinScheduler {
                 unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
             self.tasks.lock().insert(id, task);
             if task_ref.scheduler_state::<Self>().borrow().run_state == RunState::Ready {
-                debug_assert!(!TargetArch::interrupt().is_enabled());
+                debug_assert!(!<TargetArch as Arch>::Interrupt::is_enabled());
                 self.task_queue.lock().push_back(id);
             }
             task_ref
@@ -70,7 +70,7 @@ impl AbstractScheduler for RoundRobinScheduler {
     fn remove_task(&self, id: TaskId) {
         let _task = self.get_task_by_id(id).unwrap();
         self.tasks.lock().remove(&id);
-        debug_assert!(!TargetArch::interrupt().is_enabled());
+        debug_assert!(!<TargetArch as Arch>::Interrupt::is_enabled());
         debug_assert!(!self.task_queue.lock().contains(&id));
         let current_task_table = unsafe { &mut *self.current_task.get() };
         current_task_table[0] = None;
@@ -103,7 +103,7 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     fn schedule(&self) -> ! {
-        TargetArch::interrupt().disable();
+        <TargetArch as Arch>::Interrupt::disable();
 
         let current_task = self.get_current_task();
 
@@ -154,7 +154,7 @@ impl AbstractScheduler for RoundRobinScheduler {
 
     fn timer_tick(&self) {
         // log!("Timer TICK");
-        debug_assert!(!TargetArch::interrupt().is_enabled());
+        debug_assert!(!<TargetArch as Arch>::Interrupt::is_enabled());
         let current_task = self.get_current_task().unwrap();
 
         if current_task
@@ -206,7 +206,7 @@ impl RoundRobinScheduler {
     //
 
     pub fn enqueue_current_task_as_ready(&self) {
-        debug_assert!(!TargetArch::interrupt().is_enabled());
+        debug_assert!(!<TargetArch as Arch>::Interrupt::is_enabled());
         let task = self.get_current_task().unwrap();
         assert!(task.scheduler_state::<Self>().borrow().run_state != RunState::Ready);
         task.scheduler_state::<Self>().borrow_mut().run_state = RunState::Ready;
@@ -214,7 +214,7 @@ impl RoundRobinScheduler {
     }
 
     fn get_next_schedulable_task(&self) -> &'static mut Task {
-        debug_assert!(!TargetArch::interrupt().is_enabled());
+        debug_assert!(!<TargetArch as Arch>::Interrupt::is_enabled());
         if let Some(next_runnable_task) = self.task_queue.lock().pop_front() {
             Task::by_id(next_runnable_task).expect("task not found")
         } else {

@@ -2,7 +2,7 @@
 pub mod mem;
 
 use super::KernelTask;
-use crate::arch::{Arch, TargetArch};
+use crate::arch::{Arch, ArchInterrupt, TargetArch};
 use crate::scheduler::task::Message;
 
 pub struct System {}
@@ -17,7 +17,7 @@ impl KernelTask for System {
     fn run(&mut self) -> ! {
         log!("Kernel process start");
         loop {
-            debug_assert!(<TargetArch as Arch>::interrupt().is_enabled());
+            debug_assert!(<TargetArch as Arch>::Interrupt::is_enabled());
             let m = Message::receive(None);
             log!("Kernel received {:?}", m);
             // let kind: KernelCall = unsafe { ::core::mem::transmute(m.kind) };

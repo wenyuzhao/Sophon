@@ -30,11 +30,10 @@ impl UserTask {
 
     fn setup_user_pagetable() -> &'static mut PageTable {
         let page_table = PageTable::alloc();
-        // Map kernel code
+        // Map kernel pages
         let kernel_memory = KERNEL_MEMORY_RANGE;
         let index = PageTable::<L4>::get_index(kernel_memory.start);
         debug_assert_eq!(index, PageTable::<L4>::get_index(kernel_memory.end - 1));
-        log!("Duplicate index: {:?}", index);
         page_table[index] = PageTable::get()[index].clone();
         Task::current()
             .unwrap()
@@ -50,10 +49,10 @@ impl UserTask {
             .unwrap();
         let mut page = Page::<Size4K>::new(USER_STACK_START);
         for f in frames {
-            TargetArch::uninterruptable(|| {
+            {
                 let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
                 page_table.map(page, f, PageFlags::user_stack_flags());
-            });
+            }
             page = Step::forward(page, 1);
         }
     }
@@ -104,10 +103,10 @@ impl UserTask {
                 .unwrap();
             let mut page = Page::<Size4K>::new(vaddr_start);
             for f in frames {
-                TargetArch::uninterruptable(|| {
+                {
                     let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
                     page_table.map(page, f, PageFlags::user_code_flags_4k());
-                });
+                }
                 page = Step::forward(page, 1);
             }
             TargetArch::set_current_page_table(Frame::new(page_table.into()));
@@ -144,28 +143,6 @@ impl KernelTask for UserTask {
         log!("ELF File loaded");
         Self::setup_user_stack(page_table);
         log!("User stack created");
-        // Allocate user stack
-        // memory_map::<K>(
-        //     USER_STACK_START,
-        //     USER_STACK_PAGES << Size4K::LOG_SIZE,
-        //     PageFlags::user_stack_flags(),
-        // )
-        // .unwrap();
-        {
-            // unimplemented!()
-            // let frames = PHYSICAL_PAGE_RESOURCE
-            //     .lock()
-            //     .acquire::<Size4K>(USER_STACK_PAGES)
-            //     .unwrap();
-            // let mut page = Page::<Size4K>::new(USER_STACK_START);
-            // let pt = PageTable::<L4>::get(false);
-            // for f in frames {
-            //     pt.map(page, f, PageFlags::page_table_flags());
-            //     page = Step::forward(page, 1);
-            // }
-        }
-        // log!("Stack memory mapped");
-        // <K::Arch as AbstractArch>::Interrupt::disable();
         log!(
             "Start to enter usermode: {:?}",
             crate::scheduler::task::Task::current().map(|t| t.id())

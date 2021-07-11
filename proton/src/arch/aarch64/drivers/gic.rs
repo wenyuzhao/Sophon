@@ -1,11 +1,8 @@
+use crate::arch::ArchInterruptController;
 use crate::scheduler::AbstractScheduler;
 use crate::utils::page::Frame;
 use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
-use crate::{
-    arch::{aarch64::INTERRUPT_CONTROLLER, ArchInterrupt},
-    boot_driver::BootDriver,
-    scheduler::SCHEDULER,
-};
+use crate::{arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver, scheduler::SCHEDULER};
 use core::slice;
 use cortex_a::{barrier, regs::*};
 use device_tree::Node;
@@ -200,25 +197,8 @@ impl GICInterruptController {
     }
 }
 
-impl ArchInterrupt for GICInterruptController {
-    fn is_enabled(&self) -> bool {
-        unsafe {
-            let daif: usize;
-            asm!("mrs {}, DAIF", out(reg) daif);
-            daif & (1 << 7) == 0
-        }
-    }
-
-    fn enable(&self) {
-        unsafe { asm!("msr daifclr, #2") };
-    }
-
-    fn disable(&self) {
-        unsafe { asm!("msr daifset, #2") };
-    }
-
+impl ArchInterruptController for GICInterruptController {
     fn start_timer(&self) {
-        debug_assert!(self.is_enabled());
         unsafe {
             asm!("dsb SY");
             let timer_irq = 16 + 14;

@@ -133,7 +133,7 @@ impl ArchContext for AArch64Context {
     }
 
     unsafe extern "C" fn return_to_user(&mut self) -> ! {
-        assert!(!TargetArch::interrupt().is_enabled());
+        assert!(!<TargetArch as Arch>::Interrupt::is_enabled());
         // Switch page table
         if self.p4.as_usize() as u64 != TTBR0_EL1.get() {
             log!(
@@ -201,7 +201,7 @@ impl ArchContext for AArch64Context {
             entry as *const extern "C" fn(_argc: isize, _argv: *const *const u8),
             sp
         );
-        TargetArch::interrupt().disable();
+        <TargetArch as Arch>::Interrupt::disable();
         asm! {
             "
                 msr spsr_el1, {0}

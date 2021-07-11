@@ -18,10 +18,13 @@ pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize)
 
 static mut INTERRUPT_HANDLERS: [Option<InterruptHandler>; 3] = [None, None, None];
 
-pub trait ArchInterrupt {
-    fn is_enabled(&self) -> bool;
-    fn enable(&self);
-    fn disable(&self);
+pub trait ArchInterrupt: 'static + Sized {
+    fn is_enabled() -> bool;
+    fn enable();
+    fn disable();
+}
+
+pub trait ArchInterruptController {
     fn start_timer(&self);
     fn handle(&self, id: InterruptId, args: &[usize]) -> usize {
         let mut x = [0usize; 6];
@@ -62,8 +65,10 @@ pub trait ArchContext: Sized + 'static {
 
 pub trait Arch {
     type Context: ArchContext;
+    type Interrupt: ArchInterrupt;
+
     fn init(device_tree: &DeviceTree);
-    fn interrupt() -> &'static dyn ArchInterrupt;
+    fn interrupt() -> &'static dyn ArchInterruptController;
     fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R;
 
     fn get_current_page_table() -> Frame;

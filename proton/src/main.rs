@@ -89,8 +89,7 @@ pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
     let task = Task::create_kernel_task(box UserTask::new(INIT));
     log!("[kernel: created init process: {:?}]", task.id());
 
-    <TargetArch as Arch>::interrupt().enable();
-    <TargetArch as Arch>::interrupt().start_timer();
+    TargetArch::interrupt().start_timer();
     log!("[kernel: timer started]");
 
     SCHEDULER.schedule();

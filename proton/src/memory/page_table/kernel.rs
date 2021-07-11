@@ -1,12 +1,13 @@
 use super::*;
+use crate::arch::{Arch, ArchInterrupt, TargetArch};
 use crate::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
 use crate::utils::address::*;
 use crate::utils::page::*;
 use core::fmt::Debug;
 use core::intrinsics::transmute;
 use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
 use core::ops::{Index, IndexMut};
-use cortex_a::regs::*;
 
 #[repr(C, align(4096))]
 #[derive(Debug)]
@@ -58,7 +59,80 @@ impl PageTable<L4> {
 
     #[inline]
     pub fn get() -> &'static mut Self {
-        unsafe { &mut *(TTBR0_EL1.get() as *mut Self) }
+        unsafe { TargetArch::get_current_page_table().start().as_mut() }
+    }
+
+    #[inline]
+    pub fn enable_temporarily(&self) -> impl Drop + DerefMut + Deref<Target = PageTable> {
+        struct PageTables {
+            old: Frame,
+            new: Frame,
+            irq_enabled: bool,
+        }
+        impl Drop for PageTables {
+            fn drop(&mut self) {
+                if self.old != self.new {
+                    TargetArch::set_current_page_table(self.old);
+                }
+                if self.irq_enabled {
+                    <TargetArch as Arch>::Interrupt::enable();
+                }
+            }
+        }
+        impl Deref for PageTables {
+            type Target = PageTable;
+            fn deref(&self) -> &Self::Target {
+                unsafe { self.new.start().as_ref() }
+            }
+        }
+        impl DerefMut for PageTables {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                unsafe { self.new.start().as_mut() }
+            }
+        }
+        let x = PageTables {
+            old: TargetArch::get_current_page_table(),
+            new: Frame::new((self as *const _ as usize).into()),
+            irq_enabled: <TargetArch as Arch>::Interrupt::is_enabled(),
+        };
+        if x.irq_enabled {
+            <TargetArch as Arch>::Interrupt::disable();
+        }
+        if x.old != x.new {
+            TargetArch::set_current_page_table(x.new);
+        }
+        x
+
+        // struct PageTables {
+        //     old: Frame,
+        //     new: Frame,
+        // }
+        // impl Drop for PageTables {
+        //     fn drop(&mut self) {
+        //         if self.old != self.new {
+        //             TargetArch::set_current_page_table(self.old);
+        //         }
+        //     }
+        // }
+        // impl Deref for PageTables {
+        //     type Target = PageTable;
+        //     fn deref(&self) -> &Self::Target {
+        //         unsafe { self.new.start().as_ref() }
+        //     }
+        // }
+        // impl DerefMut for PageTables {
+        //     fn deref_mut(&mut self) -> &mut Self::Target {
+        //         unsafe { self.new.start().as_mut() }
+        //     }
+        // }
+        // let x = PageTables {
+        //     old: TargetArch::get_current_page_table(),
+        //     new: Frame::new((self as *const _ as usize).into()),
+        // };
+        // if x.old != x.new {
+        //     TargetArch::set_current_page_table(x.new);
+        // }
+        // x
     }
 
     pub fn identity_map<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) -> Page<S> {
