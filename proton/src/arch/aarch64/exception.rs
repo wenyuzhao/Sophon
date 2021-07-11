@@ -1,10 +1,10 @@
 use crate::arch::InterruptId;
+use crate::scheduler::task::Task;
 use crate::{
     arch::{
         aarch64::{context::*, drivers::gic::*},
         *,
     },
-    task::Task,
     *,
 };
 use cortex_a::regs::*;

@@ -7,7 +7,7 @@ use crate::memory::page_table::PageFlags;
 use crate::memory::page_table::L4;
 use crate::memory::physical::PhysicalPageResource;
 use crate::memory::physical::PHYSICAL_PAGE_RESOURCE;
-use crate::task::Task;
+use crate::scheduler::task::Task;
 use crate::utils::address::*;
 use crate::utils::page::*;
 use core::iter::Step;
@@ -98,7 +98,6 @@ impl UserTask {
                 load_start.unwrap(),
                 load_end.unwrap()
             );
-            log!("pt {:?}", KernelPageTable::get() as *const _);
             let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
             let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
             let pages = (vaddr_end - vaddr_start) >> Page::<Size4K>::LOG_BYTES;
@@ -114,6 +113,7 @@ impl UserTask {
                 });
                 page = Step::forward(page, 1);
             }
+            TargetArch::set_current_page_table(Frame::new(page_table.into()));
             // Copy data
             for p in elf
                 .program_header_iter()
@@ -171,7 +171,7 @@ impl KernelTask for UserTask {
         // <K::Arch as AbstractArch>::Interrupt::disable();
         log!(
             "Start to enter usermode: {:?}",
-            crate::task::Task::current().map(|t| t.id())
+            crate::scheduler::task::Task::current().map(|t| t.id())
         );
         // Enter usermode
         unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, USER_STACK_END, page_table) }

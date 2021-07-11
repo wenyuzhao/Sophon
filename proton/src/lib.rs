@@ -41,7 +41,6 @@ pub mod boot_driver;
 pub mod kernel_tasks;
 pub mod memory;
 pub mod scheduler;
-pub mod task;
 
 pub struct BootInfo {
     pub available_physical_memory: &'static [Range<Frame>],

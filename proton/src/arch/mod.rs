@@ -1,5 +1,6 @@
 use crate::{
     memory::page_table::kernel::KernelPageTable,
+    scheduler::task::Message,
     utils::{address::*, page::Frame},
 };
 use alloc::boxed::Box;
@@ -48,7 +49,7 @@ pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
     fn set_page_table(&mut self, page_table: &'static mut KernelPageTable);
-    fn set_response_message(&mut self, m: crate::task::Message);
+    fn set_response_message(&mut self, m: Message);
     fn set_response_status(&mut self, s: isize);
 
     unsafe extern "C" fn return_to_user(&mut self) -> !;

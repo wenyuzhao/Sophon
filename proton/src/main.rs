@@ -29,8 +29,8 @@ use proton::memory::kernel::heap::{KernelHeapAllocator, KERNEL_HEAP};
 use proton::memory::kernel::mapper::KERNEL_MEMORY_MAPPER;
 use proton::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
 use proton::scheduler::ipc::IPC;
+use proton::scheduler::task::Task;
 use proton::scheduler::{AbstractScheduler, SCHEDULER};
-use proton::task::Task;
 use proton::BootInfo;
 
 #[global_allocator]

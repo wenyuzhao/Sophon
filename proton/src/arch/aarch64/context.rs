@@ -3,7 +3,7 @@ use crate::memory::kernel::heap::KERNEL_HEAP;
 use crate::memory::kernel::mapper::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::memory::page_table::{kernel::*, PageFlags};
-use crate::task::Message;
+use crate::scheduler::task::Message;
 use crate::utils::page::*;
 use crate::{arch::*, memory::physical::*};
 use core::iter::Step;
