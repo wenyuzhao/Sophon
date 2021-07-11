@@ -38,10 +38,8 @@ pub mod utils;
 pub mod log;
 pub mod arch;
 pub mod boot_driver;
-pub mod heap;
 pub mod kernel_tasks;
 pub mod memory;
-// pub mod page_table;
 pub mod scheduler;
 pub mod task;
 

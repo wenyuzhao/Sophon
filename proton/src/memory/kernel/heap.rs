@@ -1,7 +1,10 @@
-use crate::memory::mapper::KERNEL_MEMORY_MAPPER;
+use super::mapper::KERNEL_MEMORY_MAPPER;
+use super::KERNEL_HEAP_RANGE;
+use super::KERNEL_HEAP_SIZE;
 use crate::memory::page_table::PageFlags;
 use crate::utils::address::*;
 use crate::utils::page::*;
+use crate::{arch::*, memory::physical::*};
 use core::alloc::{GlobalAlloc, Layout};
 use core::cmp::{max, min};
 use core::iter::Step;
@@ -9,19 +12,13 @@ use core::ops::Range;
 use core::usize;
 use spin::Mutex;
 
-use crate::{arch::*, memory::physical::*};
-
-const HEAP_VIRTUAL_START: Address = Address::new(0xff4000000000);
-const HEAP_VIRTUAL_END: Address = Address::new(0xff8000000000);
-const HEAP_VIRTUAL_SIZE: usize = HEAP_VIRTUAL_END - HEAP_VIRTUAL_START; // 64G is enough
-
 static VIRTUAL_PAGE_ALLOCATOR: Mutex<VirtualPageAllocator> =
     Mutex::new(VirtualPageAllocator::new());
 
 struct VirtualPageAllocator {
-    table_4k: [u64; HEAP_VIRTUAL_SIZE / Size4K::BYTES / 64],
-    table_2m: [u64; HEAP_VIRTUAL_SIZE / Size2M::BYTES / 64],
-    table_1g: [u64; HEAP_VIRTUAL_SIZE / Size1G::BYTES / 64],
+    table_4k: [u64; KERNEL_HEAP_SIZE / Size4K::BYTES / 64],
+    table_2m: [u64; KERNEL_HEAP_SIZE / Size2M::BYTES / 64],
+    table_1g: [u64; KERNEL_HEAP_SIZE / Size1G::BYTES / 64],
 }
 
 impl VirtualPageAllocator {
@@ -30,9 +27,9 @@ impl VirtualPageAllocator {
 
     const fn new() -> Self {
         Self {
-            table_4k: [0u64; HEAP_VIRTUAL_SIZE / Size4K::BYTES / 64],
-            table_2m: [0u64; HEAP_VIRTUAL_SIZE / Size2M::BYTES / 64],
-            table_1g: [0u64; HEAP_VIRTUAL_SIZE / Size1G::BYTES / 64],
+            table_4k: [0u64; KERNEL_HEAP_SIZE / Size4K::BYTES / 64],
+            table_2m: [0u64; KERNEL_HEAP_SIZE / Size2M::BYTES / 64],
+            table_1g: [0u64; KERNEL_HEAP_SIZE / Size1G::BYTES / 64],
         }
     }
 
@@ -118,7 +115,7 @@ impl VirtualPageAllocator {
             start_index
         };
 
-        let page = Page::<S>::new(HEAP_VIRTUAL_START + (start_index << S::LOG_BYTES));
+        let page = Page::<S>::new(KERNEL_HEAP_RANGE.start + (start_index << S::LOG_BYTES));
         page..Page::forward(page, pages)
     }
 

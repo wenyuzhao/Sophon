@@ -33,7 +33,7 @@ impl<L: TableLevel> KernelPageTable<L> {
     const MASK: usize = 0b111111111 << L::SHIFT;
 
     #[inline]
-    pub fn get_index(a: Address<V>) -> usize {
+    pub const fn get_index(a: Address<V>) -> usize {
         (a.as_usize() & Self::MASK) >> L::SHIFT
     }
 

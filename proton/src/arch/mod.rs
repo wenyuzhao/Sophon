@@ -1,4 +1,7 @@
-use crate::{memory::page_table::kernel::KernelPageTable, utils::address::*};
+use crate::{
+    memory::page_table::kernel::KernelPageTable,
+    utils::{address::*, page::Frame},
+};
 use alloc::boxed::Box;
 use device_tree::DeviceTree;
 
@@ -47,6 +50,7 @@ pub trait ArchContext: Sized + 'static {
     fn set_page_table(&mut self, page_table: &'static mut KernelPageTable);
     fn set_response_message(&mut self, m: crate::task::Message);
     fn set_response_status(&mut self, s: isize);
+
     unsafe extern "C" fn return_to_user(&mut self) -> !;
     unsafe fn enter_usermode(
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
@@ -60,6 +64,9 @@ pub trait Arch {
     fn init(device_tree: &DeviceTree);
     fn interrupt() -> &'static dyn ArchInterrupt;
     fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R;
+
+    fn get_current_page_table() -> Frame;
+    fn set_current_page_table(page_table: Frame);
 }
 
 pub type TargetArch = impl Arch;

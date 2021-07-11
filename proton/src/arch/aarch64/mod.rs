@@ -3,9 +3,10 @@ mod drivers;
 mod exception;
 
 use super::{Arch, ArchInterrupt, TargetArch};
-use crate::boot_driver::BootDriver;
+use crate::{boot_driver::BootDriver, utils::page::Frame};
 use alloc::boxed::Box;
 use context::AArch64Context;
+use cortex_a::regs::*;
 use device_tree::DeviceTree;
 
 static mut INTERRUPT_CONTROLLER: Option<Box<dyn ArchInterrupt>> = None;
@@ -49,6 +50,24 @@ impl Arch for AArch64 {
             unsafe { asm!("msr daifclr, #2") };
         }
         ret
+    }
+
+    fn get_current_page_table() -> Frame {
+        Frame::new((TTBR0_EL1.get() as usize).into())
+    }
+
+    fn set_current_page_table(page_table: Frame) {
+        unsafe {
+            asm! {
+                "
+                msr	ttbr0_el1, {v}
+                tlbi vmalle1is
+                DSB ISH
+                isb
+            ",
+                v = in(reg) page_table.start().as_usize()
+            }
+        }
     }
 }
 

@@ -1,9 +1,11 @@
-use device_tree::{DeviceTree, Node};
-
 use crate::{
-    memory::{heap::KERNEL_HEAP, mapper::KERNEL_MEMORY_MAPPER, page_table::PageFlags},
+    memory::{
+        kernel::{heap::KERNEL_HEAP, mapper::KERNEL_MEMORY_MAPPER},
+        page_table::PageFlags,
+    },
     utils::page::*,
 };
+use device_tree::{DeviceTree, Node};
 
 pub trait BootDriver {
     const COMPATIBLE: &'static str;

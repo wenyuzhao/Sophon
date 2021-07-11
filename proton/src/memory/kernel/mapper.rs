@@ -1,10 +1,11 @@
-use core::ops::{Deref, DerefMut, Range};
-
+use super::super::page_table::{kernel::KernelPageTable, PageFlags};
+use crate::{
+    arch::{Arch, TargetArch},
+    memory::kernel::KERNEL_HEAP_RANGE,
+    utils::page::*,
+};
+use core::ops::{Deref, DerefMut};
 use spin::Mutex;
-
-use crate::utils::{address::*, page::*};
-
-use super::page_table::{kernel::KernelPageTable, PageFlags};
 
 pub struct KernelMemoryMapper {
     page_table: Mutex<Option<Frame>>,
@@ -23,27 +24,42 @@ impl KernelMemoryMapper {
     }
 
     fn with_kernel_page_table(&self) -> impl Drop + DerefMut + Deref<Target = KernelPageTable> {
-        struct X(Frame);
-        impl Drop for X {
+        struct PageTables {
+            old: Frame,
+            new: Frame,
+        }
+        impl Drop for PageTables {
             fn drop(&mut self) {
-                // self.
+                if self.old != self.new {
+                    TargetArch::set_current_page_table(self.old);
+                }
             }
         }
-        impl Deref for X {
+        impl Deref for PageTables {
             type Target = KernelPageTable;
             fn deref(&self) -> &Self::Target {
-                unsafe { self.0.start().as_ref() }
+                unsafe { self.new.start().as_ref() }
             }
         }
-        impl DerefMut for X {
+        impl DerefMut for PageTables {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                unsafe { self.0.start().as_mut() }
+                unsafe { self.new.start().as_mut() }
             }
         }
-        X(self.page_table.lock().unwrap())
+        let x = PageTables {
+            old: TargetArch::get_current_page_table(),
+            new: self.page_table.lock().unwrap(),
+        };
+        if x.old != x.new {
+            TargetArch::set_current_page_table(x.new);
+        }
+        x
     }
 
     pub fn map_fixed<S: PageSize>(&self, page: Page<S>, frame: Frame<S>, flags: PageFlags) {
+        debug_assert!(
+            page.start() >= KERNEL_HEAP_RANGE.start && page.start() < KERNEL_HEAP_RANGE.end
+        );
         let mut page_table = self.with_kernel_page_table();
         page_table.map(page, frame, flags);
     }

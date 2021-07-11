@@ -1,18 +1,15 @@
-use core::iter::Step;
-
 use super::KernelTask;
 use crate::arch::*;
+use crate::memory::kernel::KERNEL_MEMORY_RANGE;
 use crate::memory::page_table::kernel::KernelPageTable;
 use crate::memory::page_table::PageFlags;
 use crate::memory::page_table::L4;
 use crate::memory::physical::PhysicalPageResource;
 use crate::memory::physical::PHYSICAL_PAGE_RESOURCE;
 use crate::task::Task;
-// use crate::page_table::PageFlags;
-// use crate::page_table::PageTable;
-// use crate::page_table::L4;
 use crate::utils::address::*;
 use crate::utils::page::*;
+use core::iter::Step;
 use elf_rs::*;
 
 const USER_STACK_START: Address<V> = Address::new(0x111900000);
@@ -32,10 +29,12 @@ impl UserTask {
     fn setup_user_pagetable() -> &'static mut KernelPageTable {
         let page_table = KernelPageTable::alloc();
         // Map kernel code
-        let kernel_memory = crate::heap::constants::kernel_memory();
-        debug_assert!((kernel_memory.end.start() - kernel_memory.start.start()) <= 1 << 30);
-        debug_assert!(kernel_memory.start.start().is_aligned_to(Size1G::BYTES));
-        let index = KernelPageTable::<L4>::get_index(kernel_memory.start.start());
+        let kernel_memory = KERNEL_MEMORY_RANGE;
+        let index = KernelPageTable::<L4>::get_index(kernel_memory.start);
+        debug_assert_eq!(
+            index,
+            KernelPageTable::<L4>::get_index(kernel_memory.end - 1)
+        );
         log!("Duplicate index: {:?}", index);
         page_table[index] = KernelPageTable::get()[index].clone();
         Task::current()
