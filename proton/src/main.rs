@@ -41,7 +41,10 @@ extern "C" {
     static mut __bss_end: u8;
 }
 
+#[cfg(debug_assertions)]
 const INIT: &'static [u8] = include_bytes!("../../target/aarch64-proton/debug/init");
+#[cfg(not(debug_assertions))]
+const INIT: &'static [u8] = include_bytes!("../../target/aarch64-proton/release/init");
 
 #[inline(never)]
 unsafe fn zero_bss() {

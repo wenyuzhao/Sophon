@@ -4,7 +4,7 @@ export profile ?= debug
 export workspace = $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/..)
 export target = $(workspace)/target
 
-export args ?=
+export args =
 
 ifneq ($(profile), debug)
     args += --release
