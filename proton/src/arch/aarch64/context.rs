@@ -141,15 +141,7 @@ impl ArchContext for AArch64Context {
                 TTBR0_EL1.get() as *mut u8,
                 self.p4
             );
-            asm! {
-                "
-                    msr	ttbr0_el1, {v}
-                    tlbi vmalle1is
-                    DSB ISH
-                    isb
-                ",
-                v = in(reg) self.p4.as_usize()
-            }
+            TargetArch::set_current_page_table(Frame::new(self.p4));
         }
 
         let exception_frame = {
@@ -187,8 +179,11 @@ impl ArchContext for AArch64Context {
             (*exception_frame).x0 = ::core::mem::transmute(status);
             self.response_status = None;
         }
-        log!("Set SP {:?}", exception_frame);
-        log!("Set IP 0x{:?}", (*exception_frame).elr_el1);
+        log!(
+            "[return-to-user] SP={:?} IP={:?}",
+            exception_frame,
+            (*exception_frame).elr_el1
+        );
         asm!("mov sp, {}", in(reg) exception_frame);
         // debug!(crate::Kernel: "exit_exception ");
         // Return from exception

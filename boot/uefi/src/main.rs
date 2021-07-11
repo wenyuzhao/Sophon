@@ -78,7 +78,7 @@ fn map_kernel_page_4k(p4: &mut KernelPageTable<L4>, page: Page<Size4K>) {
     let index = KernelPageTable::<L1>::get_index(page.start());
     let frame = new_page4k();
     table[index].set(frame, PageFlags::kernel_code_flags_4k());
-    log!("Mapped {:?} -> {:?}", page, frame);
+    // log!("Mapped {:?} -> {:?}", page, frame);
 }
 
 fn map_kernel_pages_4k(p4: &mut KernelPageTable<L4>, start: u64, pages: usize) {

@@ -23,7 +23,7 @@ impl KernelMemoryMapper {
         *self.page_table.lock() = Some(Frame::new(page_table.into()))
     }
 
-    fn with_kernel_page_table(&self) -> impl Drop + DerefMut + Deref<Target = KernelPageTable> {
+    pub fn with_kernel_page_table(&self) -> impl Drop + DerefMut + Deref<Target = KernelPageTable> {
         struct PageTables {
             old: Frame,
             new: Frame,
@@ -57,11 +57,13 @@ impl KernelMemoryMapper {
     }
 
     pub fn map_fixed<S: PageSize>(&self, page: Page<S>, frame: Frame<S>, flags: PageFlags) {
-        debug_assert!(
-            page.start() >= KERNEL_HEAP_RANGE.start && page.start() < KERNEL_HEAP_RANGE.end
-        );
-        let mut page_table = self.with_kernel_page_table();
-        page_table.map(page, frame, flags);
+        TargetArch::uninterruptable(|| {
+            debug_assert!(
+                page.start() >= KERNEL_HEAP_RANGE.start && page.start() < KERNEL_HEAP_RANGE.end
+            );
+            let mut page_table = self.with_kernel_page_table();
+            page_table.map(page, frame, flags);
+        })
     }
 }
 

@@ -60,11 +60,11 @@ impl Arch for AArch64 {
         unsafe {
             asm! {
                 "
-                msr	ttbr0_el1, {v}
-                tlbi vmalle1is
-                DSB ISH
-                isb
-            ",
+                    msr	ttbr0_el1, {v}
+                    tlbi vmalle1is
+                    DSB ISH
+                    isb
+                ",
                 v = in(reg) page_table.start().as_usize()
             }
         }

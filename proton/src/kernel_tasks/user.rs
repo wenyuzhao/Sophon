@@ -1,5 +1,6 @@
 use super::KernelTask;
 use crate::arch::*;
+use crate::memory::kernel::mapper::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::KERNEL_MEMORY_RANGE;
 use crate::memory::page_table::kernel::KernelPageTable;
 use crate::memory::page_table::PageFlags;
@@ -10,6 +11,7 @@ use crate::task::Task;
 use crate::utils::address::*;
 use crate::utils::page::*;
 use core::iter::Step;
+use core::ptr;
 use elf_rs::*;
 
 const USER_STACK_START: Address<V> = Address::new(0x111900000);
@@ -51,7 +53,10 @@ impl UserTask {
             .unwrap();
         let mut page = Page::<Size4K>::new(USER_STACK_START);
         for f in frames {
-            page_table.map(page, f, PageFlags::user_stack_flags());
+            TargetArch::uninterruptable(|| {
+                let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+                page_table.map(page, f, PageFlags::user_stack_flags());
+            });
             page = Step::forward(page, 1);
         }
     }
@@ -93,6 +98,7 @@ impl UserTask {
                 load_start.unwrap(),
                 load_end.unwrap()
             );
+            log!("pt {:?}", KernelPageTable::get() as *const _);
             let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
             let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
             let pages = (vaddr_end - vaddr_start) >> Page::<Size4K>::LOG_BYTES;
@@ -100,10 +106,12 @@ impl UserTask {
                 .lock()
                 .acquire::<Size4K>(pages)
                 .unwrap();
-            let paddr_start = frames.start.start();
             let mut page = Page::<Size4K>::new(vaddr_start);
             for f in frames {
-                page_table.map(page, f, PageFlags::user_code_flags_4k());
+                TargetArch::uninterruptable(|| {
+                    let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+                    page_table.map(page, f, PageFlags::user_code_flags_4k());
+                });
                 page = Step::forward(page, 1);
             }
             // Copy data
@@ -114,13 +122,12 @@ impl UserTask {
                 let start: Address = (p.ph.vaddr() as usize).into();
                 let bytes = p.ph.filesz() as usize;
                 let offset = p.ph.offset() as usize;
-                for i in 0..bytes {
-                    let v = self.elf_data[offset + i];
-                    let vaddr = start + i;
-                    unsafe {
-                        (paddr_start + (vaddr - vaddr_start)).store(v)
-                        // (start + i).store(v);
-                    }
+                unsafe {
+                    ptr::copy_nonoverlapping::<u8>(
+                        &self.elf_data[offset],
+                        start.as_mut_ptr(),
+                        bytes,
+                    );
                 }
             }
             entry

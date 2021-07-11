@@ -145,7 +145,7 @@ impl AbstractScheduler for RoundRobinScheduler {
             self.set_current_task_id(next_task.id());
 
             ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-            log!("Schedule return_to_user");
+            // log!("Schedule return_to_user");
             unsafe {
                 next_task.context.return_to_user();
             }
@@ -153,7 +153,7 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     fn timer_tick(&self) {
-        log!("Timer TICK");
+        // log!("Timer TICK");
         debug_assert!(!TargetArch::interrupt().is_enabled());
         let current_task = self.get_current_task().unwrap();
 

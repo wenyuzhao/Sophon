@@ -7,6 +7,7 @@ use crate::{
     task::Task,
     *,
 };
+use cortex_a::regs::*;
 use cortex_a::{
     barrier,
     regs::{RegisterReadWrite, VBAR_EL1},
@@ -108,7 +109,12 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
             asm!("mrs {}, far_el1", out(reg) far);
             let elr: usize;
             asm!("mrs {}, elr_el1", out(reg) elr);
-            log!("Abort FAR={:?} ELR={:?}", far as *mut (), elr as *mut ());
+            log!(
+                "Abort FAR={:?} ELR={:?} TTBR0_EL0={:?}",
+                far as *mut (),
+                elr as *mut (),
+                TTBR0_EL1.get() as *mut ()
+            );
             panic!(
                 "Unknown exception 0b{:b}",
                 ::core::mem::transmute::<_, u32>(v)
