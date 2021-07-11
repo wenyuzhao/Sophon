@@ -102,37 +102,6 @@ impl PageTable<L4> {
             TargetArch::set_current_page_table(x.new);
         }
         x
-
-        // struct PageTables {
-        //     old: Frame,
-        //     new: Frame,
-        // }
-        // impl Drop for PageTables {
-        //     fn drop(&mut self) {
-        //         if self.old != self.new {
-        //             TargetArch::set_current_page_table(self.old);
-        //         }
-        //     }
-        // }
-        // impl Deref for PageTables {
-        //     type Target = PageTable;
-        //     fn deref(&self) -> &Self::Target {
-        //         unsafe { self.new.start().as_ref() }
-        //     }
-        // }
-        // impl DerefMut for PageTables {
-        //     fn deref_mut(&mut self) -> &mut Self::Target {
-        //         unsafe { self.new.start().as_mut() }
-        //     }
-        // }
-        // let x = PageTables {
-        //     old: TargetArch::get_current_page_table(),
-        //     new: Frame::new((self as *const _ as usize).into()),
-        // };
-        // if x.old != x.new {
-        //     TargetArch::set_current_page_table(x.new);
-        // }
-        // x
     }
 
     pub fn identity_map<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) -> Page<S> {
