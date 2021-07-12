@@ -8,10 +8,7 @@ use crate::{
 use core::slice;
 use cortex_a::{barrier, regs::*};
 use device_tree::Node;
-use spin::Lazy;
 
-// pub const ARM_GICD_BASE: usize = super::timer::ARM_TIMER_BASE;
-// pub const ARM_GICC_BASE: usize = super::timer::ARM_TIMER_BASE + 0x10000;
 const TIMER_INTERRUPT_FREQUENCY: usize = 1; // Hz
 
 pub const IRQ_LINES: usize = 256;
@@ -96,10 +93,18 @@ unsafe impl Send for GIC {}
 unsafe impl Sync for GIC {}
 
 impl GIC {
-    pub fn gicd(&self) -> &'static mut GICD {
+    const fn new() -> Self {
+        Self {
+            GICD: None,
+            GICC: None,
+        }
+    }
+
+    fn gicd(&self) -> &'static mut GICD {
         unsafe { &mut *self.GICD.unwrap() }
     }
-    pub fn gicc(&self) -> &'static mut GICC {
+
+    fn gicc(&self) -> &'static mut GICC {
         unsafe { &mut *self.GICC.unwrap() }
     }
 
@@ -143,10 +148,7 @@ impl GIC {
     }
 }
 
-pub static GIC: Lazy<GIC> = Lazy::new(|| GIC {
-    GICD: None,
-    GICC: None,
-});
+pub static GIC: GIC = GIC::new();
 
 impl BootDriver for GIC {
     const COMPATIBLE: &'static str = "arm,cortex-a15-gic";
@@ -212,5 +214,12 @@ impl ArchInterruptController for GICInterruptController {
             CNTP_CTL_EL0.set(1);
             asm!("dmb SY");
         }
+    }
+
+    fn get_active_irq(&self) -> usize {
+        let gicc = GIC.gicc();
+        let iar = gicc.IAR.get();
+        let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
+        irq as _
     }
 }

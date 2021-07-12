@@ -3,7 +3,7 @@ mod drivers;
 mod exception;
 
 use super::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
-use crate::{boot_driver::BootDriver, utils::page::Frame};
+use crate::utils::page::Frame;
 use alloc::boxed::Box;
 use context::AArch64Context;
 use cortex_a::regs::*;
@@ -38,18 +38,8 @@ impl Arch for AArch64 {
     type Interrupt = AArch64Interrupt;
 
     fn init(device_tree: &DeviceTree) {
-        unsafe { asm!("msr daifset, #2") };
-
-        {
-            let uart = drivers::uart::UART.lock();
-            uart.init_with_device_tree(device_tree);
-            uart.putchar('@');
-            uart.putchar('\n');
-        }
-
-        log!("uart initizlied");
-
-        drivers::gic::GIC.init_with_device_tree(device_tree);
+        Self::Interrupt::disable();
+        drivers::init(device_tree);
     }
 
     fn interrupt() -> &'static dyn ArchInterruptController {

@@ -1,14 +1,12 @@
-use core::{
-    fmt::{self, Write},
-    slice,
-};
-
 use crate::{
     boot_driver::BootDriver,
     utils::{page::Frame, volatile::Volatile},
 };
+use core::{
+    fmt::{self, Write},
+    slice,
+};
 use device_tree::Node;
-use spin::{Lazy, Mutex};
 
 #[repr(C)]
 pub struct UARTRegisters {
@@ -38,6 +36,10 @@ unsafe impl Send for UART0 {}
 unsafe impl Sync for UART0 {}
 
 impl UART0 {
+    const fn new() -> Self {
+        Self { uart: None }
+    }
+
     fn transmit_fifo_full(&self) -> bool {
         self.uart().fr.get() & (1 << 5) > 0
     }
@@ -50,41 +52,23 @@ impl UART0 {
         unsafe { &mut *self.uart.unwrap() }
     }
 
-    pub fn putchar(&self, c: char) {
+    fn putchar(&self, c: char) {
         while self.transmit_fifo_full() {}
         self.uart().dr.set(c as _);
     }
 
-    #[inline(never)]
-    pub fn init_uart(&self) {
+    fn init_uart(&self) {
         let uart = self.uart();
-        // let gpio = GPIORegisters::get_low();
-
         uart.cr.set(0);
         uart.icr.set(0);
         uart.ibrd.set(26);
         uart.fbrd.set(3);
         uart.lcrh.set((0b11 << 5) | (0b1 << 4));
         uart.cr.set((1 << 0) | (1 << 8) | (1 << 9));
-
-        // gpio.gpfsel1.set((0b100 << 12) | (0b100 << 15));
-        // gpio.gppud.set(0);
-        // wait_cycles(150);
-        // gpio.gppudclk0.set((1 << 14) | (1 << 15));
-        // wait_cycles(150);
-        // gpio.gppudclk0.set(0);
     }
 }
 
-fn wait_cycles(n: usize) {
-    for _ in 0..n {
-        unsafe {
-            asm!("nop");
-        }
-    }
-}
-
-pub static UART: Lazy<Mutex<UART0>> = Lazy::new(|| Mutex::new(UART0 { uart: None }));
+pub static UART: UART0 = UART0::new();
 
 impl BootDriver for UART0 {
     const COMPATIBLE: &'static str = "arm,pl011";
@@ -105,9 +89,8 @@ pub struct Log;
 
 impl Write for Log {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        let uart = UART.lock();
         for c in s.chars() {
-            uart.putchar(c);
+            UART.putchar(c);
         }
         Ok(())
     }

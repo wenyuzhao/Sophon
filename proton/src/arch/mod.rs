@@ -26,6 +26,9 @@ pub trait ArchInterrupt: 'static + Sized {
 
 pub trait ArchInterruptController {
     fn start_timer(&self);
+
+    fn get_active_irq(&self) -> usize;
+
     fn handle(&self, id: InterruptId, args: &[usize]) -> usize {
         let mut x = [0usize; 6];
         for i in 0..args.len() {
@@ -41,6 +44,7 @@ pub trait ArchInterruptController {
             0
         }
     }
+
     fn set_handler(&self, id: InterruptId, handler: Option<InterruptHandler>) {
         unsafe {
             INTERRUPT_HANDLERS[id as usize] = handler;

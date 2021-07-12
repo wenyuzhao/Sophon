@@ -1,10 +1,7 @@
 use crate::arch::InterruptId;
 use crate::task::Task;
 use crate::{
-    arch::{
-        aarch64::{context::*, drivers::gic::*},
-        *,
-    },
+    arch::{aarch64::context::*, *},
     *,
 };
 use cortex_a::regs::*;
@@ -136,14 +133,9 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
         .unwrap()
         .get_context::<AArch64Context>()
         .exception_frame = exception_frame;
-    ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-    #[allow(non_snake_case)]
-    let GICC = GIC.gicc();
-    let iar = GICC.IAR.get();
-    let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
-    // FIXME: End of Interrupt ??? here ???
-    GICC.EOIR.set(iar);
+    let irq = TargetArch::interrupt().get_active_irq();
     log!("IRQ {}", irq);
+    // FIXME: GICC.EOIR.set(iar);
     if irq < 256 {
         if irq == 30 {
             TargetArch::interrupt().handle(
