@@ -9,5 +9,8 @@ pub const KERNEL_HEAP_SIZE: usize = KERNEL_HEAP_RANGE.end - KERNEL_HEAP_RANGE.st
 pub const KERNEL_STACK_PAGES: usize = 8;
 pub const KERNEL_STACK_SIZE: usize = KERNEL_STACK_PAGES << Size4K::LOG_BYTES;
 
-pub mod heap;
-// pub mod mapper;
+mod heap;
+mod mapper;
+
+pub use heap::{KernelHeapAllocator, KERNEL_HEAP};
+pub use mapper::KERNEL_MEMORY_MAPPER;

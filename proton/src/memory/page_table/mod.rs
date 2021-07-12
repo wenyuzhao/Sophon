@@ -1,5 +1,6 @@
-pub mod kernel;
-pub mod user;
+mod page_table;
+
+pub use page_table::*;
 
 use crate::utils::address::*;
 use crate::utils::bitflags::{BitFlag, BitFlags};

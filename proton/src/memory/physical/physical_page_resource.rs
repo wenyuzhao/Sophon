@@ -1,15 +1,15 @@
-use super::PhysicalPageResource;
 use crate::utils::{address::*, page::*};
 use core::ops::Range;
+use spin::Mutex;
 
 const LOG_MAX_ADDRESS_SPACE_SIZE: usize = 48;
 const NUM_SIZE_CLASS: usize = LOG_MAX_ADDRESS_SPACE_SIZE - Size4K::LOG_BYTES + 1;
 
-pub struct Buddy {
+pub struct PhysicalPageResource {
     table: [Address<P>; NUM_SIZE_CLASS],
 }
 
-impl Buddy {
+impl PhysicalPageResource {
     pub const fn new() -> Self {
         Self {
             table: [Address::ZERO; NUM_SIZE_CLASS],
@@ -61,7 +61,7 @@ impl Buddy {
             if let Some(unit) = self.pop(size_class) {
                 let parent = unit;
                 for parent_size_class in ((request_size_class + 1)..=size_class).rev() {
-                    let (unit1, unit2) = self.split_cell(parent, parent_size_class);
+                    let (_unit1, unit2) = self.split_cell(parent, parent_size_class);
                     let child_size_class = parent_size_class - 1;
                     // Add second cell to list
                     debug_assert!(child_size_class < NUM_SIZE_CLASS);
@@ -114,10 +114,8 @@ impl Buddy {
         }
         debug_assert_eq!(start, limit);
     }
-}
 
-impl PhysicalPageResource for Buddy {
-    fn init(&mut self, frames: &'static [Range<Frame>]) {
+    pub fn init(&mut self, frames: &'static [Range<Frame>]) {
         for range in frames {
             let start = range.start.start();
             let end = range.end.start();
@@ -126,7 +124,7 @@ impl PhysicalPageResource for Buddy {
     }
 
     #[inline(always)]
-    fn acquire<S: PageSize>(&mut self) -> Option<Frame<S>> {
+    pub fn acquire<S: PageSize>(&mut self) -> Option<Frame<S>> {
         let size = 1 << S::LOG_BYTES;
         let size_class = Self::size_class(size);
         let addr = self.allocate_cell(size_class)?;
@@ -134,9 +132,12 @@ impl PhysicalPageResource for Buddy {
     }
 
     #[inline(always)]
-    fn release<S: PageSize>(&mut self, frame: Frame<S>) {
+    pub fn release<S: PageSize>(&mut self, frame: Frame<S>) {
         let size = 1 << S::LOG_BYTES;
         let size_class = Self::size_class(size);
         self.release_cell(frame.start(), size_class);
     }
 }
+
+pub static PHYSICAL_PAGE_RESOURCE: Mutex<PhysicalPageResource> =
+    Mutex::new(PhysicalPageResource::new());

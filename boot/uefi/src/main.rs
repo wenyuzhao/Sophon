@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
 use cortex_a::regs::*;
-use proton::memory::page_table::{kernel::*, *};
+use proton::memory::page_table::*;
 use proton::utils::address::*;
 use proton::utils::page::*;
 use proton::BootInfo;

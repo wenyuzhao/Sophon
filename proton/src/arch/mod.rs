@@ -1,5 +1,5 @@
 use crate::{
-    memory::page_table::kernel::PageTable,
+    memory::page_table::PageTable,
     scheduler::task::Message,
     utils::{address::*, page::Frame},
 };

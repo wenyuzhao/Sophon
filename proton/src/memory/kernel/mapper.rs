@@ -1,8 +1,7 @@
-use super::super::page_table::{kernel::PageTable, PageFlags};
+use super::super::page_table::{PageFlags, PageTable};
 use crate::{memory::kernel::KERNEL_HEAP_RANGE, utils::page::*};
 use core::ops::{Deref, DerefMut};
 use spin::Mutex;
-
 pub struct KernelMemoryMapper {
     page_table: Mutex<Option<Frame>>,
 }
@@ -28,10 +27,6 @@ impl KernelMemoryMapper {
                 .as_mut::<PageTable>()
         };
         page_table.enable_temporarily()
-    }
-
-    pub fn acquire_physical_page<S: PageSize>(&self) -> Option<Frame<S>> {
-        let _guard = self.with_kernel_page_table();
     }
 
     pub fn map_fixed<S: PageSize>(&self, page: Page<S>, frame: Frame<S>, flags: PageFlags) {

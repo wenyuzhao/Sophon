@@ -10,7 +10,7 @@ use spin::Lazy;
 
 // pub const ARM_GICD_BASE: usize = super::timer::ARM_TIMER_BASE;
 // pub const ARM_GICC_BASE: usize = super::timer::ARM_TIMER_BASE + 0x10000;
-const TIMER_INTERRUPT_FREQUENCY: usize = 100; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 1; // Hz
 
 pub const IRQ_LINES: usize = 256;
 

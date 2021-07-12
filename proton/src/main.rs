@@ -25,9 +25,8 @@ use alloc::vec;
 use proton::arch::{Arch, TargetArch};
 use proton::kernel_tasks::system::{Idle, System};
 use proton::kernel_tasks::user::UserTask;
-use proton::memory::kernel::heap::{KernelHeapAllocator, KERNEL_HEAP};
-use proton::memory::physical::PhysicalPageResource;
-use proton::memory::physical::KERNEL_MEMORY_MAPPER;
+use proton::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
+use proton::memory::physical::PHYSICAL_MEMORY;
 use proton::scheduler::ipc::IPC;
 use proton::scheduler::task::Task;
 use proton::scheduler::{AbstractScheduler, SCHEDULER};
@@ -62,7 +61,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     unsafe { zero_bss() }
 
     // Initialize physical memory and kernel heap
-    KERNEL_MEMORY_MAPPER.init(boot_info.available_physical_memory);
+    PHYSICAL_MEMORY.init(boot_info.available_physical_memory);
     KERNEL_HEAP.init();
 
     // Initialize arch and boot drivers

@@ -1,10 +1,9 @@
 use super::KernelTask;
 use crate::arch::*;
+use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::KERNEL_MEMORY_RANGE;
-use crate::memory::page_table::kernel::PageTable;
-use crate::memory::page_table::PageFlags;
-use crate::memory::page_table::L4;
-use crate::memory::physical::KERNEL_MEMORY_MAPPER;
+use crate::memory::page_table::{PageFlags, PageTable, L4};
+use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::scheduler::task::Task;
 use crate::utils::address::*;
 use crate::utils::page::*;
@@ -43,9 +42,7 @@ impl UserTask {
     fn setup_user_stack(page_table: &mut PageTable) {
         for i in 0..USER_STACK_PAGES {
             let page = Step::forward(Page::<Size4K>::new(USER_STACK_START), i);
-            let frame = KERNEL_MEMORY_MAPPER
-                .acquire_physical_page::<Size4K>()
-                .unwrap();
+            let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
             let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
             page_table.map(page, frame, PageFlags::user_stack_flags());
         }
@@ -91,20 +88,12 @@ impl UserTask {
             let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
             let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
             let pages = (vaddr_end - vaddr_start) >> Page::<Size4K>::LOG_BYTES;
-            // let frames = PHYSICAL_PAGE_RESOURCE
-            //     .lock()
-            //     .acquire::<Size4K>(pages)
-            //     .unwrap();
             let start_page = Page::<Size4K>::new(vaddr_start);
             for i in 0..pages {
                 let page = Step::forward(start_page, i);
-                let frame = KERNEL_MEMORY_MAPPER
-                    .acquire_physical_page::<Size4K>()
-                    .unwrap();
-                {
-                    let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
-                    page_table.map(page, frame, PageFlags::user_code_flags_4k());
-                }
+                let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
+                let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+                page_table.map(page, frame, PageFlags::user_code_flags_4k());
             }
             TargetArch::set_current_page_table(Frame::new(page_table.into()));
             // Copy data
