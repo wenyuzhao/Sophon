@@ -1,8 +1,5 @@
 use crate::{
-    memory::{
-        kernel::{heap::KERNEL_HEAP, mapper::KERNEL_MEMORY_MAPPER},
-        page_table::PageFlags,
-    },
+    memory::{kernel::heap::KERNEL_HEAP, page_table::PageFlags, physical::KERNEL_MEMORY_MAPPER},
     utils::page::*,
 };
 use device_tree::{DeviceTree, Node};

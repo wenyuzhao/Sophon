@@ -57,8 +57,10 @@ impl<L: TableLevel> UserPageTable<L> {
         if let Some(address) = self.next_table_address(index) {
             return unsafe { &mut *(address as *mut _) };
         } else {
-            let frame = PHYSICAL_PAGE_RESOURCE.lock().acquire::<Size4K>(1).unwrap();
-            self.entries[index].set(frame.start, PageFlags::page_table_flags());
+            let frame = KERNEL_MEMORY_MAPPER
+                .acquire_physical_page::<Size4K>()
+                .unwrap();
+            self.entries[index].set(frame, PageFlags::page_table_flags());
             ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
             let t = self.next_table_create(index);
             t.zero();

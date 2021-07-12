@@ -26,8 +26,8 @@ use proton::arch::{Arch, TargetArch};
 use proton::kernel_tasks::system::{Idle, System};
 use proton::kernel_tasks::user::UserTask;
 use proton::memory::kernel::heap::{KernelHeapAllocator, KERNEL_HEAP};
-use proton::memory::kernel::mapper::KERNEL_MEMORY_MAPPER;
-use proton::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
+use proton::memory::physical::PhysicalPageResource;
+use proton::memory::physical::KERNEL_MEMORY_MAPPER;
 use proton::scheduler::ipc::IPC;
 use proton::scheduler::task::Task;
 use proton::scheduler::{AbstractScheduler, SCHEDULER};
@@ -58,14 +58,11 @@ unsafe fn zero_bss() {
 }
 
 #[no_mangle]
-pub extern "C" fn _start(boot_info: &mut BootInfo) -> isize {
+pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     unsafe { zero_bss() }
 
     // Initialize physical memory and kernel heap
-    PHYSICAL_PAGE_RESOURCE
-        .lock()
-        .init(boot_info.available_physical_memory);
-    KERNEL_MEMORY_MAPPER.init();
+    KERNEL_MEMORY_MAPPER.init(boot_info.available_physical_memory);
     KERNEL_HEAP.init();
 
     // Initialize arch and boot drivers

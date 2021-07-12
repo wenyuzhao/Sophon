@@ -1,4 +1,4 @@
-use super::mapper::KERNEL_MEMORY_MAPPER;
+use super::super::physical::KERNEL_MEMORY_MAPPER;
 use super::KERNEL_HEAP_RANGE;
 use super::KERNEL_HEAP_SIZE;
 use crate::memory::page_table::PageFlags;
@@ -199,13 +199,11 @@ impl FreeListAllocator {
                 assert!(!self.retry, "OutOfMemory");
                 let pages = ((1 << size_class) + Size2M::MASK) >> Size2M::LOG_BYTES << 1;
                 let vs = VIRTUAL_PAGE_ALLOCATOR.lock().acquire::<Size2M>(pages);
-                let ps = PHYSICAL_PAGE_RESOURCE
-                    .lock()
-                    .acquire::<Size2M>(pages)
-                    .unwrap();
                 for i in 0..pages {
                     let v = Page::forward(vs.start, i);
-                    let p = Page::forward(ps.start, i);
+                    let p = KERNEL_MEMORY_MAPPER
+                        .acquire_physical_page::<Size2M>()
+                        .unwrap();
                     KERNEL_MEMORY_MAPPER.map_fixed(v, p, PageFlags::kernel_data_flags_2m());
                 }
                 let mut cursor = vs.start.start();

@@ -1,8 +1,8 @@
 use super::exception::ExceptionFrame;
 use crate::memory::kernel::heap::KERNEL_HEAP;
-use crate::memory::kernel::mapper::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::memory::page_table::{kernel::*, PageFlags};
+use crate::memory::physical::KERNEL_MEMORY_MAPPER;
 use crate::scheduler::task::Message;
 use crate::utils::page::*;
 use crate::{arch::*, memory::physical::*};
@@ -21,15 +21,14 @@ pub struct KernelStack {
 impl KernelStack {
     pub fn new() -> &'static mut Self {
         let pages = KERNEL_STACK_PAGES + 1;
-        let stack_frames = PHYSICAL_PAGE_RESOURCE
-            .lock()
-            .acquire::<Size4K>(pages)
-            .unwrap();
         let stack = KERNEL_HEAP.virtual_allocate::<Size4K>(pages);
         for i in 0..pages {
+            let frame = KERNEL_MEMORY_MAPPER
+                .acquire_physical_page::<Size4K>()
+                .unwrap();
             KERNEL_MEMORY_MAPPER.map_fixed(
                 Page::forward(stack.start, i),
-                Page::forward(stack_frames.start, i),
+                frame,
                 PageFlags::kernel_data_flags_4k(),
             );
         }

@@ -1,6 +1,6 @@
 use super::*;
 use crate::arch::{Arch, ArchInterrupt, TargetArch};
-use crate::memory::physical::{PhysicalPageResource, PHYSICAL_PAGE_RESOURCE};
+use crate::memory::physical::KERNEL_MEMORY_MAPPER;
 use crate::utils::address::*;
 use crate::utils::page::*;
 use core::fmt::Debug;
@@ -109,11 +109,9 @@ impl PageTable<L4> {
     }
 
     fn alloc_frame4k() -> Frame<Size4K> {
-        let frame = PHYSICAL_PAGE_RESOURCE
-            .lock()
-            .acquire::<Size4K>(1)
-            .unwrap()
-            .start;
+        let frame = KERNEL_MEMORY_MAPPER
+            .acquire_physical_page::<Size4K>()
+            .unwrap();
         unsafe {
             frame.zero();
         }

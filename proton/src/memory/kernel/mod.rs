@@ -10,4 +10,4 @@ pub const KERNEL_STACK_PAGES: usize = 8;
 pub const KERNEL_STACK_SIZE: usize = KERNEL_STACK_PAGES << Size4K::LOG_BYTES;
 
 pub mod heap;
-pub mod mapper;
+// pub mod mapper;

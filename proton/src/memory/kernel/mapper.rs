@@ -30,6 +30,10 @@ impl KernelMemoryMapper {
         page_table.enable_temporarily()
     }
 
+    pub fn acquire_physical_page<S: PageSize>(&self) -> Option<Frame<S>> {
+        let _guard = self.with_kernel_page_table();
+    }
+
     pub fn map_fixed<S: PageSize>(&self, page: Page<S>, frame: Frame<S>, flags: PageFlags) {
         debug_assert!(
             page.start() >= KERNEL_HEAP_RANGE.start && page.start() < KERNEL_HEAP_RANGE.end
