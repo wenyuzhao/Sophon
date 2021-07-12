@@ -12,7 +12,7 @@ pub trait BootDriver {
     fn init(&mut self, node: &Node);
     fn init_with_device_tree(&self, dt: &DeviceTree) {
         dt.root.walk(&mut |node| match node.prop_str("compatible") {
-            Ok(s) if s == Self::COMPATIBLE => {
+            Ok(s) if s.split('\0').find(|x| *x == Self::COMPATIBLE).is_some() => {
                 unsafe { &mut *(self as *const Self as *mut Self) }.init(node);
                 true
             }

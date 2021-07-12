@@ -87,7 +87,7 @@ fn wait_cycles(n: usize) {
 pub static UART: Lazy<Mutex<UART0>> = Lazy::new(|| Mutex::new(UART0 { uart: None }));
 
 impl BootDriver for UART0 {
-    const COMPATIBLE: &'static str = "arm,pl011\0arm,primecell";
+    const COMPATIBLE: &'static str = "arm,pl011";
     fn init(&mut self, node: &Node) {
         let reg = node.prop_raw("reg").unwrap();
         let len = reg.len() / 4;
