@@ -3,7 +3,7 @@ pub mod mem;
 
 use super::KernelTask;
 use crate::arch::{Arch, ArchInterrupt, TargetArch};
-use crate::scheduler::task::Message;
+use crate::task::Message;
 
 pub struct System {}
 

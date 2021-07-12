@@ -4,7 +4,7 @@ use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::KERNEL_MEMORY_RANGE;
 use crate::memory::page_table::{PageFlags, PageTable, L4};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::scheduler::task::Task;
+use crate::task::Task;
 use crate::utils::address::*;
 use crate::utils::page::*;
 use core::iter::Step;
@@ -131,7 +131,7 @@ impl KernelTask for UserTask {
         log!("User stack created");
         log!(
             "Start to enter usermode: {:?}",
-            crate::scheduler::task::Task::current().map(|t| t.id())
+            crate::task::Task::current().map(|t| t.id())
         );
         // Enter usermode
         unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, USER_STACK_END, page_table) }

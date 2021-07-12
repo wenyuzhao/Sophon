@@ -1,6 +1,6 @@
 use crate::{
     memory::page_table::PageTable,
-    scheduler::task::Message,
+    task::Message,
     utils::{address::*, page::Frame},
 };
 use alloc::boxed::Box;

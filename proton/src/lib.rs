@@ -26,7 +26,6 @@
 #![no_std]
 
 use core::ops::Range;
-
 use utils::page::Frame;
 
 extern crate alloc;
@@ -34,13 +33,20 @@ extern crate elf_rs;
 
 #[macro_use]
 pub mod utils;
+#[cfg(feature = "kernel")]
 #[macro_use]
 pub mod log;
+#[cfg(feature = "kernel")]
 pub mod arch;
+#[cfg(feature = "kernel")]
 pub mod boot_driver;
+#[cfg(feature = "kernel")]
 pub mod kernel_tasks;
+#[cfg(feature = "kernel")]
 pub mod memory;
-pub mod scheduler;
+pub mod task;
+#[macro_use]
+pub mod user;
 
 pub struct BootInfo {
     pub available_physical_memory: &'static [Range<Frame>],

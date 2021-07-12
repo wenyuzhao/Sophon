@@ -1,8 +1,10 @@
 use crate::arch::ArchInterruptController;
-use crate::scheduler::AbstractScheduler;
+use crate::task::scheduler::AbstractScheduler;
 use crate::utils::page::Frame;
 use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
-use crate::{arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver, scheduler::SCHEDULER};
+use crate::{
+    arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver, task::scheduler::SCHEDULER,
+};
 use core::slice;
 use cortex_a::{barrier, regs::*};
 use device_tree::Node;

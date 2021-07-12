@@ -27,9 +27,8 @@ use proton::kernel_tasks::system::{Idle, System};
 use proton::kernel_tasks::user::UserTask;
 use proton::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use proton::memory::physical::PHYSICAL_MEMORY;
-use proton::scheduler::ipc::IPC;
-use proton::scheduler::task::Task;
-use proton::scheduler::{AbstractScheduler, SCHEDULER};
+use proton::task::scheduler::{AbstractScheduler, SCHEDULER};
+use proton::task::*;
 use proton::BootInfo;
 
 #[global_allocator]
@@ -76,7 +75,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     let v = vec![1, 3, 5, 7, 9];
     log!("Test Alloc {:?} {:?}", v, v.as_ptr());
 
-    IPC::init();
+    ipc::init();
     log!("[kernel: ipc initialized]");
 
     let task = Task::create_kernel_task(box System::new());

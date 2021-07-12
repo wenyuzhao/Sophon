@@ -1,4 +1,4 @@
-use super::IPC;
+use super::ipc;
 use core::fmt;
 use core::fmt::Write;
 use spin::Mutex;
@@ -10,7 +10,7 @@ struct Log;
 
 impl Write for Log {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        IPC::log(s);
+        ipc::log(s);
         Ok(())
     }
 }
@@ -21,12 +21,13 @@ pub fn _print(args: fmt::Arguments) {
     writer.write_fmt(args).unwrap();
 }
 
+#[cfg(not(feature = "kernel"))]
 #[macro_export]
 macro_rules! log {
     (noeol: $($arg:tt)*) => ({
-        $crate::log::_print(format_args!($($arg)*))
+        $crate::user::log::_print(format_args!($($arg)*))
     });
     ($($arg:tt)*) => ({
-        $crate::log::_print(format_args_nl!($($arg)*))
+        $crate::user::log::_print(format_args_nl!($($arg)*))
     });
 }

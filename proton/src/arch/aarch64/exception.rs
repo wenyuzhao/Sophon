@@ -1,5 +1,5 @@
 use crate::arch::InterruptId;
-use crate::scheduler::task::Task;
+use crate::task::Task;
 use crate::{
     arch::{
         aarch64::{context::*, drivers::gic::*},

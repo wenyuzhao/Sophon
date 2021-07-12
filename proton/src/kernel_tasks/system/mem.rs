@@ -1,4 +1,4 @@
-use crate::scheduler::task::*;
+use crate::task::*;
 
 pub fn map_physical_memory(_m: &Message) {
     unreachable!()

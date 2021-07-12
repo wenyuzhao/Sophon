@@ -4,15 +4,13 @@
 #![no_std]
 #![no_main]
 
+#[macro_use]
 extern crate proton;
 
 use proton::utils::no_alloc::NoAlloc;
 
 #[global_allocator]
 static ALLOCATOR: NoAlloc = NoAlloc;
-
-#[macro_use]
-mod log;
 
 #[no_mangle]
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {

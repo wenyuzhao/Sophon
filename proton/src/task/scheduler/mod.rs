@@ -1,11 +1,11 @@
-pub mod ipc;
-pub mod round_robin;
-pub mod task;
+mod round_robin;
 
 use crate::arch::*;
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut};
-use task::*;
+
+use super::{task::Task, Message, TaskId};
+// use task::*;
 
 /**
  *                        ___________
