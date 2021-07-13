@@ -29,6 +29,8 @@ pub trait ArchInterruptController {
 
     fn get_active_irq(&self) -> usize;
 
+    fn notify_end_of_interrupt(&self);
+
     fn handle(&self, id: InterruptId, args: &[usize]) -> usize {
         let mut x = [0usize; 6];
         for i in 0..args.len() {

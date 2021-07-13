@@ -6,8 +6,9 @@ use super::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
 use crate::utils::page::Frame;
 use alloc::boxed::Box;
 use context::AArch64Context;
-use cortex_a::regs::*;
+use cortex_a::registers::TTBR0_EL1;
 use device_tree::DeviceTree;
+use tock_registers::interfaces::Readable;
 
 static mut INTERRUPT_CONTROLLER: Option<Box<dyn ArchInterruptController>> = None;
 

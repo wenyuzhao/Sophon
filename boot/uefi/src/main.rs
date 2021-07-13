@@ -3,7 +3,6 @@
 #![feature(asm)]
 #![feature(format_args_nl)]
 #![feature(core_intrinsics)]
-#![feature(step_trait_ext)]
 #![feature(step_trait)]
 
 extern crate alloc;
@@ -12,11 +11,12 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
-use cortex_a::regs::*;
+use cortex_a::registers::*;
 use proton::memory::page_table::*;
 use proton::utils::address::*;
 use proton::utils::page::*;
 use proton::BootInfo;
+use tock_registers::interfaces::{Readable, Writeable};
 use uefi::proto::media::file::*;
 use uefi::proto::media::fs::SimpleFileSystem;
 use uefi::{prelude::*, table::boot::*};

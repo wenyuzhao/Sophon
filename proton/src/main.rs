@@ -7,7 +7,6 @@
 #![feature(box_syntax)]
 #![feature(new_uninit)]
 #![feature(never_type)]
-#![feature(step_trait_ext)]
 #![feature(const_impl_trait)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_raw_ptr_to_usize_cast)]

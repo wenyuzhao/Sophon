@@ -6,8 +6,10 @@ use crate::{
     arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver, task::scheduler::SCHEDULER,
 };
 use core::slice;
-use cortex_a::{barrier, regs::*};
+use cortex_a::{asm::barrier, registers::*};
 use device_tree::Node;
+use spin::Mutex;
+use tock_registers::interfaces::{Readable, Writeable};
 
 const TIMER_INTERRUPT_FREQUENCY: usize = 1; // Hz
 
@@ -193,11 +195,13 @@ impl BootDriver for GIC {
     }
 }
 
-struct GICInterruptController {}
+struct GICInterruptController {
+    iar: Mutex<u32>,
+}
 
 impl GICInterruptController {
     pub fn new() -> Self {
-        Self {}
+        Self { iar: Mutex::new(0) }
     }
 }
 
@@ -219,7 +223,12 @@ impl ArchInterruptController for GICInterruptController {
     fn get_active_irq(&self) -> usize {
         let gicc = GIC.gicc();
         let iar = gicc.IAR.get();
+        *self.iar.lock() = iar;
         let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
         irq as _
+    }
+
+    fn notify_end_of_interrupt(&self) {
+        GIC.gicc().EOIR.set(*self.iar.lock());
     }
 }

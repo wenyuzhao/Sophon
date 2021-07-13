@@ -4,11 +4,8 @@ use crate::{
     arch::{aarch64::context::*, *},
     *,
 };
-use cortex_a::regs::*;
-use cortex_a::{
-    barrier,
-    regs::{RegisterReadWrite, VBAR_EL1},
-};
+use cortex_a::{asm::barrier, registers::*};
+use tock_registers::interfaces::{Readable, Writeable};
 
 #[repr(usize)]
 #[derive(Debug)]
@@ -135,6 +132,7 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
         .exception_frame = exception_frame;
     let irq = TargetArch::interrupt().get_active_irq();
     log!("IRQ {}", irq);
+    TargetArch::interrupt().notify_end_of_interrupt();
     // FIXME: GICC.EOIR.set(iar);
     if irq < 256 {
         if irq == 30 {

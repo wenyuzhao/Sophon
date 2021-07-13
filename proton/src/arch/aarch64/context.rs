@@ -7,7 +7,8 @@ use crate::utils::page::*;
 use crate::{arch::*, memory::physical::*};
 use core::iter::Step;
 use core::ops::Range;
-use cortex_a::regs::*;
+use cortex_a::registers::*;
+use tock_registers::interfaces::Readable;
 // use
 
 #[repr(C, align(4096))]
