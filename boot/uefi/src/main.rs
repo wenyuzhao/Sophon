@@ -20,6 +20,7 @@ use proton::BootInfo;
 use tock_registers::interfaces::{Readable, Writeable};
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::*;
+use uefi::Guid;
 use uefi::{prelude::*, table::boot::*};
 
 #[macro_use]
@@ -260,7 +261,8 @@ fn read_file(handle: Handle, path: &str) -> Vec<u8> {
     }
 }
 
-fn read_dtb(handle: Handle) -> Vec<u8> {
+fn read_dtb(handle: Handle) -> &'static mut [u8] {
+    // Try to get dtb path from command line args: dtb=...
     let loaded_image = unsafe {
         &*boot_system_table()
             .boot_services()
@@ -271,12 +273,39 @@ fn read_dtb(handle: Handle) -> Vec<u8> {
     };
     let mut buf = vec![0; 4096];
     let mut args = loaded_image.load_options(&mut buf).unwrap().split(" ");
-    let dtb_path = args
+    if let Some(dtb_path) = args
         .find(|x| x.starts_with("dtb="))
         .map(|x| x.strip_prefix("dtb=").unwrap())
-        .expect("Device tree not specified");
-    log!("Load device tree: {}", dtb_path);
-    read_file(handle, dtb_path)
+    {
+        log!("Load device tree from {}", dtb_path);
+        return read_file(handle, dtb_path).leak();
+    }
+    // Try to load dtb from efi configuration table
+    const GUID: Guid = Guid::from_values(
+        0xb1b621d5,
+        0xf19c,
+        0x41a5,
+        0x830b,
+        [0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0],
+    );
+    #[repr(C)]
+    struct FDTHeader {
+        magic: u32,
+        totalsize: u32,
+    }
+    if let Some(cfg) = boot_system_table()
+        .config_table()
+        .iter()
+        .find(|x| x.guid == GUID)
+    {
+        let size = unsafe { (*(cfg.address as *mut FDTHeader)).totalsize };
+        let size = u32::from_le_bytes(size.to_be_bytes());
+        let dtb = unsafe { slice::from_raw_parts_mut(cfg.address as *mut u8, size as _) };
+        log!("Load device tree from EFI configuration table");
+        return dtb;
+    }
+
+    panic!("Device tree not specified");
 }
 
 #[no_mangle]
@@ -300,7 +329,7 @@ pub extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
 
     log!("Starting kernel...");
 
-    let mut boot_info = gen_boot_info(dtb.leak());
+    let mut boot_info = gen_boot_info(dtb);
     let buffer = new_page4k();
     let buffer = unsafe { buffer.start().as_mut::<[u8; 4096]>() };
     st.boot_services().memory_map(buffer).unwrap().unwrap();
