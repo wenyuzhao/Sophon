@@ -2,30 +2,29 @@
 
 ## Pre-requests
 
-**Build**
-1. Rustup nightly channel
-2. Rustup target `aarch64-unknown-none`
-3. [cargo-xbuild](https://github.com/rust-osdev/cargo-xbuild)
-4. LLVM Tools (`llvm-objcopy` and `llvm-objdump`)
+1. [rustup](https://rustup.rs/)
+2. LLVM tools (`llvm-objcopy` and `llvm-objdump`)
 
 **VSCode setup**
-1. Install components: `rustup component add rls-preview rust-analysis rust-src llvm-tools-preview`
-2. Install rls-vscode extension
 
-**Test/debug with QEMU**
+1. Install the [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=matklad.rust-analyzer) extension
+
+**Test/debug with QEMU and GDB**
+
 1. `qemu-system-aarch64` >= 2.12
 2. `gdb-multiarch`
 
 ## Build & Run
 
-```bash
-make kernel # This will produce `target/aarch64-kernel/debug/kernel8.img`
-make run # Test the kernel with QEMU
+```console
+$ cd boot/uefi
+$ make run
 ```
 
 ## Design
 
 The current plan is:
+
 Make the kernel as simple as possible. So we will likely to make a MINIX-like
 micro kernel. Then we can throw most tasks, including drivers, fs to the user
 space.
@@ -46,24 +45,26 @@ BTW, it is almost impossible to take care of performance for now...
 - [x] Scheduling/Context switch
 - [x] Syscalls support
 - [x] `Log` syscall (output to *UART*, for user process debugging)
-- [x] `Fork` syscall (and handle copy-on-write pages after `fork()`)
+- [ ] ~~`Fork` syscall (and handle copy-on-write pages after `fork()`)~~
+  - Probably we only some `execve`-like syscalls.
 - [ ] `ProcessExit` syscall
 - [ ] Update/release ref-counted pages after process exit
 - [x] Inter Process Communication
 - [ ] Memory map related syscalls (`mmap`, `munmap`)
-- [ ] *May need to port GCC/Rustc/libc at this point*
+- [ ] *May need to port gcc/libc/rustc at this point*
 - [ ] Multi-core support
 - [ ] Design & implement a driver interface
-- [ ] Basic FAT32 FS support (to load init.d from /boot)
-- [ ] Virtual File System
+- [ ] VFS and init.rd
+- [ ] Basic FAT32 FS support
+- [ ] Basic graphics support
 - [ ] *Other necessary components for a kernel?*
 
 **Supported architectures:**
 
 - [x] AArch64
-- [ ] ARMv6-M (RTOS)
-- [ ] X86
 - [ ] X86_64
+- [ ] X86
+- [ ] ARMv6-M (RTOS)
 
 ## References
 
