@@ -12,19 +12,18 @@ use alloc::vec::Vec;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
 use cortex_a::registers::*;
+use elf_rs::*;
 use proton::memory::page_table::*;
 use proton::utils::address::*;
 use proton::utils::page::*;
 use proton::BootInfo;
 use tock_registers::interfaces::{Readable, Writeable};
+use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::*;
-use uefi::proto::media::fs::SimpleFileSystem;
 use uefi::{prelude::*, table::boot::*};
+
 #[macro_use]
 mod log;
-use elf_rs::*;
-
-static DEVICE_TREE: &'static [u8] = include_bytes!("../../dtbs/qemu-virt.dtb");
 
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 
@@ -217,50 +216,67 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
     return available_physical_memory_ranges;
 }
 
-fn gen_boot_info() -> BootInfo {
+fn gen_boot_info(device_tree: &'static [u8]) -> BootInfo {
     BootInfo {
         available_physical_memory: gen_available_physical_memory(),
-        device_tree: &DEVICE_TREE,
+        device_tree,
     }
 }
 
-fn read_file(path: &str) -> Vec<u8> {
-    if let Ok(sfs) = boot_system_table()
-        .boot_services()
-        .locate_protocol::<SimpleFileSystem>()
-    {
-        log!("`SimpleFileSystem` protocol is available");
-        let sfs = sfs.expect("Cannot open `SimpleFileSystem` protocol");
-        let sfs = unsafe { &mut *sfs.get() };
-        let mut directory = sfs.open_volume().unwrap().unwrap();
-        let file = directory
-            .open(path, FileMode::Read, FileAttribute::empty())
+fn read_file(handle: Handle, path: &str) -> Vec<u8> {
+    let sfs = unsafe {
+        &mut *boot_system_table()
+            .boot_services()
+            .get_image_file_system(handle)
             .unwrap()
-            .unwrap()
-            .into_type()
-            .unwrap()
-            .unwrap();
-        if let FileType::Regular(mut file) = file {
-            let mut buffer = vec![];
-            let mut buf = vec![0; 4096];
-            let mut total_size = 0usize;
-            loop {
-                let size = file.read(&mut buf).unwrap().unwrap();
-                if size == 0 {
-                    break;
-                } else {
-                    total_size += size;
-                    buffer.extend_from_slice(&buf);
-                }
+            .expect("Cannot open `SimpleFileSystem` protocol")
+            .get()
+    };
+    let mut directory = sfs.open_volume().unwrap().unwrap();
+    let file = directory
+        .open(path, FileMode::Read, FileAttribute::empty())
+        .unwrap()
+        .unwrap()
+        .into_type()
+        .unwrap()
+        .unwrap();
+    if let FileType::Regular(mut file) = file {
+        let mut buffer = vec![];
+        let mut buf = vec![0; 4096];
+        let mut total_size = 0usize;
+        loop {
+            let size = file.read(&mut buf).unwrap().unwrap();
+            if size == 0 {
+                break;
+            } else {
+                total_size += size;
+                buffer.extend_from_slice(&buf);
             }
-            buffer.resize(total_size, 0);
-            buffer
-        } else {
-            panic!("{:?} is not a file.", path);
         }
+        buffer.resize(total_size, 0);
+        buffer
     } else {
-        panic!("`SimpleFileSystem` protocol is not available");
+        panic!("{:?} is not a file.", path);
     }
+}
+
+fn read_dtb(handle: Handle) -> Vec<u8> {
+    let loaded_image = unsafe {
+        &*boot_system_table()
+            .boot_services()
+            .handle_protocol::<LoadedImage>(handle)
+            .unwrap()
+            .expect("Failed to retrieve `LoadedImage` protocol from handle")
+            .get()
+    };
+    let mut buf = vec![0; 4096];
+    let mut args = loaded_image.load_options(&mut buf).unwrap().split(" ");
+    let dtb_path = args
+        .find(|x| x.starts_with("dtb="))
+        .map(|x| x.strip_prefix("dtb=").unwrap())
+        .expect("Device tree not specified");
+    log!("Load device tree: {}", dtb_path);
+    read_file(handle, dtb_path)
 }
 
 #[no_mangle]
@@ -278,12 +294,13 @@ pub extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
 
     log!("Loading kernel...");
 
-    let kernel_elf = read_file("proton");
+    let kernel_elf = read_file(image, "proton");
+    let dtb = read_dtb(image);
     let start = load_elf(&kernel_elf);
 
     log!("Starting kernel...");
 
-    let mut boot_info = gen_boot_info();
+    let mut boot_info = gen_boot_info(dtb.leak());
     let buffer = new_page4k();
     let buffer = unsafe { buffer.start().as_mut::<[u8; 4096]>() };
     st.boot_services().memory_map(buffer).unwrap().unwrap();

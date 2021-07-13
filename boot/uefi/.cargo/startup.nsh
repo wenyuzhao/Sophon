@@ -1,1 +1,1 @@
-fs0:proton-boot-uefi.efi
+fs0:proton-boot-uefi.efi dtb=dtbs\qemu-virt.dtb
