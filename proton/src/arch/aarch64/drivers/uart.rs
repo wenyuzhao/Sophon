@@ -68,7 +68,7 @@ impl UART0 {
     }
 }
 
-pub static UART: UART0 = UART0::new();
+pub static mut UART: UART0 = UART0::new();
 
 impl BootDriver for UART0 {
     const COMPATIBLE: &'static str = "arm,pl011";
@@ -90,7 +90,9 @@ pub struct Log;
 impl Write for Log {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         for c in s.chars() {
-            UART.putchar(c);
+            unsafe {
+                UART.putchar(c);
+            }
         }
         Ok(())
     }

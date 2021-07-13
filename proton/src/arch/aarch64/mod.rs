@@ -40,7 +40,9 @@ impl Arch for AArch64 {
 
     fn init(device_tree: &DeviceTree) {
         Self::Interrupt::disable();
-        drivers::init(device_tree);
+        unsafe {
+            drivers::init(device_tree);
+        }
     }
 
     fn interrupt() -> &'static dyn ArchInterruptController {

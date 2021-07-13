@@ -85,7 +85,7 @@ impl GPIO {
     }
 }
 
-pub static GPIO: GPIO = GPIO::new();
+pub static mut GPIO: GPIO = GPIO::new();
 
 impl BootDriver for GPIO {
     const COMPATIBLE: &'static str = "brcm,bcm2711-gpio";

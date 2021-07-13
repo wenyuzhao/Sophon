@@ -18,10 +18,10 @@ pub trait BootDriver {
 }
 
 impl<T: BootDriver> DynBootDriver for T {
-    fn init(&self, dt: &DeviceTree) {
+    fn init(&mut self, dt: &DeviceTree) {
         dt.root.walk(&mut |node| match node.prop_str("compatible") {
             Ok(s) if s.split('\0').find(|x| *x == Self::COMPATIBLE).is_some() => {
-                unsafe { &mut *(self as *const Self as *mut Self) }.init(node);
+                self.init(node);
                 true
             }
             _ => false,
@@ -30,10 +30,10 @@ impl<T: BootDriver> DynBootDriver for T {
 }
 
 pub trait DynBootDriver {
-    fn init(&self, dt: &DeviceTree);
+    fn init(&mut self, dt: &DeviceTree);
 }
 
-pub fn init(device_tree: &DeviceTree, drivers: &[&dyn DynBootDriver]) {
+pub fn init(device_tree: &DeviceTree, drivers: &mut [&mut dyn DynBootDriver]) {
     for driver in drivers {
         driver.init(device_tree);
     }

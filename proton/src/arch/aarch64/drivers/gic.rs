@@ -150,7 +150,7 @@ impl GIC {
     }
 }
 
-pub static GIC: GIC = GIC::new();
+pub static mut GIC: GIC = GIC::new();
 
 impl BootDriver for GIC {
     const COMPATIBLE: &'static str = "arm,cortex-a15-gic";
@@ -221,7 +221,7 @@ impl ArchInterruptController for GICInterruptController {
     }
 
     fn get_active_irq(&self) -> usize {
-        let gicc = GIC.gicc();
+        let gicc = unsafe { GIC.gicc() };
         let iar = gicc.IAR.get();
         *self.iar.lock() = iar;
         let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
@@ -229,6 +229,6 @@ impl ArchInterruptController for GICInterruptController {
     }
 
     fn notify_end_of_interrupt(&self) {
-        GIC.gicc().EOIR.set(*self.iar.lock());
+        unsafe { GIC.gicc().EOIR.set(*self.iar.lock()) };
     }
 }
