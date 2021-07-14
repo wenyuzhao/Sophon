@@ -152,7 +152,7 @@ impl GIC {
 pub static mut GIC: GIC = GIC::new();
 
 impl BootDriver for GIC {
-    const COMPATIBLE: &'static str = "arm,cortex-a15-gic";
+    const COMPATIBLE: &'static [&'static str] = &["arm,cortex-a15-gic", "arm,gic-400"];
     fn init(&mut self, node: &FdtNode) {
         <TargetArch as Arch>::Interrupt::disable();
 

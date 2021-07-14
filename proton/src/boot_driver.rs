@@ -8,7 +8,7 @@ use crate::{
 use fdt::{node::FdtNode, Fdt};
 
 pub trait BootDriver {
-    const COMPATIBLE: &'static str;
+    const COMPATIBLE: &'static [&'static str];
     fn init(&mut self, node: &FdtNode);
     fn map_device_page(frame: Frame) -> Page {
         let page = KERNEL_HEAP.virtual_allocate::<Size4K>(1).start;
@@ -19,7 +19,7 @@ pub trait BootDriver {
 
 impl<T: BootDriver> DynBootDriver for T {
     fn init(&mut self, fdt: &Fdt) {
-        if let Some(node) = fdt.find_compatible(&[Self::COMPATIBLE]) {
+        if let Some(node) = fdt.find_compatible(Self::COMPATIBLE) {
             self.init(&node)
         }
     }

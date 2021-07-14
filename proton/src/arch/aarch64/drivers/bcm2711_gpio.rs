@@ -87,7 +87,7 @@ impl GPIO {
 pub static mut GPIO: GPIO = GPIO::new();
 
 impl BootDriver for GPIO {
-    const COMPATIBLE: &'static str = "brcm,bcm2711-gpio";
+    const COMPATIBLE: &'static [&'static str] = &["brcm,bcm2711-gpio"];
     fn init(&mut self, node: &FdtNode) {
         let gpio_frame = node.reg().unwrap().next().unwrap().starting_address as usize;
         let gpio_page = Self::map_device_page(Frame::new(gpio_frame.into()));

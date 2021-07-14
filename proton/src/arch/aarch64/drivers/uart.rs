@@ -71,7 +71,7 @@ impl UART0 {
 pub static mut UART: UART0 = UART0::new();
 
 impl BootDriver for UART0 {
-    const COMPATIBLE: &'static str = "arm,pl011";
+    const COMPATIBLE: &'static [&'static str] = &["arm,pl011"];
     fn init(&mut self, node: &FdtNode) {
         let uart_frame = node.reg().unwrap().next().unwrap().starting_address as usize;
         let uart_page = Self::map_device_page(Frame::new(uart_frame.into()));
