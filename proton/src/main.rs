@@ -13,14 +13,13 @@
 #![feature(min_type_alias_impl_trait)]
 
 extern crate alloc;
-extern crate device_tree;
-
 #[macro_use]
 extern crate proton;
 
 use core::panic::PanicInfo;
 
 use alloc::vec;
+use fdt::Fdt;
 use proton::arch::{Arch, TargetArch};
 use proton::kernel_tasks::system::{Idle, System};
 use proton::kernel_tasks::user::UserTask;
@@ -63,8 +62,8 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     KERNEL_HEAP.init();
 
     // Initialize arch and boot drivers
-    let t = device_tree::DeviceTree::load(boot_info.device_tree).unwrap();
-    TargetArch::init(&t);
+    let fdt = Fdt::new(boot_info.device_tree).unwrap();
+    TargetArch::init(&fdt);
     // loop {}
     let x = vec![233usize];
     log!("Hello Proton! {:?}", x.as_ptr());

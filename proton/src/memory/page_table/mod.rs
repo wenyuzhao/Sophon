@@ -23,7 +23,7 @@ pub enum PageFlag {
     COPY_ON_WRITE = 1 << 53,
     NORMAL_MEMORY = 0b001 << 2,
     DEVICE_MEMORY = 0b000 << 2,
-    X = 1 << 3,
+    NO_CACHE = 0b10 << 2,
 }
 
 impl BitFlag for PageFlag {

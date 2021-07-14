@@ -1,13 +1,12 @@
-use crate::arch::ArchInterruptController;
+use crate::arch::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
 use crate::task::scheduler::AbstractScheduler;
 use crate::utils::page::Frame;
 use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use crate::{
     arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver, task::scheduler::SCHEDULER,
 };
-use core::slice;
 use cortex_a::{asm::barrier, registers::*};
-use device_tree::Node;
+use fdt::node::FdtNode;
 use spin::Mutex;
 use tock_registers::interfaces::{Readable, Writeable};
 
@@ -154,23 +153,12 @@ pub static mut GIC: GIC = GIC::new();
 
 impl BootDriver for GIC {
     const COMPATIBLE: &'static str = "arm,cortex-a15-gic";
-    fn init(&mut self, node: &Node) {
-        unsafe { asm!("msr daifset, #2") };
+    fn init(&mut self, node: &FdtNode) {
+        <TargetArch as Arch>::Interrupt::disable();
 
-        assert!(node.prop_raw("#size-cells").unwrap() == &[0u8, 0, 0, 2]);
-        assert!(node.prop_raw("#address-cells").unwrap() == &[0u8, 0, 0, 2]);
-        // reg.
-        let reg = node.prop_raw("reg").unwrap();
-        // log!("reg bytes: {:?}", reg);
-        let len = reg.len() / 4;
-        let data = unsafe { slice::from_raw_parts(reg.as_ptr() as *const u32, len) };
-        log!("reg: {:?}", data);
-        let gicd_address =
-            ((u32::from_be(data[0]) as usize) << 32) | (u32::from_be(data[1]) as usize);
-        // let gicd_size = ((u32::from_be(data[2]) as u64) << 32) | (u32::from_be(data[3]) as u64);
-        let gicc_address =
-            ((u32::from_be(data[4]) as usize) << 32) | (u32::from_be(data[5]) as usize);
-        // let gicc_size = ((u32::from_be(data[6]) as u64) << 32) | (u32::from_be(data[7]) as u64);
+        let mut regs = node.reg().unwrap();
+        let gicd_address = regs.next().unwrap().starting_address as usize;
+        let gicc_address = regs.next().unwrap().starting_address as usize;
         log!("GICD@{:#x} GICC@{:#x}", gicd_address, gicc_address);
         let gicd_page = Self::map_device_page(Frame::new(gicd_address.into()));
         let gicc_page = Self::map_device_page(Frame::new(gicc_address.into()));

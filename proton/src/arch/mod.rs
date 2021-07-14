@@ -4,7 +4,7 @@ use crate::{
     utils::{address::*, page::Frame},
 };
 use alloc::boxed::Box;
-use device_tree::DeviceTree;
+use fdt::Fdt;
 
 #[repr(usize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -73,9 +73,20 @@ pub trait Arch {
     type Context: ArchContext;
     type Interrupt: ArchInterrupt;
 
-    fn init(device_tree: &DeviceTree);
+    fn init(device_tree: &Fdt);
     fn interrupt() -> &'static dyn ArchInterruptController;
-    fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R;
+    #[inline]
+    fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
+        let enabled = Self::Interrupt::is_enabled();
+        if enabled {
+            Self::Interrupt::disable();
+        }
+        let ret = f();
+        if enabled {
+            Self::Interrupt::enable();
+        }
+        ret
+    }
 
     fn get_current_page_table() -> Frame;
     fn set_current_page_table(page_table: Frame);

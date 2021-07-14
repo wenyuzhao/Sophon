@@ -5,11 +5,11 @@ use crate::{
     },
     utils::page::*,
 };
-use device_tree::{DeviceTree, Node};
+use fdt::{node::FdtNode, Fdt};
 
 pub trait BootDriver {
     const COMPATIBLE: &'static str;
-    fn init(&mut self, node: &Node);
+    fn init(&mut self, node: &FdtNode);
     fn map_device_page(frame: Frame) -> Page {
         let page = KERNEL_HEAP.virtual_allocate::<Size4K>(1).start;
         KERNEL_MEMORY_MAPPER.map_fixed(page, frame, PageFlags::device());
@@ -18,23 +18,19 @@ pub trait BootDriver {
 }
 
 impl<T: BootDriver> DynBootDriver for T {
-    fn init(&mut self, dt: &DeviceTree) {
-        dt.root.walk(&mut |node| match node.prop_str("compatible") {
-            Ok(s) if s.split('\0').find(|x| *x == Self::COMPATIBLE).is_some() => {
-                self.init(node);
-                true
-            }
-            _ => false,
-        });
+    fn init(&mut self, fdt: &Fdt) {
+        if let Some(node) = fdt.find_compatible(&[Self::COMPATIBLE]) {
+            self.init(&node)
+        }
     }
 }
 
 pub trait DynBootDriver {
-    fn init(&mut self, dt: &DeviceTree);
+    fn init(&mut self, fdt: &Fdt);
 }
 
-pub fn init(device_tree: &DeviceTree, drivers: &mut [&mut dyn DynBootDriver]) {
+pub fn init(device_tree: &Fdt, drivers: &mut [&mut dyn DynBootDriver]) {
     for driver in drivers {
-        driver.init(device_tree);
+        driver.init(&device_tree);
     }
 }

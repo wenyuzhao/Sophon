@@ -12,7 +12,9 @@ pub static WRITER: Mutex<Option<Box<dyn Write + Send>>> = Mutex::new(None);
 pub fn _print(args: fmt::Arguments) {
     TargetArch::uninterruptable(|| {
         let mut writer = WRITER.lock();
-        writer.as_mut().unwrap().write_fmt(args).unwrap();
+        if let Some(writer) = writer.as_mut() {
+            writer.write_fmt(args).unwrap();
+        }
     });
 }
 

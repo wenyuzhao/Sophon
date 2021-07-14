@@ -5,8 +5,8 @@ pub mod uart;
 use self::bcm2711_gpio::GPIO;
 use self::gic::GIC;
 use self::uart::UART;
-use device_tree::DeviceTree;
+use fdt::Fdt;
 
-pub unsafe fn init(device_tree: &DeviceTree) {
+pub unsafe fn init(device_tree: &Fdt) {
     crate::boot_driver::init(device_tree, &mut [&mut GPIO, &mut UART, &mut GIC]);
 }

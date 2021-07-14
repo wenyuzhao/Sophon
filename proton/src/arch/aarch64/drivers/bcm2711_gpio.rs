@@ -2,8 +2,7 @@ use crate::{
     boot_driver::BootDriver,
     utils::{page::Frame, volatile::Volatile},
 };
-use core::slice;
-use device_tree::Node;
+use fdt::node::FdtNode;
 
 #[repr(C)]
 pub struct GPIORegisters {
@@ -89,12 +88,8 @@ pub static mut GPIO: GPIO = GPIO::new();
 
 impl BootDriver for GPIO {
     const COMPATIBLE: &'static str = "brcm,bcm2711-gpio";
-    fn init(&mut self, node: &Node) {
-        let reg = node.prop_raw("reg").unwrap();
-        let len = reg.len() / 4;
-        let data = unsafe { slice::from_raw_parts(reg.as_ptr() as *const u32, len) };
-        let gpio_frame =
-            ((u32::from_be(data[0]) as usize) << 32) | (u32::from_be(data[1]) as usize);
+    fn init(&mut self, node: &FdtNode) {
+        let gpio_frame = node.reg().unwrap().next().unwrap().starting_address as usize;
         let gpio_page = Self::map_device_page(Frame::new(gpio_frame.into()));
         self.gpio = Some(gpio_page.start().as_mut_ptr());
         self.init_gpio();

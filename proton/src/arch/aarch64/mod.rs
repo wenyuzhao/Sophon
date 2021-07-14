@@ -7,7 +7,7 @@ use crate::utils::page::Frame;
 use alloc::boxed::Box;
 use context::AArch64Context;
 use cortex_a::registers::TTBR0_EL1;
-use device_tree::DeviceTree;
+use fdt::Fdt;
 use tock_registers::interfaces::Readable;
 
 static mut INTERRUPT_CONTROLLER: Option<Box<dyn ArchInterruptController>> = None;
@@ -38,7 +38,7 @@ impl Arch for AArch64 {
     type Context = AArch64Context;
     type Interrupt = AArch64Interrupt;
 
-    fn init(device_tree: &DeviceTree) {
+    fn init(device_tree: &Fdt) {
         Self::Interrupt::disable();
         unsafe {
             drivers::init(device_tree);
@@ -47,23 +47,6 @@ impl Arch for AArch64 {
 
     fn interrupt() -> &'static dyn ArchInterruptController {
         unsafe { &**INTERRUPT_CONTROLLER.as_ref().unwrap() }
-    }
-
-    #[inline]
-    fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
-        let enabled = unsafe {
-            let daif: usize;
-            asm!("mrs {}, DAIF", out(reg) daif);
-            daif & (1 << 7) == 0
-        };
-        if enabled {
-            unsafe { asm!("msr daifset, #2") };
-        }
-        let ret = f();
-        if enabled {
-            unsafe { asm!("msr daifclr, #2") };
-        }
-        ret
     }
 
     fn get_current_page_table() -> Frame {

@@ -2,11 +2,8 @@ use crate::{
     boot_driver::BootDriver,
     utils::{page::Frame, volatile::Volatile},
 };
-use core::{
-    fmt::{self, Write},
-    slice,
-};
-use device_tree::Node;
+use core::fmt::{self, Write};
+use fdt::node::FdtNode;
 
 #[repr(C)]
 pub struct UARTRegisters {
@@ -41,20 +38,23 @@ impl UART0 {
     }
 
     fn transmit_fifo_full(&self) -> bool {
-        self.uart().fr.get() & (1 << 5) > 0
+        self.uart().fr.get() & (1 << 5) != 0
     }
 
-    fn receive_fifo_empty(&self) -> bool {
-        self.uart().fr.get() & (1 << 4) > 0
-    }
+    // fn receive_fifo_empty(&self) -> bool {
+    //     self.uart().fr.get() & (1 << 4) != 0
+    // }
 
     fn uart(&self) -> &mut UARTRegisters {
         unsafe { &mut *self.uart.unwrap() }
     }
 
     fn putchar(&self, c: char) {
+        if self.uart.is_none() {
+            return;
+        }
         while self.transmit_fifo_full() {}
-        self.uart().dr.set(c as _);
+        self.uart().dr.set(c as u8 as u32);
     }
 
     fn init_uart(&self) {
@@ -72,16 +72,13 @@ pub static mut UART: UART0 = UART0::new();
 
 impl BootDriver for UART0 {
     const COMPATIBLE: &'static str = "arm,pl011";
-    fn init(&mut self, node: &Node) {
-        let reg = node.prop_raw("reg").unwrap();
-        let len = reg.len() / 4;
-        let data = unsafe { slice::from_raw_parts(reg.as_ptr() as *const u32, len) };
-        let uart_frame =
-            ((u32::from_be(data[0]) as usize) << 32) | (u32::from_be(data[1]) as usize);
+    fn init(&mut self, node: &FdtNode) {
+        let uart_frame = node.reg().unwrap().next().unwrap().starting_address as usize;
         let uart_page = Self::map_device_page(Frame::new(uart_frame.into()));
         self.uart = Some(uart_page.start().as_mut_ptr());
         self.init_uart();
         *crate::log::WRITER.lock() = Some(box Log);
+        log!("UART @ {:?} -> {:?}", uart_frame as *mut (), uart_page);
     }
 }
 

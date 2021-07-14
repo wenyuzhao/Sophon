@@ -78,12 +78,12 @@ impl VirtualPageAllocator {
             Self::mark(
                 &mut self.table_2m,
                 (range_4k.start >> (Size2M::LOG_BYTES - Size4K::LOG_BYTES))
-                    ..(range_4k.end >> (Size2M::LOG_BYTES - Size4K::LOG_BYTES)),
+                    ..((range_4k.end - 1) >> (Size2M::LOG_BYTES - Size4K::LOG_BYTES)) + 1,
             );
             Self::mark(
                 &mut self.table_1g,
                 (range_4k.start >> (Size1G::LOG_BYTES - Size4K::LOG_BYTES))
-                    ..(range_4k.end >> (Size1G::LOG_BYTES - Size4K::LOG_BYTES)),
+                    ..((range_4k.end - 1) >> (Size1G::LOG_BYTES - Size4K::LOG_BYTES)) + 1,
             );
             start_index
         } else if S::BYTES == Size2M::BYTES {
@@ -97,7 +97,7 @@ impl VirtualPageAllocator {
             Self::mark(
                 &mut self.table_1g,
                 (range_2m.start >> (Size1G::LOG_BYTES - Size2M::LOG_BYTES))
-                    ..(range_2m.end >> (Size1G::LOG_BYTES - Size2M::LOG_BYTES)),
+                    ..((range_2m.end - 1) >> (Size1G::LOG_BYTES - Size2M::LOG_BYTES)) + 1,
             );
             start_index
         } else {
@@ -126,18 +126,18 @@ impl VirtualPageAllocator {
 pub struct FreeListAllocator {
     start: Address,
     end: Address,
-    cells: [Address; 28], // (1<<3), (1<<4), (1<<5), ..., (1<<30)
+    cells: [Address; KERNEL_HEAP_SIZE.trailing_zeros() as usize + 1],
     retry: bool,
 }
 
 impl FreeListAllocator {
-    const MIN_SIZE: usize = 1 << 3;
+    const MIN_SIZE: usize = 1 << 4;
 
     const fn new() -> Self {
         Self {
             start: Address::ZERO,
             end: Address::ZERO,
-            cells: [Address::ZERO; 28],
+            cells: [Address::ZERO; KERNEL_HEAP_SIZE.trailing_zeros() as usize + 1],
             retry: false,
         }
     }
@@ -160,10 +160,7 @@ impl FreeListAllocator {
     }
 
     fn cell_size(layout: &Layout) -> usize {
-        max(
-            layout.size().next_power_of_two(),
-            max(layout.align(), Self::MIN_SIZE),
-        )
+        max(layout.pad_to_align().size(), Self::MIN_SIZE)
     }
 
     fn alloc_cell(&mut self, size_class: usize) -> Option<Address> {
@@ -198,7 +195,7 @@ impl FreeListAllocator {
             Some(cell) => cell,
             None => {
                 assert!(!self.retry, "OutOfMemory");
-                let pages = ((1 << size_class) + Size2M::MASK) >> Size2M::LOG_BYTES << 1;
+                let pages = ((1 << size_class) + Size2M::MASK) >> Size2M::LOG_BYTES;
                 let vs = VIRTUAL_PAGE_ALLOCATOR.lock().acquire::<Size2M>(pages);
                 for i in 0..pages {
                     let v = Page::forward(vs.start, i);
@@ -212,7 +209,7 @@ impl FreeListAllocator {
                     let size = min(1 << align, end - cursor);
                     assert!(size > 0);
                     let size_class = Self::size_class(size);
-                    assert!(cursor.as_usize() & ((1 << (size_class + 3)) - 1) == 0);
+                    assert!(cursor.as_usize() & ((1 << size_class) - 1) == 0);
                     self.push_cell(size_class, cursor);
                     cursor += size;
                 }
