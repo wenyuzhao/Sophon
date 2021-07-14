@@ -124,8 +124,6 @@ impl VirtualPageAllocator {
 }
 
 pub struct FreeListAllocator {
-    start: Address,
-    end: Address,
     cells: [Address; KERNEL_HEAP_SIZE.trailing_zeros() as usize + 1],
     retry: bool,
 }
@@ -135,15 +133,9 @@ impl FreeListAllocator {
 
     const fn new() -> Self {
         Self {
-            start: Address::ZERO,
-            end: Address::ZERO,
             cells: [Address::ZERO; KERNEL_HEAP_SIZE.trailing_zeros() as usize + 1],
             retry: false,
         }
-    }
-
-    fn dump(&self) {
-        log!("Heap: {:?}..{:?}", self.start, self.end);
     }
 
     fn init(&mut self) {}
@@ -252,10 +244,6 @@ impl KernelHeap {
 
     pub fn init(&self) {
         self.fa.lock().init()
-    }
-
-    pub fn dump(&self) {
-        self.fa.lock().dump()
     }
 
     pub fn virtual_allocate<S: PageSize>(&self, pages: usize) -> Range<Page<S>> {

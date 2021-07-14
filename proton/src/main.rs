@@ -64,14 +64,11 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     // Initialize arch and boot drivers
     let fdt = Fdt::new(boot_info.device_tree).unwrap();
     TargetArch::init(&fdt);
-    // loop {}
-    let x = vec![233usize];
-    log!("Hello Proton! {:?}", x.as_ptr());
 
-    KERNEL_HEAP.dump();
+    log!("Hello Proton!");
 
     let v = vec![1, 3, 5, 7, 9];
-    log!("Test Alloc {:?} {:?}", v, v.as_ptr());
+    log!("[kernel: test-alloc] {:?} @ {:?}", v, v.as_ptr());
 
     ipc::init();
     log!("[kernel: ipc initialized]");

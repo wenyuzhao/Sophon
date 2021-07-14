@@ -122,12 +122,9 @@ impl Task {
     // }
     /// Create a init task with empty p4 table
     pub fn create_kernel_task(t: Box<dyn KernelTask>) -> &'static mut Self {
-        log!("create_kernel_task 1");
         let t = box t;
-        log!("create_kernel_task 2");
         // Assign an id
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
-        log!("create_kernel_task 3");
         // Alloc task struct
         let task = box Task {
             id,
@@ -140,7 +137,6 @@ impl Task {
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
         };
-        log!("create_kernel_task 4");
         // Add this task to the scheduler
         SCHEDULER.register_new_task(task)
     }
