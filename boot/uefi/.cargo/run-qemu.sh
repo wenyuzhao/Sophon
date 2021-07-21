@@ -8,7 +8,7 @@ boot_dir=$(dirname $(dirname $(dirname $uefi_bin)))/_boot
 # Launch qemu
 qemu=qemu-system-aarch64
 bios=.cargo/QEMU_EFI.fd
-machine_args="-M virt -cpu cortex-a72 -smp 1 -m 1G"
+machine_args="-M virt -machine virtualization=on -cpu cortex-a72 -smp 4 -m 1G"
 # machine_args="-M virt,dumpdtb=$outdir/device-tree.dtb -cpu cortex-a72 -smp 1 -m 1G"
 shift
 $qemu $machine_args -s -bios $bios -drive index=0,format=raw,file=fat:rw:$boot_dir -net none -monitor none -nographic -serial stdio $@

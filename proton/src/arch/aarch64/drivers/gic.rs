@@ -158,7 +158,13 @@ impl BootDriver for GIC {
 
         let mut regs = node.reg().unwrap();
         let gicd_address = regs.next().unwrap().starting_address as usize;
+        // if gicd_address & 0xff000000 == 0x7e000000 {
+        //     gicd_address += 0xf0000000
+        // }
         let gicc_address = regs.next().unwrap().starting_address as usize;
+        // if gicc_address & 0xff000000 == 0x7e000000 {
+        //     gicc_address += 0xf0000000
+        // }
         log!("GICD@{:#x} GICC@{:#x}", gicd_address, gicc_address);
         let gicd_page = Self::map_device_page(Frame::new(gicd_address.into()));
         let gicc_page = Self::map_device_page(Frame::new(gicc_address.into()));

@@ -14,7 +14,7 @@
     <script>
         async function start() {
             const port = await navigator.serial.requestPort({});
-            await port.open({ baudrate: 115200 });
+            await port.open({ baudRate: 115200 });
 
             const reader = port.readable.getReader();
             //const writer = port.writable.getWriter();
@@ -39,7 +39,9 @@
             }
         })
     </script>
-    <button onclick="start()"><h1>CONNECT</h1></button>
+    <button onclick="start()">
+        <h1>CONNECT</h1>
+    </button>
 </body>
 
 </html>

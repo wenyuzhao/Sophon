@@ -11,6 +11,7 @@
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_raw_ptr_to_usize_cast)]
 #![feature(min_type_alias_impl_trait)]
+#![feature(asm)]
 
 extern crate alloc;
 #[macro_use]
@@ -55,15 +56,29 @@ unsafe fn zero_bss() {
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
+    boot_log!("PROTON");
+    boot_log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
+        *(boot_info as *const _ as *const usize)
+    });
+    boot_log!("device_tree @ {:?}", boot_info.device_tree.as_ptr_range());
+    boot_log!(
+        "available_physical_memory @ {:?}",
+        boot_info.available_physical_memory.as_ptr_range()
+    );
     unsafe { zero_bss() }
+    boot_log!("zero_bss done");
 
     // Initialize physical memory and kernel heap
     PHYSICAL_MEMORY.init(boot_info.available_physical_memory);
+    boot_log!("PHYSICAL_MEMORY done");
     KERNEL_HEAP.init();
+    boot_log!("KERNEL_HEAP done");
 
     // Initialize arch and boot drivers
     let fdt = Fdt::new(boot_info.device_tree).unwrap();
+    boot_log!("fdt loaded");
     TargetArch::init(&fdt);
+    boot_log!("TargetArch done");
 
     log!("Hello Proton!");
 

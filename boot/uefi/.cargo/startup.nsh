@@ -1,1 +1,1 @@
-fs0:proton-boot-uefi.efi dtb=dtbs\qemu-virt.dtb
+fs0:boot.efi dtb=bcm2711-rpi-4-b.dtb

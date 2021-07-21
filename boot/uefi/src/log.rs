@@ -12,6 +12,13 @@ impl Write for Log {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         let bt = crate::boot_system_table();
         for c in s.chars() {
+            if c == '\n' {
+                let v = ['\r' as u16, 0];
+                let _ = bt
+                    .stdout()
+                    .output_string(CStr16::from_u16_with_nul(&v).ok().unwrap())
+                    .unwrap();
+            }
             let v = [c as u16, 0];
             let _ = bt
                 .stdout()
@@ -24,7 +31,7 @@ impl Write for Log {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    let mut writer = WRITER.lock();
+    let mut writer = Log;
     writer.write_fmt(args).unwrap();
 }
 
