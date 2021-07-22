@@ -56,6 +56,9 @@ unsafe fn zero_bss() {
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
+    if let Some(uart) = boot_info.uart {
+        unsafe { proton::log::BOOT_LOG.set_mmio_address(uart) }
+    }
     boot_log!("PROTON");
     boot_log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
         *(boot_info as *const _ as *const usize)

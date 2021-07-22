@@ -11,9 +11,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
-use cortex_a::asm::barrier;
 use cortex_a::registers::*;
 use elf_rs::*;
+use fdt::Fdt;
 use proton::memory::page_table::*;
 use proton::utils::address::*;
 use proton::utils::page::*;
@@ -64,15 +64,6 @@ unsafe fn establish_el1_page_table() {
         );
         cursor += Size1G::BYTES;
     }
-
-    // const UART: usize = 0x9000000;
-    const UART: usize = 0xfe201000;
-    map_kernel_page_4k(
-        p4,
-        Page::new(0xdead_0000_0000.into()),
-        Frame::new(UART.into()),
-        PageFlags::device(),
-    );
 }
 
 fn boot_system_table() -> &'static SystemTable<Boot> {
@@ -90,35 +81,31 @@ fn new_page4k() -> Frame {
     page
 }
 
-fn translate(p4: &mut PageTable<L4>, page: Page<Size4K>) -> Frame<Size4K> {
-    fn get_next_table<L: TableLevel>(
-        p: &mut PageTable<L>,
-        i: usize,
-    ) -> &'static mut PageTable<L::NextLevel> {
-        if p[i].present() && !p[i].is_block() {
-            let addr = p[i].address();
-            unsafe { transmute(addr) }
-        } else {
-            panic!()
-        }
+fn get_next_table<L: TableLevel>(
+    p: &mut PageTable<L>,
+    i: usize,
+) -> &'static mut PageTable<L::NextLevel> {
+    if p[i].present() && !p[i].is_block() {
+        let addr = p[i].address();
+        unsafe { transmute(addr) }
+    } else {
+        panic!()
     }
-    let p4_ptr = p4 as *mut _;
+}
+
+fn translate(p4: &mut PageTable<L4>, page: Page<Size4K>) -> Frame<Size4K> {
     let table = p4;
     // Get p3
     let index = PageTable::<L4>::get_index(page.start());
-    // proton::boot_log!("[{:?}] {:?} - L3 @ {:?}", p4_ptr, page, table[index]);
     let table = get_next_table(table, index);
     // Get p2
     let index = PageTable::<L3>::get_index(page.start());
-    // proton::boot_log!("[{:?}] {:?} - L2 @ {:?}", p4_ptr, page, table[index]);
     let table = get_next_table(table, index);
     // Get p1
     let index = PageTable::<L2>::get_index(page.start());
-    // proton::boot_log!("[{:?}] {:?} - L1 @ {:?}", p4_ptr, page, table[index]);
     let table = get_next_table(table, index);
     // Map
     let index = PageTable::<L1>::get_index(page.start());
-    // proton::boot_log!("[{:?}] {:?} -> {:?}", p4_ptr, page, table[index]);
     Frame::new(table[index].address())
 }
 
@@ -127,17 +114,6 @@ fn identity_map_kernel_page_1g(
     page: Option<Page<Size1G>>,
     flags: PageFlags,
 ) {
-    fn get_next_table<L: TableLevel>(
-        p: &mut PageTable<L>,
-        i: usize,
-    ) -> &'static mut PageTable<L::NextLevel> {
-        if p[i].present() && !p[i].is_block() {
-            let addr = p[i].address();
-            unsafe { addr.as_mut() }
-        } else {
-            panic!()
-        }
-    }
     let addr = page.map(|x| x.start()).unwrap_or(Address::ZERO);
     let table = p4;
     // Get p3
@@ -169,39 +145,28 @@ fn map_kernel_page_4k(
             panic!()
         }
     }
-    let p4_ptr = p4 as *mut _;
     let table = p4;
     // Get p3
     let index = PageTable::<L4>::get_index(page.start());
     if !table[index].present() {
         table[index].set(new_page4k(), PageFlags::page_table_flags());
-        // log!("Add P3 {:?}", table[index]);
-    } else {
-        // log!("Found P3 {:?}", table[index]);
     }
     let table = get_next_table(table, index);
     // Get p2
     let index = PageTable::<L3>::get_index(page.start());
     if !table[index].present() {
         table[index].set(new_page4k(), PageFlags::page_table_flags());
-        // log!("Add P2 {:?}", table[index]);
-    } else {
-        // log!("Found P2 {:?}", table[index]);
     }
     let table = get_next_table(table, index);
     // Get p1
     let index = PageTable::<L2>::get_index(page.start());
     if !table[index].present() {
         table[index].set(new_page4k(), PageFlags::page_table_flags());
-        // log!("Add P1 {:?}", table[index]);
-    } else {
-        // log!("Found P1 {:?}", table[index]);
     }
     let table = get_next_table(table, index);
     // Map
     let index = PageTable::<L1>::get_index(page.start());
     table[index].set(frame, flags);
-    // log!("[{:?}] Mapped {:?} -> {:?}", p4_ptr, page, frame);
 }
 
 fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
@@ -213,46 +178,6 @@ fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
             PageFlags::kernel_code_flags_4k(),
         );
     }
-}
-// <0xff0000000000 4K> -> <0x7bd5c000 4K>
-// ff0000001000 4K> -> <0x7bd5b000 4K>
-fn invalidate_tlb() {
-    unsafe {
-        asm! {"
-            tlbi vmalle1is
-            DSB SY
-            isb
-        "}
-    }
-}
-
-pub unsafe fn setup_tcr() {
-    log!("Setup TCR");
-    TCR_EL1.write(
-        TCR_EL1::TG0::KiB_4
-            + TCR_EL1::TG1::KiB_4
-            + TCR_EL1::SH0::Inner
-            + TCR_EL1::SH1::Inner
-            + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::ORGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::IRGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::EPD0::EnableTTBR0Walks
-            + TCR_EL1::EPD1::EnableTTBR1Walks,
-    );
-    TCR_EL1.set(TCR_EL1.get() | 0b101 << 32); // Intermediate Physical Address Size (IPS) = 0b101
-    TCR_EL1.set(TCR_EL1.get() | 0x10 << 0); // TTBR0_EL1 memory size (T0SZ) = 0x10 ==> 2^(64 - T0SZ)
-    TCR_EL1.set(TCR_EL1.get() | 0x10 << 16); // TTBR1_EL1 memory size (T1SZ) = 0x10 ==> 2^(64 - T1SZ)
-                                             // TCR_EL2.write(
-                                             //     TCR_EL2::TG0::KiB_4
-                                             //         + TCR_EL2::SH0::Inner
-                                             //         + TCR_EL2::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-                                             //         + TCR_EL2::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable,
-                                             // );
-                                             // TCR_EL2.set(TCR_EL2.get() | 0b101 << 32); // Intermediate Physical Address Size (IPS) = 0b101
-                                             // TCR_EL2.set(TCR_EL2.get() | 0x10 << 0); // TTBR0_EL1 memory size (T0SZ) = 0x10 ==> 2^(64 - T0SZ)
-    invalidate_tlb();
-    log!("Setup TCR Done");
 }
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
@@ -296,9 +221,6 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
         let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
         let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
         let pages = ((vaddr_end - vaddr_start) + ((1 << 12) - 1)) >> 12;
-        log!("TTBR0_EL1 {:?}", TTBR0_EL1.get() as *mut ());
-        log!("TTBR1_EL1 {:?}", TTBR1_EL1.get() as *mut ());
-        log!("CurrentEL {:?}", CurrentEL.get());
         log!("Map code {:?}", vaddr_start..vaddr_end);
         let p4 = TTBR0_EL1.get() as *mut PageTable<L4>;
         map_kernel_pages_4k(unsafe { &mut *p4 }, vaddr_start.as_usize() as _, pages);
@@ -378,9 +300,27 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
 }
 
 fn gen_boot_info(device_tree: &'static [u8]) -> BootInfo {
+    let fdt = Fdt::new(device_tree).unwrap();
+    let uart = if let Some(node) = fdt.find_compatible(&["arm,pl011"]) {
+        let mut addr = node.reg().unwrap().next().unwrap().starting_address as usize;
+        if addr & 0xff000000 == 0x7e000000 {
+            addr += 0x80000000
+        }
+        const UART: Address = Address::new(0xdead_0000_0000);
+        map_kernel_page_4k(
+            PageTable::<L4>::get(),
+            Page::new(UART),
+            Frame::new(addr.into()),
+            PageFlags::device(),
+        );
+        Some(UART)
+    } else {
+        None
+    };
     BootInfo {
         available_physical_memory: gen_available_physical_memory(),
         device_tree,
+        uart,
     }
 }
 
@@ -477,12 +417,9 @@ extern "C" fn launch_kernel_at_el1(
     start: extern "C" fn(&mut BootInfo) -> isize,
     boot_info: &mut BootInfo,
 ) -> ! {
-    // TTBR0_EL1.set(TTBR0_EL2.get());
-    // TTBR1_EL1.set(TTBR0_EL2.get());
     CNTHCTL_EL2.write(CNTHCTL_EL2::EL1PCEN::SET + CNTHCTL_EL2::EL1PCTEN::SET);
     CNTVOFF_EL2.set(0);
     HCR_EL2.write(HCR_EL2::RW::EL1IsAarch64);
-    // HCR_EL2.set(HCR_EL2.get() | (1 << 1));
 
     MAIR_EL1.write(
         // Attribute 1 - Cacheable normal DRAM.
@@ -519,41 +456,25 @@ extern "C" fn launch_kernel_at_el1(
             + SPSR_EL2::F::Masked
             + SPSR_EL2::M::EL1h,
     );
-    log!("A");
-    unsafe {
-        log!("boot_info @ {:?}", boot_info as *const _);
-        log!(
-            "device_tree @ {:?}",
-            (*boot_info).device_tree.as_ptr_range()
-        );
-        log!(
-            "available_physical_memory @ {:?}",
-            (*boot_info).available_physical_memory.as_ptr_range()
-        );
-    }
-    // unsafe { proton::test_uart() }
+
+    log!("boot_info @ {:?}", boot_info as *const _);
+    log!(
+        "device_tree @ {:?}",
+        (*boot_info).device_tree.as_ptr_range()
+    );
+    log!(
+        "available_physical_memory @ {:?}",
+        (*boot_info).available_physical_memory.as_ptr_range()
+    );
 
     unsafe {
-        let buffer = &mut [0; 4096];
-        boot_system_table()
-            .unsafe_clone()
-            .exit_boot_services(IMAGE.unwrap(), buffer)
-            .unwrap_success();
-    }
-
-    // mrs x0, cntkctl_el1
-    // orr x0, x0, #0x3
-    // msr cntkctl_el1, x0
-    // mrs x0, midr_el1
-    // mrs x1, mpidr_el1
-    // msr vpidr_el2, x0
-    // msr vmpidr_el2, x1
-    // mov x0, #0x33ff
-    // msr cptr_el2, x0
-    // msr hstr_el2, xzr
-    // mrs x0, vbar_el2
-    // msr vbar_el1, x0
-    unsafe {
+        {
+            let buffer = &mut [0; 4096];
+            boot_system_table()
+                .unsafe_clone()
+                .exit_boot_services(IMAGE.unwrap(), buffer)
+                .unwrap_success();
+        }
         asm! {
             "
                 mov x0, #0xfffffff
@@ -564,26 +485,10 @@ extern "C" fn launch_kernel_at_el1(
             in("x0") 0,
             in("x1") 0,
         }
-        ELR_EL2.set(start_el1 as *const () as u64);
-        // proton::boot_log!(
-        //     "EL2 boot_info @ {:?} {:x?}",
-        //     boot_info as *const _,
-        //     unsafe { slice::from_raw_parts(boot_info as *const _ as *const usize, 16) }
-        // );
-        // proton::boot_log!("EL2 TTBR0_EL0 @ {:?} ", TTBR0_EL1.get() as *mut u8);
-        // proton::boot_log!("EL2 TTBR1_EL1 @ {:?} ", TTBR1_EL1.get() as *mut u8);
-        // proton::boot_log!(
-        //     "device_tree @ {:?}",
-        //     (*boot_info).device_tree.as_ptr_range(),
-        // );
-        // proton::boot_log!(
-        //     "available_physical_memory @ {:?}",
-        //     (*boot_info).available_physical_memory.as_ptr_range(),
-        // );
+        ELR_EL2.set(start as *const () as u64);
         asm! {
             "eret",
-            in("x0") start,
-            in("x1") boot_info,
+            in("x0") boot_info,
         }
     }
     unreachable!();
@@ -592,100 +497,8 @@ extern "C" fn launch_kernel_at_el1(
 static mut BOOT_INFO: BootInfo = BootInfo {
     available_physical_memory: &[],
     device_tree: &[],
+    uart: None,
 };
-
-extern "C" fn start_el1(
-    start: extern "C" fn(&mut BootInfo) -> isize,
-    boot_info: &mut BootInfo,
-) -> ! {
-    proton::boot_log!("CurrentEL {:?}", CurrentEL.get() >> 2);
-    proton::boot_log!(
-        "EL1 boot_info @ {:?} ",
-        boot_info as *const _,
-        // unsafe { slice::from_raw_parts(boot_info as *const _ as *const usize, 4) }
-    );
-    unsafe {
-        proton::boot_log!(
-            "EL1 boot_info2 @ {:?} {:?}",
-            &BOOT_INFO as *const _,
-            BOOT_INFO.device_tree.as_ptr_range()
-        );
-    }
-    proton::boot_log!("EL1 TTBR0_EL0 @ {:?} ", TTBR0_EL1.get() as *mut u8);
-    proton::boot_log!("EL1 TTBR1_EL1 @ {:?} ", TTBR1_EL1.get() as *mut u8);
-    proton::boot_log!(
-        "device_tree @ {:?}",
-        (*boot_info).device_tree.as_ptr_range()
-    );
-    proton::boot_log!(
-        "available_physical_memory @ {:?}",
-        (*boot_info).available_physical_memory.as_ptr_range()
-    );
-    unsafe {
-        let mut sp: *mut u8;
-        asm!("mov x0, sp", out("x0") sp);
-        proton::boot_log!("SP {:?}", sp);
-    }
-    unsafe {
-        barrier::isb(barrier::SY);
-        SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
-        // barrier::isb(barrier::SY);
-        // barrier::dmb(barrier::SY);
-        // barrier::dsb(barrier::SY);
-    }
-    proton::boot_log!(
-        "EL1 MMU boot_info @ {:?} {:?}",
-        boot_info as *const _,
-        unsafe { *(boot_info as *const _ as *const usize) }
-    );
-    proton::boot_log!(
-        "device_tree @ {:?} ",
-        (*boot_info).device_tree.as_ptr_range(),
-    );
-    proton::boot_log!(
-        "available_physical_memory @ {:?}",
-        (*boot_info).available_physical_memory.as_ptr_range()
-    );
-    proton::boot_log!("start @ {:?}", start as *mut ());
-    // let p4 = PageTable::get();
-    // translate2(p4, boot_info.into());
-    // unsafe {
-    //     let p4 = &mut *(TTBR0_EL2.get() as *mut PageTable<L4>);
-    //     let v = Page::<Size4K>::new(boot_info.into());
-    //     let p = translate(p4, v);
-    //     proton::boot_log!("boot_info @ {:?} -> {:?}", v, p);
-    // }
-    start(boot_info);
-    unreachable!()
-}
-
-extern "C" fn start_el2() -> ! {
-    log!("Loading kernel...");
-
-    unsafe {
-        establish_el1_page_table();
-    }
-
-    let kernel_elf = read_file(unsafe { IMAGE.unwrap() }, "proton");
-    let dtb = read_dtb(unsafe { IMAGE.unwrap() });
-    let start = load_elf(&kernel_elf);
-
-    log!("Starting kernel...");
-
-    log!("dtb @ {:?}", dtb.as_ptr_range());
-
-    unsafe { BOOT_INFO = gen_boot_info(dtb) }
-    unsafe {
-        log!("boot_info @ {:?}", &BOOT_INFO as *const _);
-        log!("device_tree @ {:?}", BOOT_INFO.device_tree.as_ptr_range());
-        log!(
-            "available_physical_memory @ {:?}",
-            BOOT_INFO.available_physical_memory.as_ptr_range()
-        );
-    }
-
-    launch_kernel_at_el1(start, unsafe { &mut BOOT_INFO });
-}
 
 #[no_mangle]
 pub unsafe extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
@@ -694,22 +507,24 @@ pub unsafe extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Statu
     IMAGE = Some(image);
     log!("Hello, UEFI!");
     log!("CurrentEL {:?}", CurrentEL.get() >> 2);
-    // proton::test_uart();
-    // MAIR_EL2.write(
-    //     // Attribute 1 - Cacheable normal DRAM.
-    //     MAIR_EL2::Attr1_Normal_Outer::WriteBack_NonTransient_ReadWriteAlloc +
-    //     MAIR_EL2::Attr1_Normal_Inner::WriteBack_NonTransient_ReadWriteAlloc +
-    //     // Attribute 0 - Device.
-    //     MAIR_EL2::Attr0_Device::nonGathering_nonReordering_EarlyWriteAck,
-    // );
-    // setup_tcr();
-    // barrier::isb(barrier::SY);
-    // barrier::dsb(barrier::SY);
-    // SCTLR_EL2.modify(SCTLR_EL2::M::Enable + SCTLR_EL2::C::Cacheable + SCTLR_EL2::I::Cacheable);
-    // barrier::isb(barrier::SY);
-    // barrier::dsb(barrier::SY);
-    // log!("MMU Enabled");
-    start_el2();
+
+    debug_assert_eq!(CurrentEL.get() >> 2, 2);
+
+    log!("Loading kernel...");
+
+    establish_el1_page_table();
+
+    let kernel_elf = read_file(image, "proton");
+    let dtb = read_dtb(image);
+    let start = load_elf(&kernel_elf);
+
+    log!("Starting kernel...");
+
+    log!("DTB @ {:?}", dtb.as_ptr_range());
+
+    BOOT_INFO = gen_boot_info(dtb);
+
+    launch_kernel_at_el1(start, &mut BOOT_INFO);
 }
 
 #[no_mangle]
