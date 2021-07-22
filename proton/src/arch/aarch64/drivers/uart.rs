@@ -75,7 +75,7 @@ impl BootDriver for UART0 {
     fn init(&mut self, node: &FdtNode) {
         let mut uart_frame = node.reg().unwrap().next().unwrap().starting_address as usize;
         if uart_frame & 0xff000000 == 0x7e000000 {
-            uart_frame += 0xf0000000
+            uart_frame += 0x80000000
         }
         let uart_page = Self::map_device_page(Frame::new(uart_frame.into()));
         self.uart = Some(uart_page.start().as_mut_ptr());
@@ -90,6 +90,11 @@ pub struct Log;
 impl Write for Log {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         for c in s.chars() {
+            if c == '\n' {
+                unsafe {
+                    UART.putchar('\r');
+                }
+            }
             unsafe {
                 UART.putchar(c);
             }

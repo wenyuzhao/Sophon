@@ -5,7 +5,6 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::iter::Step;
 use core::marker::PhantomData;
-use core::num::NonZeroUsize;
 use core::ops::Range;
 
 pub trait PageSize: 'static + Sized {
@@ -36,7 +35,7 @@ impl PageSize for Size1G {
 }
 
 #[repr(transparent)]
-pub struct Page<S: PageSize = Size4K, K: MemoryKind = V>(NonZeroUsize, PhantomData<(S, K)>);
+pub struct Page<S: PageSize = Size4K, K: MemoryKind = V>(usize, PhantomData<(S, K)>);
 
 pub type Frame<S = Size4K> = Page<S, P>;
 
@@ -46,12 +45,8 @@ impl<S: PageSize, K: MemoryKind> Page<S, K> {
     pub const MASK: usize = Self::BYTES - 1;
 
     pub const fn new(a: Address<K>) -> Self {
-        debug_assert!(!a.is_zero());
         debug_assert!(Self::is_aligned(a));
-        let page = Self(
-            unsafe { NonZeroUsize::new_unchecked(a.as_usize()) },
-            PhantomData,
-        );
+        let page = Self(a.as_usize(), PhantomData);
         page
     }
 
@@ -68,7 +63,7 @@ impl<S: PageSize, K: MemoryKind> Page<S, K> {
     }
 
     pub const fn start(&self) -> Address<K> {
-        Address::from(self.0.get())
+        Address::from(self.0)
     }
 
     pub const fn end(&self) -> Address<K> {
@@ -111,7 +106,7 @@ impl<S: PageSize, K: MemoryKind> const Copy for Page<S, K> {}
 
 impl<S: PageSize, K: MemoryKind> const PartialEq for Page<S, K> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.get() == other.0.get()
+        self.0 == other.0
     }
 
     fn ne(&self, other: &Self) -> bool {
@@ -154,8 +149,8 @@ impl<S: PageSize, K: MemoryKind> const PartialOrd for Page<S, K> {
 impl<S: PageSize, K: MemoryKind> const Ord for Page<S, K> {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self.0, other.0) {
-            (x, y) if x.get() == y.get() => Ordering::Equal,
-            (x, y) if x.get() < y.get() => Ordering::Less,
+            (x, y) if x == y => Ordering::Equal,
+            (x, y) if x < y => Ordering::Less,
             _ => Ordering::Greater,
         }
     }
@@ -188,7 +183,7 @@ impl<S: PageSize, K: MemoryKind> const Ord for Page<S, K> {
 
 impl<S: PageSize, K: MemoryKind> const Step for Page<S, K> {
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        if start.0.get() > end.0.get() {
+        if start.0 > end.0 {
             None
         } else {
             Some((end.start() - start.start()) >> Self::LOG_BYTES)

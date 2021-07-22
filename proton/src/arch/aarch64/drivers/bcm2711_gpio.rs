@@ -91,7 +91,7 @@ impl BootDriver for GPIO {
     fn init(&mut self, node: &FdtNode) {
         let mut gpio_frame = node.reg().unwrap().next().unwrap().starting_address as usize;
         if gpio_frame & 0xff000000 == 0x7e000000 {
-            gpio_frame += 0xf0000000
+            gpio_frame += 0x80000000
         }
         let gpio_page = Self::map_device_page(Frame::new(gpio_frame.into()));
         self.gpio = Some(gpio_page.start().as_mut_ptr());
