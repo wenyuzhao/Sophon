@@ -53,8 +53,8 @@ pub struct BootInfo {
     pub device_tree: &'static [u8],
 }
 
-const UART: usize = 0x9000000;
-// const UART: usize = 0xfe201000;
+// const UART: usize = 0x9000000;
+const UART: usize = 0xdead_0000_0000;
 
 #[repr(C)]
 pub struct GPIORegisters {

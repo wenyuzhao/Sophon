@@ -30,10 +30,50 @@ mod log;
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 static mut IMAGE: Option<Handle> = None;
 
-// unsafe fn establish_page_table() {
-//     static mut P4: PageTable<L4> = PageTable::<L4>::EMPTY;
-//     static mut P3: PageTable<L3> = PageTable::<L3>::EMPTY;
-// }
+unsafe fn establish_el1_page_table() {
+    let p4 = new_page4k().start().as_mut::<PageTable<L4>>();
+    TTBR0_EL1.set(p4 as *const _ as u64);
+    // Get physical address limit
+    let mut buffer = [0u8; 4096];
+    let (_, descriptors) = boot_system_table()
+        .boot_services()
+        .memory_map(&mut buffer)
+        .unwrap()
+        .unwrap();
+    let mut top = Address::<P>::ZERO;
+    for desc in descriptors {
+        let start = Address::<P>::from(desc.phys_start as *mut u8);
+        let end = start + ((desc.page_count as usize) << Size4K::LOG_BYTES);
+        if end > top {
+            top = end
+        }
+    }
+    // Map pages
+    let mut cursor = Address::<V>::ZERO;
+    let top = Address::<V>::new(top.as_usize());
+    // 1G pages
+    while cursor < top {
+        identity_map_kernel_page_1g(
+            p4,
+            if cursor.is_zero() {
+                None
+            } else {
+                Some(Page::new(cursor))
+            },
+            PageFlags::kernel_code_flags_1g(),
+        );
+        cursor += Size1G::BYTES;
+    }
+
+    // const UART: usize = 0x9000000;
+    const UART: usize = 0xfe201000;
+    map_kernel_page_4k(
+        p4,
+        Page::new(0xdead_0000_0000.into()),
+        Frame::new(UART.into()),
+        PageFlags::device(),
+    );
+}
 
 fn boot_system_table() -> &'static SystemTable<Boot> {
     unsafe { BOOT_SYSTEM_TABLE.as_ref().unwrap() }
@@ -82,56 +122,42 @@ fn translate(p4: &mut PageTable<L4>, page: Page<Size4K>) -> Frame<Size4K> {
     Frame::new(table[index].address())
 }
 
-fn translate2(p4: &mut PageTable<L4>, v: Address<V>) -> Address<P> {
-    proton::boot_log!("[{:?}] Translate {:?}", p4 as *const _, v);
+fn identity_map_kernel_page_1g(
+    p4: &mut PageTable<L4>,
+    page: Option<Page<Size1G>>,
+    flags: PageFlags,
+) {
     fn get_next_table<L: TableLevel>(
         p: &mut PageTable<L>,
         i: usize,
     ) -> &'static mut PageTable<L::NextLevel> {
         if p[i].present() && !p[i].is_block() {
             let addr = p[i].address();
-            unsafe { transmute(addr) }
+            unsafe { addr.as_mut() }
         } else {
             panic!()
         }
     }
-    let p4_ptr = p4 as *mut _;
+    let addr = page.map(|x| x.start()).unwrap_or(Address::ZERO);
     let table = p4;
     // Get p3
-    let index = PageTable::<L4>::get_index(v);
-    proton::boot_log!("[{:?}] {:?} - L3 @ {:?}", p4_ptr, v, table[index]);
-    let table = get_next_table(table, index);
-    // Get p2
-    let index = PageTable::<L3>::get_index(v);
-    proton::boot_log!("[{:?}] {:?} - L2 @ {:?}", p4_ptr, v, table[index]);
-    if table[index].is_block() && table[index].present() {
-        proton::boot_log!(
-            "[{:?}] Translate 1G -> {:?}",
-            p4_ptr,
-            table[index].address() + (v - v.align_down(Size1G::BYTES))
-        );
-        return table[index].address() + (v - v.align_down(Size1G::BYTES));
+    let index = PageTable::<L4>::get_index(addr);
+    if !table[index].present() {
+        table[index].set(new_page4k(), PageFlags::page_table_flags());
     }
     let table = get_next_table(table, index);
-    // Get p1
-    let index = PageTable::<L2>::get_index(v);
-    proton::boot_log!("[{:?}] {:?} - L1 @ {:?}", p4_ptr, v, table[index]);
-    if table[index].is_block() && table[index].present() {
-        proton::boot_log!(
-            "[{:?}] Translate 2M -> {:?}",
-            p4_ptr,
-            table[index].address() + (v - v.align_down(Size2M::BYTES))
-        );
-        return table[index].address() + (v - v.align_down(Size2M::BYTES));
-    }
-    let table = get_next_table(table, index);
-    // Map
-    let index = PageTable::<L1>::get_index(v);
-    proton::boot_log!("[{:?}] {:?} -> {:?}", p4_ptr, v, table[index]);
-    table[index].address()
+    // Set p3 entry
+    let index = PageTable::<L3>::get_index(addr);
+    let frame = Frame::<Size1G>::new(Address::new(addr.as_usize()));
+    table[index].set(frame, flags);
 }
 
-fn map_kernel_page_4k(p4: &mut PageTable<L4>, page: Page<Size4K>, flags: PageFlags) {
+fn map_kernel_page_4k(
+    p4: &mut PageTable<L4>,
+    page: Page<Size4K>,
+    frame: Frame<Size4K>,
+    flags: PageFlags,
+) {
     fn get_next_table<L: TableLevel>(
         p: &mut PageTable<L>,
         i: usize,
@@ -174,7 +200,6 @@ fn map_kernel_page_4k(p4: &mut PageTable<L4>, page: Page<Size4K>, flags: PageFla
     let table = get_next_table(table, index);
     // Map
     let index = PageTable::<L1>::get_index(page.start());
-    let frame = new_page4k();
     table[index].set(frame, flags);
     // log!("[{:?}] Mapped {:?} -> {:?}", p4_ptr, page, frame);
 }
@@ -184,6 +209,7 @@ fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
         map_kernel_page_4k(
             p4,
             Page::new(Address::from((start + ((i as u64) << 12)) as usize)),
+            new_page4k(),
             PageFlags::kernel_code_flags_4k(),
         );
     }
@@ -274,7 +300,7 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
         log!("TTBR1_EL1 {:?}", TTBR1_EL1.get() as *mut ());
         log!("CurrentEL {:?}", CurrentEL.get());
         log!("Map code {:?}", vaddr_start..vaddr_end);
-        let p4 = TTBR0_EL2.get() as *mut PageTable<L4>;
+        let p4 = TTBR0_EL1.get() as *mut PageTable<L4>;
         map_kernel_pages_4k(unsafe { &mut *p4 }, vaddr_start.as_usize() as _, pages);
         log!("Map code end");
         // Copy data
@@ -451,7 +477,7 @@ extern "C" fn launch_kernel_at_el1(
     start: extern "C" fn(&mut BootInfo) -> isize,
     boot_info: &mut BootInfo,
 ) -> ! {
-    TTBR0_EL1.set(TTBR0_EL2.get());
+    // TTBR0_EL1.set(TTBR0_EL2.get());
     // TTBR1_EL1.set(TTBR0_EL2.get());
     CNTHCTL_EL2.write(CNTHCTL_EL2::EL1PCEN::SET + CNTHCTL_EL2::EL1PCTEN::SET);
     CNTVOFF_EL2.set(0);
@@ -485,7 +511,7 @@ extern "C" fn launch_kernel_at_el1(
     TCR_EL1.set(TCR_EL1.get() | 0x10 << 16); // TTBR1_EL1 memory size (T1SZ) = 0x10 ==> 2^(64 - T1SZ)
 
     SCTLR_EL1.set((3 << 28) | (3 << 22) | (1 << 20) | (1 << 11)); // Disable MMU
-                                                                  // SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
+    SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
     SPSR_EL2.write(
         SPSR_EL2::D::Masked
             + SPSR_EL2::A::Masked
@@ -539,21 +565,21 @@ extern "C" fn launch_kernel_at_el1(
             in("x1") 0,
         }
         ELR_EL2.set(start_el1 as *const () as u64);
-        proton::boot_log!(
-            "EL2 boot_info @ {:?} {:x?}",
-            boot_info as *const _,
-            unsafe { slice::from_raw_parts(boot_info as *const _ as *const usize, 16) }
-        );
-        proton::boot_log!("EL2 TTBR0_EL0 @ {:?} ", TTBR0_EL1.get() as *mut u8);
-        proton::boot_log!("EL2 TTBR1_EL1 @ {:?} ", TTBR1_EL1.get() as *mut u8);
-        proton::boot_log!(
-            "device_tree @ {:?}",
-            (*boot_info).device_tree.as_ptr_range(),
-        );
-        proton::boot_log!(
-            "available_physical_memory @ {:?}",
-            (*boot_info).available_physical_memory.as_ptr_range(),
-        );
+        // proton::boot_log!(
+        //     "EL2 boot_info @ {:?} {:x?}",
+        //     boot_info as *const _,
+        //     unsafe { slice::from_raw_parts(boot_info as *const _ as *const usize, 16) }
+        // );
+        // proton::boot_log!("EL2 TTBR0_EL0 @ {:?} ", TTBR0_EL1.get() as *mut u8);
+        // proton::boot_log!("EL2 TTBR1_EL1 @ {:?} ", TTBR1_EL1.get() as *mut u8);
+        // proton::boot_log!(
+        //     "device_tree @ {:?}",
+        //     (*boot_info).device_tree.as_ptr_range(),
+        // );
+        // proton::boot_log!(
+        //     "available_physical_memory @ {:?}",
+        //     (*boot_info).available_physical_memory.as_ptr_range(),
+        // );
         asm! {
             "eret",
             in("x0") start,
@@ -636,6 +662,10 @@ extern "C" fn start_el1(
 extern "C" fn start_el2() -> ! {
     log!("Loading kernel...");
 
+    unsafe {
+        establish_el1_page_table();
+    }
+
     let kernel_elf = read_file(unsafe { IMAGE.unwrap() }, "proton");
     let dtb = read_dtb(unsafe { IMAGE.unwrap() });
     let start = load_elf(&kernel_elf);
@@ -659,24 +689,11 @@ extern "C" fn start_el2() -> ! {
 
 #[no_mangle]
 pub unsafe extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
-    asm! {"
-            mrs     x0, mpidr_el1
-            and     x0, x0, #3
-            cbz     x0, 2f
-        1:  wfe
-            b       1b
-        2:
-    "};
     uefi_services::init(&st).expect_success("Failed to initialize utilities");
     BOOT_SYSTEM_TABLE = Some(st.unsafe_clone());
     IMAGE = Some(image);
     log!("Hello, UEFI!");
     log!("CurrentEL {:?}", CurrentEL.get() >> 2);
-    unsafe {
-        let mut sp: *mut u8;
-        asm!("mov x0, sp", out("x0") sp);
-        log!("SP {:?}", sp);
-    }
     // proton::test_uart();
     // MAIR_EL2.write(
     //     // Attribute 1 - Cacheable normal DRAM.
