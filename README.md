@@ -102,7 +102,7 @@ BTW, it is almost impossible to take care of performance for now...
 - [ ] Unit/integration tests
 - [ ] Continuous integration
 
-## References
+# References
 
 1. [Raspberry Pi Bare Bones Rust - OSDev](https://wiki.osdev.org/Raspberry_Pi_Bare_Bones_Rust)
 2. [Mailbox Property Interface](https://github.com/raspberrypi/firmware/wiki/Mailbox-property-interface)
