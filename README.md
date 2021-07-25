@@ -1,27 +1,44 @@
-# A Raspberry Pi Kernel Written in Rust
+# A Raspberry Pi Kernel in Rust
 
-## Pre-requests
+An experimental micro-kernel written in Rust.
 
-1. [rustup](https://rustup.rs/)
+# Getting Started
+
+## Preparation
+
+
+1. Install [rustup](https://rustup.rs/).
 2. LLVM tools (`llvm-objcopy` and `llvm-objdump`)
+3. `qemu-system-aarch64` (optionally `gdb-multiarch` or `lldb` for debugging).
+4. VSCode setup: install the [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=matklad.rust-analyzer) extension.
 
-**VSCode setup**
 
-1. Install the [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=matklad.rust-analyzer) extension
-
-**Test/debug with QEMU and GDB**
-
-1. `qemu-system-aarch64` >= 2.12
-2. `gdb-multiarch`
-
-## Build & Run
+## Run on QEMU
 
 ```console
 $ cd boot/uefi
 $ make run
 ```
 
-## Design
+## Run on a Raspberry Pi 4B
+
+#### Prepare UEFI and bootable USB (once)
+
+1. Prepare a USB drive with [UEFI firmware](https://github.com/pftf/RPi4).
+2. Plug the usb to your Raspberry Pi and connect to a HDMI monitor (or using UART0).
+3. Start Raspberry Pi and goto UEFI settings menu.
+4. Navigate to `Device Manager` → `Raspberry Pi Configuration` → `Advanced Settings` and enable `ACPI + Device tree`
+
+#### Install kernel
+
+1. `cd boot/uefi`
+2. `make deploy boot=/path/to/your/usb/directory`
+3. Plug the usb to your Raspberry Pi and connect a serial cable to UART0 ports properly.
+4. Use `screen` to connect to the serial device
+   - e.g. `screen /dev/tty.usbserial 115200`.
+5. Start Raspberry Pi
+
+# Design
 
 The current plan is:
 
@@ -31,16 +48,22 @@ space.
 
 BTW, it is almost impossible to take care of performance for now...
 
-## TODO
+# TODO
 
-- [x] Make the kernel boot on a real Raspberry Pi
-- [x] Start kernel at Exception Level 2
-- [x] Setup kernel virtual memory
+### Boot
+
+- [x] Make the kernel boot on AArch64 QEMU (UEFI)
+- [x] Make the kernel boot on a real Raspberry Pi 4B (UEFI)
+- [x] Setup EL1 virtual memory
+- [x] Start kernel at Exception Level 1
+- [ ] UEFI Network boot
+- [ ] U-boot support
+
+### Kernel
+
+- [x] Initialize drivers based on a device tree
 - [x] Basic interrupt handler support
 - [x] Kernel heap allocation
-- [ ] Properly trap and handle Stack-overflow exception
-- [x] Launch init process in privileged mode
-- [x] Launch init process in user mode
 - [x] Timer interrupts
 - [x] Scheduling/Context switch
 - [x] Syscalls support
@@ -48,23 +71,34 @@ BTW, it is almost impossible to take care of performance for now...
 - [ ] ~~`Fork` syscall (and handle copy-on-write pages after `fork()`)~~
   - Probably we only some `execve`-like syscalls.
 - [ ] `ProcessExit` syscall
-- [ ] Update/release ref-counted pages after process exit
 - [x] Inter Process Communication
 - [ ] Memory map related syscalls (`mmap`, `munmap`)
-- [ ] *May need to port gcc/libc/rustc at this point*
 - [ ] Multi-core support
-- [ ] Design & implement a driver interface
 - [ ] VFS and init.rd
+
+### User Space
+
+- [ ] Properly trap and handle Stack-overflow exception
+- [x] Launch init process in privileged mode
+- [x] Launch init process in user mode
+- [ ] Update/release ref-counted pages after process exit
+- [ ] Port gcc/libc/rustc
+- [ ] Design & implement a driver interface
 - [ ] Basic FAT32 FS support
 - [ ] Basic graphics support
-- [ ] *Other necessary components for a kernel?*
+- [ ] *Other necessary components?*
 
-**Supported architectures:**
+### Architectures
 
 - [x] AArch64
 - [ ] X86_64
 - [ ] X86
 - [ ] ARMv6-M (RTOS)
+
+### Others
+
+- [ ] Unit/integration tests
+- [ ] Continuous integration
 
 ## References
 
