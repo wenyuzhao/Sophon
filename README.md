@@ -1,6 +1,8 @@
-# A Raspberry Pi Kernel in Rust
+# **Sophon** - A Raspberry Pi Kernel in Rust
 
 An experimental micro-kernel written in Rust.
+
+The name "Sophon" comes from the novel [_The Three-Body Problem_](https://en.wikipedia.org/wiki/The_Three-Body_Problem_(novel)).
 
 # Getting Started
 

@@ -14,10 +14,10 @@ use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
 use cortex_a::registers::*;
 use elf_rs::*;
 use fdt::Fdt;
-use proton::memory::page_table::*;
-use proton::utils::address::*;
-use proton::utils::page::*;
-use proton::BootInfo;
+use sophon::memory::page_table::*;
+use sophon::utils::address::*;
+use sophon::utils::page::*;
+use sophon::BootInfo;
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::*;
@@ -514,7 +514,7 @@ pub unsafe extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Statu
 
     establish_el1_page_table();
 
-    let kernel_elf = read_file(image, "proton");
+    let kernel_elf = read_file(image, "sophon");
     let dtb = read_dtb(image);
     let start = load_elf(&kernel_elf);
 

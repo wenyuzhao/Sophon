@@ -5,9 +5,9 @@
 #![no_main]
 
 #[macro_use]
-extern crate proton;
+extern crate sophon;
 
-use proton::utils::no_alloc::NoAlloc;
+use sophon::utils::no_alloc::NoAlloc;
 
 #[global_allocator]
 static ALLOCATOR: NoAlloc = NoAlloc;

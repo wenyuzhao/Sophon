@@ -1,9 +1,0 @@
-[build]
-target = "aarch64-unknown-none"
-
-[target.aarch64-unknown-none]
-rustflags = ["-C", "link-args=-T./proton/aarch64.ld"]
-
-[unstable]
-build-std = ["core", "compiler_builtins", "alloc"]
-build-std-features = ["compiler-builtins-mem"]
