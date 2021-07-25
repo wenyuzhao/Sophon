@@ -1,11 +1,11 @@
 [package]
-name = "proton"
+name = "sophon"
 version = "0.1.0"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
 
 [[bin]]
-name = "proton"
+name = "sophon"
 path = "src/main.rs"
 required-features = ["kernel"]
 

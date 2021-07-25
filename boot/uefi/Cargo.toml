@@ -1,11 +1,11 @@
 [package]
-name = "proton-boot-uefi"
+name = "sophon-boot-uefi"
 version = "0.1.0"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
 
 [[bin]]
-name = "proton-boot-uefi"
+name = "sophon-boot-uefi"
 path = "src/main.rs"
 
 [dependencies]
@@ -15,5 +15,5 @@ tock-registers = "0.7.0"
 uefi = { version = "0.11.0", features = ["exts", "alloc"] }
 uefi-services = "0.8.0"
 elf_rs = "0.1.1"
-proton = { path = "../../proton", features = ["kernel"] }
+sophon = { path = "../../sophon", features = ["kernel"] }
 fdt = "0.1.3"

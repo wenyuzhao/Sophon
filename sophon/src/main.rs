@@ -15,20 +15,20 @@
 
 extern crate alloc;
 #[macro_use]
-extern crate proton;
+extern crate sophon;
 
 use core::panic::PanicInfo;
 
 use alloc::vec;
 use fdt::Fdt;
-use proton::arch::{Arch, TargetArch};
-use proton::kernel_tasks::system::{Idle, System};
-use proton::kernel_tasks::user::UserTask;
-use proton::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
-use proton::memory::physical::PHYSICAL_MEMORY;
-use proton::task::scheduler::{AbstractScheduler, SCHEDULER};
-use proton::task::*;
-use proton::BootInfo;
+use sophon::arch::{Arch, TargetArch};
+use sophon::kernel_tasks::system::{Idle, System};
+use sophon::kernel_tasks::user::UserTask;
+use sophon::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
+use sophon::memory::physical::PHYSICAL_MEMORY;
+use sophon::task::scheduler::{AbstractScheduler, SCHEDULER};
+use sophon::task::*;
+use sophon::BootInfo;
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
@@ -39,9 +39,9 @@ extern "C" {
 }
 
 #[cfg(debug_assertions)]
-const INIT: &'static [u8] = include_bytes!("../../target/aarch64-proton/debug/init");
+const INIT: &'static [u8] = include_bytes!("../../target/aarch64-sophon/debug/init");
 #[cfg(not(debug_assertions))]
-const INIT: &'static [u8] = include_bytes!("../../target/aarch64-proton/release/init");
+const INIT: &'static [u8] = include_bytes!("../../target/aarch64-sophon/release/init");
 
 #[inline(never)]
 unsafe fn zero_bss() {
@@ -57,9 +57,9 @@ unsafe fn zero_bss() {
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
-        unsafe { proton::log::BOOT_LOG.set_mmio_address(uart) }
+        unsafe { sophon::log::BOOT_LOG.set_mmio_address(uart) }
     }
-    boot_log!("PROTON");
+    boot_log!("SOPHON");
     boot_log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
         *(boot_info as *const _ as *const usize)
     });
@@ -83,7 +83,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     TargetArch::init(&fdt);
     boot_log!("TargetArch done");
 
-    log!("Hello Proton!");
+    log!("Hello Sophon!");
 
     let v = vec![1, 3, 5, 7, 9];
     log!("[kernel: test-alloc] {:?} @ {:?}", v, v.as_ptr());
