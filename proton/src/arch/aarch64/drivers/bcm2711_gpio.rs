@@ -1,6 +1,10 @@
 use crate::{
     boot_driver::BootDriver,
-    utils::{page::Frame, volatile::Volatile},
+    utils::{
+        address::{Address, P},
+        page::Frame,
+        volatile::Volatile,
+    },
 };
 use fdt::node::FdtNode;
 
@@ -88,12 +92,11 @@ pub static mut GPIO: GPIO = GPIO::new();
 
 impl BootDriver for GPIO {
     const COMPATIBLE: &'static [&'static str] = &["brcm,bcm2711-gpio"];
-    fn init(&mut self, node: &FdtNode) {
-        let mut gpio_frame = node.reg().unwrap().next().unwrap().starting_address as usize;
-        if gpio_frame & 0xff000000 == 0x7e000000 {
-            gpio_frame += 0x80000000
-        }
-        let gpio_page = Self::map_device_page(Frame::new(gpio_frame.into()));
+    fn init(&mut self, node: &FdtNode, parent: Option<&FdtNode>) {
+        let mut gpio_frame =
+            Address::<P>::new(node.reg().unwrap().next().unwrap().starting_address as usize);
+        gpio_frame = Self::translate_address(gpio_frame, parent.unwrap());
+        let gpio_page = Self::map_device_page(Frame::new(gpio_frame));
         self.gpio = Some(gpio_page.start().as_mut_ptr());
         self.init_gpio();
     }

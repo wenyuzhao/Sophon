@@ -1,6 +1,10 @@
 use crate::{
     boot_driver::BootDriver,
-    utils::{page::Frame, volatile::Volatile},
+    utils::{
+        address::{Address, P},
+        page::Frame,
+        volatile::Volatile,
+    },
 };
 use core::fmt::{self, Write};
 use fdt::node::FdtNode;
@@ -72,16 +76,15 @@ pub static mut UART: UART0 = UART0::new();
 
 impl BootDriver for UART0 {
     const COMPATIBLE: &'static [&'static str] = &["arm,pl011"];
-    fn init(&mut self, node: &FdtNode) {
-        let mut uart_frame = node.reg().unwrap().next().unwrap().starting_address as usize;
-        if uart_frame & 0xff000000 == 0x7e000000 {
-            uart_frame += 0x80000000
-        }
-        let uart_page = Self::map_device_page(Frame::new(uart_frame.into()));
+    fn init(&mut self, node: &FdtNode, parent: Option<&FdtNode>) {
+        let mut uart_frame =
+            Address::<P>::new(node.reg().unwrap().next().unwrap().starting_address as usize);
+        uart_frame = Self::translate_address(uart_frame, parent.unwrap());
+        let uart_page = Self::map_device_page(Frame::new(uart_frame));
         self.uart = Some(uart_page.start().as_mut_ptr());
         self.init_uart();
         *crate::log::WRITER.lock() = Some(box Log);
-        log!("UART @ {:?} -> {:?}", uart_frame as *mut (), uart_page);
+        log!("UART @ {:?} -> {:?}", uart_frame, uart_page);
     }
 }
 

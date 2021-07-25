@@ -1,5 +1,6 @@
 use crate::arch::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
 use crate::task::scheduler::AbstractScheduler;
+use crate::utils::address::{Address, P};
 use crate::utils::page::Frame;
 use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use crate::{
@@ -153,21 +154,17 @@ pub static mut GIC: GIC = GIC::new();
 
 impl BootDriver for GIC {
     const COMPATIBLE: &'static [&'static str] = &["arm,cortex-a15-gic", "arm,gic-400"];
-    fn init(&mut self, node: &FdtNode) {
+    fn init(&mut self, node: &FdtNode, parent: Option<&FdtNode>) {
         <TargetArch as Arch>::Interrupt::disable();
 
         let mut regs = node.reg().unwrap();
-        let gicd_address = regs.next().unwrap().starting_address as usize;
-        // if gicd_address & 0xff000000 == 0x7e000000 {
-        //     gicd_address += 0xf0000000
-        // }
-        let gicc_address = regs.next().unwrap().starting_address as usize;
-        // if gicc_address & 0xff000000 == 0x7e000000 {
-        //     gicc_address += 0xf0000000
-        // }
-        log!("GICD@{:#x} GICC@{:#x}", gicd_address, gicc_address);
-        let gicd_page = Self::map_device_page(Frame::new(gicd_address.into()));
-        let gicc_page = Self::map_device_page(Frame::new(gicc_address.into()));
+        let mut gicd_address = Address::<P>::new(regs.next().unwrap().starting_address as usize);
+        gicd_address = Self::translate_address(gicd_address, parent.unwrap());
+        let mut gicc_address = Address::<P>::new(regs.next().unwrap().starting_address as usize);
+        gicc_address = Self::translate_address(gicc_address, parent.unwrap());
+        log!("GICD@{:?} GICC@{:?}", gicd_address, gicc_address);
+        let gicd_page = Self::map_device_page(Frame::new(gicd_address));
+        let gicc_page = Self::map_device_page(Frame::new(gicc_address));
         self.GICD = Some(gicd_page.start().as_mut_ptr());
         self.GICC = Some(gicc_page.start().as_mut_ptr());
         self.init_gic();
