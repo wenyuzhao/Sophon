@@ -57,6 +57,22 @@ impl UserTask {
             log!("Entry: {:?}", entry as *mut ());
             let mut load_start = None;
             let mut load_end = None;
+            let mut update_load_range = |start: Address, end: Address| match (load_start, load_end)
+            {
+                (None, None) => {
+                    load_start = Some(start);
+                    load_end = Some(end);
+                }
+                (Some(s), Some(e)) => {
+                    if start < s {
+                        load_start = Some(start)
+                    }
+                    if end > e {
+                        load_end = Some(end)
+                    }
+                }
+                _ => unreachable!(),
+            };
             for p in elf
                 .program_header_iter()
                 .filter(|p| p.ph.ph_type() == ProgramType::LOAD)
@@ -64,21 +80,13 @@ impl UserTask {
                 log!("{:?}", p.ph);
                 let start: Address = (p.ph.vaddr() as usize).into();
                 let end = start + (p.ph.filesz() as usize);
-                match (load_start, load_end) {
-                    (None, None) => {
-                        load_start = Some(start);
-                        load_end = Some(end);
-                    }
-                    (Some(s), Some(e)) => {
-                        if start < s {
-                            load_start = Some(start)
-                        }
-                        if end > e {
-                            load_end = Some(end)
-                        }
-                    }
-                    _ => unreachable!(),
-                }
+                update_load_range(start, end);
+            }
+            if let Some(bss) = elf.lookup_section(".bss") {
+                log!("{:?}", bss);
+                let start = Address::<V>::from(bss.sh.addr() as usize);
+                let end = start + bss.sh.size() as usize;
+                update_load_range(start, end);
             }
             log!(
                 "vaddr: {:?} .. {:?}",
@@ -112,6 +120,14 @@ impl UserTask {
                     );
                 }
             }
+            if let Some(bss) = elf.lookup_section(".bss") {
+                let start = Address::<V>::from(bss.sh.addr() as usize);
+                let size = bss.sh.size() as usize;
+                unsafe {
+                    ptr::write_bytes::<u8>(start.as_mut_ptr(), 0, size);
+                }
+            }
+            TargetArch::clear_cache(vaddr_start..vaddr_end);
             entry
         } else {
             unimplemented!("elf32 is not supported")

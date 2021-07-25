@@ -206,8 +206,8 @@ impl ArchContext for AArch64Context {
                 msr sp_el0, {2}
                 msr	ttbr0_el1, {3}
                 tlbi vmalle1is
-                DSB ISH
-                isb
+                dsb sy
+                isb sy
                 eret
             ",
             in(reg) 0usize,

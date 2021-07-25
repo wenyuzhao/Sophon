@@ -18,6 +18,7 @@ lldb:
 
 deploy: boot=/Volumes/BOOT
 deploy: build
+	cp -r $(target)/_boot/EFI "$(boot)/"
 	cp $(target)/_boot/EFI/BOOT/BOOTAA64.EFI "$(boot)/boot.efi"
 	cp ./.cargo/startup.nsh "$(boot)/startup.nsh"
 	cp $(target)/_boot/proton "$(boot)/proton"

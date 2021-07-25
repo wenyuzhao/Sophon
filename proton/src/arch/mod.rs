@@ -4,6 +4,7 @@ use crate::{
     utils::{address::*, page::Frame},
 };
 use alloc::boxed::Box;
+use core::ops::Range;
 use fdt::Fdt;
 
 #[repr(usize)]
@@ -90,6 +91,8 @@ pub trait Arch {
 
     fn get_current_page_table() -> Frame;
     fn set_current_page_table(page_table: Frame);
+
+    fn clear_cache<K: MemoryKind>(range: Range<Address<K>>);
 }
 
 pub type TargetArch = impl Arch;
