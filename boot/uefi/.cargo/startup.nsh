@@ -1,0 +1,1 @@
+fs0:boot.efi dtb=bcm2711-rpi-4-b.dtb

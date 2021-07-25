@@ -1,0 +1,1 @@
+fs0:boot.efi dtb=qemu-virt.dtb

@@ -1,17 +1,15 @@
 [workspace]
 members = [
-    "kernel",
     "proton",
-    "arch/aarch64",
+    "boot/uefi",
     "init",
-    "drivers/emmc"
 ]
 
 [profile.dev]
 panic = "abort"
-# opt-level = 1
 
 [profile.release]
-debug = true
 panic = "abort"
-# lto = true
+debug = true
+lto = true
+codegen-units = 1

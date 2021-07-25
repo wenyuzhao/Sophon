@@ -1,69 +1,104 @@
-# A Raspberry Pi Kernel Written in Rust
+# A Raspberry Pi Kernel in Rust
 
-## Pre-requests
+An experimental micro-kernel written in Rust.
 
-**Build**
-1. Rustup nightly channel
-2. Rustup target `aarch64-unknown-none`
-3. [cargo-xbuild](https://github.com/rust-osdev/cargo-xbuild)
-4. LLVM Tools (`llvm-objcopy` and `llvm-objdump`)
+# Getting Started
 
-**VSCode setup**
-1. Install components: `rustup component add rls-preview rust-analysis rust-src llvm-tools-preview`
-2. Install rls-vscode extension
+## Preparation
 
-**Test/debug with QEMU**
-1. `qemu-system-aarch64` >= 2.12
-2. `gdb-multiarch`
 
-## Build & Run
+1. Install [rustup](https://rustup.rs/).
+2. LLVM tools (`llvm-objcopy` and `llvm-objdump`)
+3. `qemu-system-aarch64` (optionally `gdb-multiarch` or `lldb` for debugging).
+4. VSCode setup: install the [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=matklad.rust-analyzer) extension.
 
-```bash
-make kernel # This will produce `target/aarch64-kernel/debug/kernel8.img`
-make run # Test the kernel with QEMU
+
+## Run on QEMU
+
+```console
+$ cd boot/uefi
+$ make run
 ```
 
-## Design
+## Run on a Raspberry Pi 4B
+
+#### Prepare UEFI and bootable USB (once)
+
+1. Prepare a USB drive with [UEFI firmware](https://github.com/pftf/RPi4).
+2. Plug the usb to your Raspberry Pi and connect to a HDMI monitor (or using UART0).
+3. Start Raspberry Pi and goto UEFI settings menu.
+4. Navigate to `Device Manager` → `Raspberry Pi Configuration` → `Advanced Settings` and enable `ACPI + Device tree`
+
+#### Install kernel
+
+1. `cd boot/uefi`
+2. `make deploy boot=/path/to/your/usb/directory`
+3. Plug the usb to your Raspberry Pi and connect a serial cable to UART0 ports properly.
+4. Use `screen` to connect to the serial device
+   - e.g. `screen /dev/tty.usbserial 115200`.
+5. Start Raspberry Pi
+
+# Design
 
 The current plan is:
+
 Make the kernel as simple as possible. So we will likely to make a MINIX-like
 micro kernel. Then we can throw most tasks, including drivers, fs to the user
 space.
 
 BTW, it is almost impossible to take care of performance for now...
 
-## TODO
+# TODO
 
-- [x] Make the kernel boot on a real Raspberry Pi
-- [x] Start kernel at Exception Level 2
-- [x] Setup kernel virtual memory
+### Boot
+
+- [x] Make the kernel boot on AArch64 QEMU (UEFI)
+- [x] Make the kernel boot on a real Raspberry Pi 4B (UEFI)
+- [x] Setup EL1 virtual memory
+- [x] Start kernel at Exception Level 1
+- [ ] UEFI Network boot
+- [ ] U-boot support
+
+### Kernel
+
+- [x] Initialize drivers based on a device tree
 - [x] Basic interrupt handler support
 - [x] Kernel heap allocation
-- [ ] Properly trap and handle Stack-overflow exception
-- [x] Launch init process in privileged mode
-- [x] Launch init process in user mode
 - [x] Timer interrupts
 - [x] Scheduling/Context switch
 - [x] Syscalls support
 - [x] `Log` syscall (output to *UART*, for user process debugging)
-- [x] `Fork` syscall (and handle copy-on-write pages after `fork()`)
+- [ ] ~~`Fork` syscall (and handle copy-on-write pages after `fork()`)~~
+  - Probably we only some `execve`-like syscalls.
 - [ ] `ProcessExit` syscall
-- [ ] Update/release ref-counted pages after process exit
 - [x] Inter Process Communication
 - [ ] Memory map related syscalls (`mmap`, `munmap`)
-- [ ] *May need to port GCC/Rustc/libc at this point*
 - [ ] Multi-core support
-- [ ] Design & implement a driver interface
-- [ ] Basic FAT32 FS support (to load init.d from /boot)
-- [ ] Virtual File System
-- [ ] *Other necessary components for a kernel?*
+- [ ] VFS and init.rd
 
-**Supported architectures:**
+### User Space
+
+- [ ] Properly trap and handle Stack-overflow exception
+- [x] Launch init process in privileged mode
+- [x] Launch init process in user mode
+- [ ] Update/release ref-counted pages after process exit
+- [ ] Port gcc/libc/rustc
+- [ ] Design & implement a driver interface
+- [ ] Basic FAT32 FS support
+- [ ] Basic graphics support
+- [ ] *Other necessary components?*
+
+### Architectures
 
 - [x] AArch64
-- [ ] ARMv6-M (RTOS)
-- [ ] X86
 - [ ] X86_64
+- [ ] X86
+- [ ] ARMv6-M (RTOS)
+
+### Others
+
+- [ ] Unit/integration tests
+- [ ] Continuous integration
 
 ## References
 

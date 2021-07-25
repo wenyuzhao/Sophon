@@ -1,6 +1,6 @@
-use crate::address::*;
-use crate::page::*;
 use spin::Mutex;
+
+use super::page::*;
 
 pub trait FrameAllocator: Sized {
     fn identity_alloc<S: PageSize>(&mut self, frame: Frame<S>);
@@ -12,11 +12,9 @@ pub struct SynchronizedFrameAllocator<FA: FrameAllocator> {
     pub fa: Mutex<FA>,
 }
 
-impl <FA: FrameAllocator> SynchronizedFrameAllocator<FA> {
+impl<FA: FrameAllocator> SynchronizedFrameAllocator<FA> {
     pub const fn new(fa: FA) -> Self {
-        Self {
-            fa: Mutex::new(fa),
-        }
+        Self { fa: Mutex::new(fa) }
     }
 
     pub fn identity_alloc<S: PageSize>(&self, frame: Frame<S>) {
