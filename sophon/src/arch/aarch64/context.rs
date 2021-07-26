@@ -156,33 +156,23 @@ impl ArchContext for AArch64Context {
                 p
             }
         };
-        // if let Some(msg) = self.response_message.take() {
-        //     let slot = Address::from((*exception_frame).x2 as *mut Message);
-        //     if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
-        //         if super::mm::is_copy_on_write_address(slot) {
-        //             super::mm::fix_copy_on_write_address(slot);
-        //         }
-        //     }
-        //     ::core::ptr::write(slot.as_ptr_mut(), msg);
-        // }
+        if let Some(msg) = self.response_message.take() {
+            let slot = Address::<V>::from((*exception_frame).x2 as *mut Message);
+            ::core::ptr::write(slot.as_mut_ptr(), msg);
+        }
         if let Some(status) = self.response_status {
-            // let slot = Address::from(&(*exception_frame).x0 as *const usize);
-            // if slot.as_usize() & 0xffff_0000_0000_0000 == 0 {
-            //     if super::mm::is_copy_on_write_address(slot) {
-            //         super::mm::fix_copy_on_write_address(slot);
-            //     }
-            // }
-            // slot.store(status);
+            let slot = Address::<V>::from(&(*exception_frame).x0 as *const usize);
+            slot.store(status);
             (*exception_frame).x0 = ::core::mem::transmute(status);
             self.response_status = None;
         }
-        log!(
-            "[return-to-user] SP={:?} IP={:?}",
-            exception_frame,
-            (*exception_frame).elr_el1
-        );
+        // log!(
+        //     "[return-to-user] SP={:?} IP={:?}",
+        //     exception_frame,
+        //     (*exception_frame).elr_el1
+        // );
         asm!("mov sp, {}", in(reg) exception_frame);
-        // debug!(crate::Kernel: "exit_exception ");
+        // log!(crate::Kernel: "exit_exception ");
         // Return from exception
         super::exception::exit_exception();
     }

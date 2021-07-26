@@ -62,7 +62,7 @@ unsafe fn get_exception_class() -> ExceptionClass {
 
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
-    log!("Exception received");
+    // log!("Exception received");
     Task::current().map(|t| t.get_context::<AArch64Context>().exception_frame = exception_frame);
     let exception = get_exception_class();
     match exception {

@@ -21,18 +21,16 @@ impl TaskId {
 pub struct Message {
     pub sender: TaskId,
     pub receiver: TaskId, // None for all tasks
-    pub kind: usize,
-    data: [u64; 5],
+    data: [u64; 6],
 }
 
 impl Message {
     #[inline]
-    pub fn new(sender: TaskId, receiver: TaskId, kind: usize) -> Self {
+    pub fn new(sender: TaskId, receiver: TaskId) -> Self {
         Self {
             sender,
             receiver,
-            kind,
-            data: [0; 5],
+            data: [0; 6],
         }
     }
 
@@ -46,21 +44,20 @@ impl Message {
     pub fn set_data<T>(&mut self, data: T) {
         debug_assert!(::core::mem::size_of::<T>() <= ::core::mem::size_of::<[u64; 5]>());
         unsafe {
-            let data_ptr: *mut T = &mut self.data as *mut [u64; 5] as usize as *mut T;
+            let data_ptr: *mut T = &mut self.data as *mut [u64; 6] as usize as *mut T;
             data_ptr.write(data);
         }
     }
 
     #[inline]
     pub fn get_data<T>(&self) -> &T {
-        debug_assert!(::core::mem::size_of::<T>() <= ::core::mem::size_of::<[u64; 5]>());
+        debug_assert!(::core::mem::size_of::<T>() <= ::core::mem::size_of::<[u64; 6]>());
         unsafe { ::core::mem::transmute(&self.data) }
     }
 
     #[inline]
     pub fn send(self) {
-        // IPC::send(self);
-        unimplemented!()
+        crate::user::ipc::send(self);
     }
 
     #[inline]
@@ -70,8 +67,7 @@ impl Message {
 
     #[inline]
     pub fn reply<T>(&self, data: T) {
-        let m = Message::new(self.receiver, self.sender, self.kind).with_data(data);
-        // IPC::send(n);
-        unimplemented!("{:?}", m)
+        let m = Message::new(self.receiver, self.sender).with_data(data);
+        crate::user::ipc::send(m);
     }
 }

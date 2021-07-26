@@ -20,6 +20,7 @@ impl KernelTask for System {
             debug_assert!(<TargetArch as Arch>::Interrupt::is_enabled());
             let m = Message::receive(None);
             log!("Kernel received {:?}", m);
+            m.reply(m.get_data::<usize>() + 1)
             // let kind: KernelCall = unsafe { ::core::mem::transmute(m.kind) };
             // match kind {
             //     KernelCall::MapPhysicalMemory => mem::map_physical_memory::<K>(&m),
