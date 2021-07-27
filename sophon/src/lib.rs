@@ -23,6 +23,7 @@
 #![feature(const_fn_trait_bound)]
 #![feature(const_raw_ptr_to_usize_cast)]
 #![feature(const_option)]
+#![feature(const_btree_new)]
 #![no_std]
 
 use core::ops::Range;
@@ -41,6 +42,8 @@ pub mod arch;
 #[cfg(feature = "kernel")]
 pub mod boot_driver;
 #[cfg(feature = "kernel")]
+pub mod initfs;
+#[cfg(feature = "kernel")]
 pub mod kernel_tasks;
 #[cfg(feature = "kernel")]
 pub mod memory;
@@ -51,5 +54,6 @@ pub mod user;
 pub struct BootInfo {
     pub available_physical_memory: &'static [Range<Frame>],
     pub device_tree: &'static [u8],
+    pub init_fs: &'static [u8],
     pub uart: Option<Address>,
 }

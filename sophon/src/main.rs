@@ -22,6 +22,7 @@ use core::panic::PanicInfo;
 use alloc::vec;
 use fdt::Fdt;
 use sophon::arch::{Arch, TargetArch};
+use sophon::initfs::InitFS;
 use sophon::kernel_tasks::system::{Idle, System};
 use sophon::kernel_tasks::user::UserTask;
 use sophon::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
@@ -37,11 +38,6 @@ extern "C" {
     static mut __bss_start: u8;
     static mut __bss_end: u8;
 }
-
-#[cfg(debug_assertions)]
-const INIT: &'static [u8] = include_bytes!("../../target/aarch64-sophon/debug/init");
-#[cfg(not(debug_assertions))]
-const INIT: &'static [u8] = include_bytes!("../../target/aarch64-sophon/release/init");
 
 #[inline(never)]
 unsafe fn zero_bss() {
@@ -91,13 +87,17 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     ipc::init();
     log!("[kernel: ipc initialized]");
 
+    InitFS::deserialize(boot_info.init_fs);
+    log!("[kernel: initfs initialized]");
+
     let task = Task::create_kernel_task(box System::new());
     log!("[kernel: created kernel process: {:?}]", task.id());
 
     let task = Task::create_kernel_task(box Idle);
     log!("[kernel: created kernel process: {:?}]", task.id());
 
-    let task = Task::create_kernel_task(box UserTask::new(INIT));
+    let program = InitFS::get().get_file("/init");
+    let task = Task::create_kernel_task(box UserTask::new(program));
     log!("[kernel: created init process: {:?}]", task.id());
 
     TargetArch::interrupt().start_timer();

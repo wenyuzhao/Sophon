@@ -299,7 +299,7 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
     return available_physical_memory_ranges;
 }
 
-fn gen_boot_info(device_tree: &'static [u8]) -> BootInfo {
+fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo {
     let fdt = Fdt::new(device_tree).unwrap();
     let uart = if let Some(node) = fdt.find_compatible(&["arm,pl011"]) {
         let mut addr = node.reg().unwrap().next().unwrap().starting_address as usize;
@@ -321,6 +321,7 @@ fn gen_boot_info(device_tree: &'static [u8]) -> BootInfo {
         available_physical_memory: gen_available_physical_memory(),
         device_tree,
         uart,
+        init_fs,
     }
 }
 
@@ -497,6 +498,7 @@ extern "C" fn launch_kernel_at_el1(
 static mut BOOT_INFO: BootInfo = BootInfo {
     available_physical_memory: &[],
     device_tree: &[],
+    init_fs: &[],
     uart: None,
 };
 
@@ -515,6 +517,7 @@ pub unsafe extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Statu
     establish_el1_page_table();
 
     let kernel_elf = read_file(image, "sophon");
+    let init_fs = read_file(image, "init.fs").leak();
     let dtb = read_dtb(image);
     let start = load_elf(&kernel_elf);
 
@@ -522,7 +525,7 @@ pub unsafe extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Statu
 
     log!("DTB @ {:?}", dtb.as_ptr_range());
 
-    BOOT_INFO = gen_boot_info(dtb);
+    BOOT_INFO = gen_boot_info(dtb, init_fs);
 
     launch_kernel_at_el1(start, &mut BOOT_INFO);
 }

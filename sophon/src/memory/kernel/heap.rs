@@ -187,7 +187,7 @@ impl FreeListAllocator {
             Some(cell) => cell,
             None => {
                 assert!(!self.retry, "OutOfMemory");
-                let pages = ((1 << size_class) + Size2M::MASK) >> Size2M::LOG_BYTES;
+                let pages = (((1 << size_class) + Size2M::MASK) >> Size2M::LOG_BYTES) << 1;
                 let vs = VIRTUAL_PAGE_ALLOCATOR.lock().acquire::<Size2M>(pages);
                 for i in 0..pages {
                     let v = Page::forward(vs.start, i);
