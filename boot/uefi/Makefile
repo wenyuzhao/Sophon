@@ -1,9 +1,14 @@
 include ../../sophon/common.mk
 
 build:
+# Build user programs and init.fs
+	$(MAKE) -C $(workspace)/user init.fs
+# Build kernel
 	$(call build, sophon)
+# Build UEFI loader
 	cargo build $(args)
 	llvm-objdump --section-headers --source -d ../../target/aarch64-sophon-uefi/$(profile)/sophon-boot-uefi.efi > ../../target/aarch64-sophon-uefi/$(profile)/sophon-boot-uefi.s 2> /dev/null
+# Create "boot partition"
 	mkdir -p $(target)/_boot $(target)/_boot/EFI/BOOT
 # Copy kernel
 	cp $(target)/aarch64-unknown-none/$(profile)/sophon $(target)/_boot/
@@ -22,3 +27,4 @@ deploy: build
 	cp $(target)/_boot/EFI/BOOT/BOOTAA64.EFI $(boot)/boot.efi
 	cp ./.cargo/startup.nsh $(boot)/startup.nsh
 	cp $(target)/_boot/sophon $(boot)/sophon
+	cp $(target)/_boot/init.fs $(boot)/init.fs

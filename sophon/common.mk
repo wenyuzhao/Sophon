@@ -11,5 +11,5 @@ ifneq ($(profile), debug)
 endif
 
 define build
-    $(MAKE) -C $(workspace)/$(strip $1) -f ./Build.mk build
+    $(MAKE) -C $(workspace)/$(strip $1) build
 endef

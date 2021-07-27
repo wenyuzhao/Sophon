@@ -100,7 +100,7 @@ impl InitFS {
         }
     }
 
-    pub fn insert(&mut self, path: &'static str, file: File) {
+    pub fn insert(&mut self, path: &str, file: File) {
         debug_assert!(path.starts_with('/'));
         let path = path.strip_prefix('/').unwrap();
         self.root.insert(path, file)

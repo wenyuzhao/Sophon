@@ -42,6 +42,7 @@ pub mod arch;
 #[cfg(feature = "kernel")]
 pub mod boot_driver;
 #[cfg(feature = "kernel")]
+#[path = "../init-fs.rs"]
 pub mod initfs;
 #[cfg(feature = "kernel")]
 pub mod kernel_tasks;

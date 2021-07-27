@@ -1,8 +1,9 @@
 [workspace]
 members = [
     "sophon",
+    "tools/initfs_builder",
     "boot/uefi",
-    "init",
+    "user/init",
 ]
 
 [profile.dev]
