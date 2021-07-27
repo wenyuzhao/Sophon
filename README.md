@@ -76,7 +76,8 @@ BTW, it is almost impossible to take care of performance for now...
 - [x] Inter Process Communication
 - [ ] Memory map related syscalls (`mmap`, `munmap`)
 - [ ] Multi-core support
-- [ ] VFS and init.rd
+- [x] Simple init-fs
+- [ ] VFS
 
 ### User Space
 
