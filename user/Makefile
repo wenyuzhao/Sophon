@@ -12,6 +12,6 @@ build: $(addprefix build., $(USER_PROGRAMS))
 
 # Build init.fs
 init.fs: build
-	cd ../tools/initfs_builder && cargo run
+	cd ../tools/initfs_builder && cargo run $(args)
 
 .PHONY: build.% build
