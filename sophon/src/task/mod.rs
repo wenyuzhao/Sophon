@@ -8,6 +8,8 @@ pub mod task;
 #[cfg(feature = "kernel")]
 pub use task::*;
 
+pub mod uri;
+
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub struct TaskId(pub usize);
 

@@ -1,4 +1,18 @@
-use crate::task::*;
+use core::intrinsics::transmute;
+
+use crate::task::{
+    uri::{AsUri, Uri},
+    *,
+};
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[repr(usize)]
+pub enum Error {
+    NotFound,
+    Other,
+}
+
+pub type Result<T> = core::result::Result<T, Error>;
 
 #[repr(usize)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -6,6 +20,24 @@ pub enum IPC {
     Log = 0,
     Send,
     Receive,
+}
+
+#[inline]
+pub fn syscall(ipc: IPC, args: &[usize]) -> isize {
+    debug_assert!(args.len() <= 6);
+    let a: usize = args.get(0).cloned().unwrap_or(0);
+    let b: usize = args.get(1).cloned().unwrap_or(0);
+    let c: usize = args.get(2).cloned().unwrap_or(0);
+    let d: usize = args.get(3).cloned().unwrap_or(0);
+    let e: usize = args.get(4).cloned().unwrap_or(0);
+    let ret: isize;
+    unsafe {
+        asm!("svc #0",
+            inout("x0") ipc as usize => ret,
+            in("x1") a, in("x2") b, in("x3") c, in("x4") d, in("x5") e,
+        );
+    }
+    ret
 }
 
 #[inline]
@@ -17,10 +49,10 @@ pub fn log(message: &str) {
 
 #[inline]
 pub fn send(mut m: Message) {
-    let ret: isize;
-    unsafe {
-        asm!("svc #0", inout("x0") IPC::Send as usize => ret, in("x1") &mut m as *mut Message);
-    }
+    let ret = syscall(
+        IPC::Send,
+        &[unsafe { transmute::<*mut Message, _>(&mut m) }],
+    );
     assert!(ret == 0, "{:?}", ret);
 }
 
@@ -32,9 +64,67 @@ pub fn receive(from: Option<TaskId>) -> Message {
             Some(t) => ::core::mem::transmute(t),
             None => -1,
         };
-        let ret: isize;
-        asm!("svc #0", inout("x0") IPC::Receive as usize => ret, in("x1") from_task, in("x2") &mut msg as *mut Message);
+        let ret = syscall(IPC::Receive, &[transmute(from_task), transmute(&mut msg)]);
         assert!(ret == 0, "{:?}", ret);
         msg
     }
+}
+
+impl Uri<'_> {
+    #[inline]
+    pub fn open(uri: impl AsUri) -> Result<Resource> {
+        let uri = uri.as_str();
+        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((0usize, uri)));
+        let response = receive(Some(TaskId::KERNEL));
+        let data = response.get_data::<Resource>();
+        Ok(data.clone())
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy)]
+pub struct Resource(pub(crate) usize);
+
+impl Resource {
+    pub fn read(&self, mut buf: &mut [u8]) -> Result<()> {
+        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((1usize, *self, &mut buf)));
+        let _ = receive(Some(TaskId::KERNEL));
+        Ok(())
+    }
+
+    pub fn write(&self, _buf: &[u8]) -> Result<()> {
+        unimplemented!()
+    }
+}
+
+pub trait SchemeServer {
+    fn register(&self) -> ! {
+        loop {
+            let m = Message::receive(None);
+            let args = m.get_data::<[u64; 6]>();
+            match args[0] {
+                0 => {
+                    let uri = unsafe { transmute::<_, &Uri>(args[1]) };
+                    let resource = self.open(uri).unwrap();
+                    m.reply(resource);
+                }
+                1 => {
+                    let fd = unsafe { transmute::<_, Resource>(args[1]) };
+                    let buf = unsafe { transmute::<_, &mut &mut [u8]>(args[2]) };
+                    self.read(fd, buf).unwrap();
+                    m.reply(0usize);
+                }
+                2 => {
+                    let fd = unsafe { transmute::<_, Resource>(args[1]) };
+                    let buf = unsafe { transmute::<_, &&[u8]>(args[2]) };
+                    self.write(fd, buf).unwrap();
+                    m.reply(0usize);
+                }
+                _ => unimplemented!(),
+            }
+        }
+    }
+    fn open(&self, uri: &Uri) -> Result<Resource>;
+    fn read(&self, fd: Resource, buf: &mut [u8]) -> Result<()>;
+    fn write(&self, fd: Resource, buf: &[u8]) -> Result<()>;
 }

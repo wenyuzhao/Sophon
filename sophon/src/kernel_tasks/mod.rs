@@ -1,3 +1,5 @@
+use crate::task::uri::Uri;
+
 pub mod system;
 pub mod user;
 
@@ -10,8 +12,12 @@ pub struct TestKernelTaskA;
 impl KernelTask for TestKernelTaskA {
     fn run(&mut self) -> ! {
         log!("TestKernelTaskA start");
+        let resource = Uri::open("system:/test").unwrap();
+        log!("system:test opened");
+        let mut data = [0u8; 4];
         loop {
-            log!("TestKernelTaskA loop");
+            resource.read(&mut data).unwrap();
+            log!("system:test read -> {:?}", data);
         }
     }
 }
