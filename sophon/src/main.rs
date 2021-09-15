@@ -24,7 +24,7 @@ use fdt::Fdt;
 use sophon::arch::{Arch, TargetArch};
 use sophon::initfs::InitFS;
 use sophon::kernel_tasks::system::{Idle, System};
-use sophon::kernel_tasks::TestKernelTaskA;
+use sophon::kernel_tasks::user::UserTask;
 use sophon::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use sophon::memory::physical::PHYSICAL_MEMORY;
 use sophon::task::scheduler::{AbstractScheduler, SCHEDULER};
@@ -96,12 +96,9 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     let task = Task::create_kernel_task(box Idle);
     log!("[kernel: created kernel process: {:?}]", task.id());
 
-    let task = Task::create_kernel_task(box TestKernelTaskA);
-    log!("[kernel: created kernel process: {:?}]", task.id());
-
-    // let program = InitFS::get().get_file("/init");
-    // let task = Task::create_kernel_task(box UserTask::new(program));
-    // log!("[kernel: created init process: {:?}]", task.id());
+    let program = InitFS::get().get_file("/init");
+    let task = Task::create_kernel_task(box UserTask::new(program));
+    log!("[kernel: created init process: {:?}]", task.id());
 
     TargetArch::interrupt().start_timer();
     log!("[kernel: timer started]");

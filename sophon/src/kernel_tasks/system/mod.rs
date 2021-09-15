@@ -2,7 +2,9 @@
 pub mod mem;
 
 use super::KernelTask;
+use crate::task::ipc::SCHEMES;
 use crate::task::uri::Uri;
+use crate::task::Message;
 use crate::user::ipc::{Resource, Result as IoResult, SchemeServer};
 
 pub struct System {}
@@ -16,7 +18,10 @@ impl System {
 impl KernelTask for System {
     fn run(&mut self) -> ! {
         log!("Kernel process start");
-        SystemSchemeServer {}.register();
+        SCHEMES.lock().insert("system", box SystemSchemeServer {});
+        loop {
+            let m = Message::receive(None);
+        }
         // loop {
         //     debug_assert!(<TargetArch as Arch>::Interrupt::is_enabled());
         //     let m = Message::receive(None);
@@ -37,6 +42,9 @@ impl KernelTask for System {
 struct SystemSchemeServer {}
 
 impl SchemeServer for SystemSchemeServer {
+    fn scheme(&self) -> &'static str {
+        "system"
+    }
     fn open(&self, _uri: &Uri) -> IoResult<Resource> {
         log!("SystemSchemeServer 0");
         Ok(Resource(0))

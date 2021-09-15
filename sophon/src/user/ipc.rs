@@ -74,21 +74,19 @@ impl Uri<'_> {
     #[inline]
     pub fn open(uri: impl AsUri) -> Result<Resource> {
         let uri = uri.as_str();
-        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((0usize, uri)));
-        let response = receive(Some(TaskId::KERNEL));
-        let data = response.get_data::<Resource>();
-        Ok(data.clone())
+        let mut resource: Resource = Resource(0);
+        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((0usize, &uri, &mut resource)));
+        Ok(resource)
     }
 }
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Resource(pub(crate) usize);
 
 impl Resource {
     pub fn read(&self, mut buf: &mut [u8]) -> Result<()> {
         send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((1usize, *self, &mut buf)));
-        let _ = receive(Some(TaskId::KERNEL));
         Ok(())
     }
 
@@ -98,6 +96,7 @@ impl Resource {
 }
 
 pub trait SchemeServer {
+    fn scheme(&self) -> &'static str;
     fn register(&self) -> ! {
         loop {
             let m = Message::receive(None);

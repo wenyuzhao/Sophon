@@ -1,6 +1,14 @@
+use core::intrinsics::transmute;
+
 use super::{Message, Task, TaskId};
-use crate::arch::*;
 pub use crate::user::ipc::IPC;
+use crate::{
+    arch::*,
+    task::uri::Uri,
+    user::ipc::{Resource, SchemeServer},
+};
+use alloc::{boxed::Box, collections::BTreeMap};
+use spin::Mutex;
 
 pub fn init() {
     TargetArch::interrupt().set_handler(
@@ -29,9 +37,12 @@ fn log(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
 
 fn send(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     let mut msg = unsafe { (*(x1 as *const Message)).clone() };
-    let current_task = Task::current().unwrap();
-    msg.sender = current_task.id();
-    Task::send_message(msg)
+    msg.sender = Task::current().unwrap().id();
+    match handle_scheme_request(msg) {
+        Ok(()) => 0,
+        Err(e) => e,
+    }
+    // Task::send_message(msg)
 }
 
 fn receive(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
@@ -49,4 +60,49 @@ fn receive(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
         from_id
     );
     Task::receive_message(from_id)
+}
+
+pub static SCHEMES: Mutex<BTreeMap<&'static str, Box<dyn SchemeServer + Send>>> =
+    Mutex::new(BTreeMap::new());
+
+fn handle_scheme_request(m: Message) -> Result<(), isize> {
+    let args = m.get_data::<[u64; 6]>();
+    match args[0] {
+        0 => {
+            let uri = unsafe { transmute::<_, &&str>(args[1]) };
+            let uri = Uri::new(uri).unwrap();
+            let schemes = SCHEMES.lock();
+            let scheme = schemes.get(uri.scheme).unwrap();
+            let resource = scheme.open(&uri).unwrap();
+            let result = unsafe { transmute::<_, &mut Resource>(args[2]) };
+            Task::current()
+                .unwrap()
+                .resources
+                .lock()
+                .insert(resource, scheme.scheme());
+            *result = resource;
+            Ok(())
+        }
+        1 => {
+            let fd = unsafe { transmute::<_, Resource>(args[1]) };
+            let buf = unsafe { transmute::<_, &mut &mut [u8]>(args[2]) };
+            let schemes = SCHEMES.lock();
+            let scheme = schemes
+                .get(Task::current().unwrap().resources.lock()[&fd])
+                .unwrap();
+            scheme.read(fd, buf).unwrap();
+            Ok(())
+        }
+        2 => {
+            let fd = unsafe { transmute::<_, Resource>(args[1]) };
+            let buf = unsafe { transmute::<_, &&[u8]>(args[2]) };
+            let schemes = SCHEMES.lock();
+            let scheme = schemes
+                .get(Task::current().unwrap().resources.lock()[&fd])
+                .unwrap();
+            scheme.write(fd, buf).unwrap();
+            Ok(())
+        }
+        _ => unimplemented!(),
+    }
 }

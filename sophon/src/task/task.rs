@@ -6,8 +6,10 @@ use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
+use crate::user::ipc::Resource;
 use crate::*;
 use alloc::boxed::Box;
+use alloc::collections::BTreeMap;
 use alloc::collections::BTreeSet;
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -30,6 +32,7 @@ pub struct Task {
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
     block_to_send: Option<Message>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
+    pub resources: Mutex<BTreeMap<Resource, &'static str>>,
 }
 
 impl Task {
@@ -136,6 +139,7 @@ impl Task {
             block_to_receive_from: Mutex::new(None),
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
+            resources: Mutex::new(BTreeMap::new()),
         };
         // Add this task to the scheduler
         SCHEDULER.register_new_task(task)
