@@ -1,10 +1,21 @@
 use crate::task::uri::Uri;
 
-pub mod system;
 pub mod user;
 
 pub trait KernelTask {
     fn run(&mut self) -> !;
+}
+
+pub struct Idle;
+
+impl KernelTask for Idle {
+    fn run(&mut self) -> ! {
+        loop {
+            unsafe {
+                asm!("wfe");
+            }
+        }
+    }
 }
 
 pub struct TestKernelTaskA;

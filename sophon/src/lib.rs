@@ -48,6 +48,8 @@ pub mod initfs;
 pub mod kernel_tasks;
 #[cfg(feature = "kernel")]
 pub mod memory;
+#[cfg(feature = "kernel")]
+pub mod scheme;
 pub mod task;
 #[macro_use]
 pub mod user;

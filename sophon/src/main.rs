@@ -23,13 +23,13 @@ use alloc::vec;
 use fdt::Fdt;
 use sophon::arch::{Arch, TargetArch};
 use sophon::initfs::InitFS;
-use sophon::kernel_tasks::system::{Idle, System};
 use sophon::kernel_tasks::user::UserTask;
+use sophon::kernel_tasks::Idle;
 use sophon::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use sophon::memory::physical::PHYSICAL_MEMORY;
 use sophon::task::scheduler::{AbstractScheduler, SCHEDULER};
-use sophon::task::*;
 use sophon::BootInfo;
+use sophon::{scheme, task::*};
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
@@ -87,11 +87,11 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     ipc::init();
     log!("[kernel: ipc initialized]");
 
+    scheme::register_kernel_schemes();
+    log!("[kernel: schemes initialized]");
+
     InitFS::deserialize(boot_info.init_fs);
     log!("[kernel: initfs initialized]");
-
-    let task = Task::create_kernel_task(box System::new());
-    log!("[kernel: created kernel process: {:?}]", task.id());
 
     let task = Task::create_kernel_task(box Idle);
     log!("[kernel: created kernel process: {:?}]", task.id());
