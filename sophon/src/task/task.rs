@@ -13,6 +13,7 @@ use alloc::collections::BTreeSet;
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use ipc::scheme::Resource;
+use ipc::scheme::SchemeId;
 use kernel_tasks::KernelTask;
 use spin::Mutex;
 
@@ -32,7 +33,7 @@ pub struct Task {
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
     block_to_send: Option<Message>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
-    pub resources: Mutex<BTreeMap<Resource, &'static str>>,
+    pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
 }
 
 impl Task {

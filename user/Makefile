@@ -1,6 +1,6 @@
 include ../sophon/common.mk
 
-USER_PROGRAMS = init
+USER_PROGRAMS = init scheme_test
 
 # Build a user program. e.g. `make build.init`
 build.%:

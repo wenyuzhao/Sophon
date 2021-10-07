@@ -15,6 +15,7 @@ members = [
     "boot/uefi",
 # User programs
     "user/init",
+    "user/scheme_test",
 ]
 
 [profile.dev]

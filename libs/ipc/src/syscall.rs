@@ -1,3 +1,7 @@
+use core::intrinsics::transmute;
+
+use crate::{Message, TaskId};
+
 #[repr(usize)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Syscall {
@@ -32,25 +36,28 @@ pub fn log(message: &str) {
     }
 }
 
-// #[inline]
-// pub fn send(mut m: Message) {
-//     let ret = syscall(
-//         IPC::Send,
-//         &[unsafe { transmute::<*mut Message, _>(&mut m) }],
-//     );
-//     assert!(ret == 0, "{:?}", ret);
-// }
+#[inline]
+pub fn send(mut m: Message) {
+    let ret = syscall(
+        Syscall::Send,
+        &[unsafe { transmute::<*mut Message, _>(&mut m) }],
+    );
+    assert!(ret == 0, "{:?}", ret);
+}
 
-// #[inline]
-// pub fn receive(from: Option<TaskId>) -> Message {
-//     unsafe {
-//         let mut msg: Message = ::core::mem::zeroed();
-//         let from_task: isize = match from {
-//             Some(t) => ::core::mem::transmute(t),
-//             None => -1,
-//         };
-//         let ret = syscall(IPC::Receive, &[transmute(from_task), transmute(&mut msg)]);
-//         assert!(ret == 0, "{:?}", ret);
-//         msg
-//     }
-// }
+#[inline]
+pub fn receive(from: Option<TaskId>) -> Message {
+    unsafe {
+        let mut msg: Message = ::core::mem::zeroed();
+        let from_task: isize = match from {
+            Some(t) => ::core::mem::transmute(t),
+            None => -1,
+        };
+        let ret = syscall(
+            Syscall::Receive,
+            &[transmute(from_task), transmute(&mut msg)],
+        );
+        assert!(ret == 0, "{:?}", ret);
+        msg
+    }
+}

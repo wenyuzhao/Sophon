@@ -30,7 +30,7 @@ pub mod boot_driver;
 pub mod initfs;
 pub mod kernel_tasks;
 pub mod memory;
-pub mod scheme;
+pub mod schemes;
 pub mod task;
 
 use core::panic::PanicInfo;
@@ -103,7 +103,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     task::ipc::init();
     log!("[kernel: ipc initialized]");
 
-    scheme::register_kernel_schemes();
+    schemes::register_kernel_schemes();
     log!("[kernel: schemes initialized]");
 
     InitFS::deserialize(boot_info.init_fs);
@@ -111,6 +111,10 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
 
     let task = Task::create_kernel_task(box Idle);
     log!("[kernel: created kernel process: {:?}]", task.id());
+
+    // let program = InitFS::get().get_file("/scheme_test");
+    // let task = Task::create_kernel_task(box UserTask::new(program));
+    // log!("[kernel: created scheme_test process: {:?}]", task.id());
 
     let program = InitFS::get().get_file("/init");
     let task = Task::create_kernel_task(box UserTask::new(program));

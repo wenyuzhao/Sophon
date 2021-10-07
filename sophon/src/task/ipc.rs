@@ -1,5 +1,5 @@
 use super::{Message, Task, TaskId};
-use crate::{arch::*, scheme::handle_scheme_request};
+use crate::{arch::*, schemes::handle_scheme_request};
 use ipc::syscall::Syscall;
 
 pub fn init() {
