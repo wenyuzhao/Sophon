@@ -4,10 +4,6 @@ version = "0.0.1"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
 
-[[bin]]
-name = "sophon"
-path = "src/main.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

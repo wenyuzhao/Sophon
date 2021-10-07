@@ -1,35 +1,51 @@
-#![no_std]
-#![no_main]
-#![feature(global_asm)]
-#![feature(alloc_error_handler)]
+#![allow(incomplete_features)]
 #![feature(format_args_nl)]
-#![feature(core_intrinsics)]
 #![feature(box_syntax)]
-#![feature(new_uninit)]
-#![feature(never_type)]
+#![feature(core_intrinsics)]
+#![feature(impl_trait_in_bindings)]
+#![feature(min_type_alias_impl_trait)]
+#![feature(step_trait)]
+#![feature(global_asm)]
+#![feature(asm)]
 #![feature(const_impl_trait)]
 #![feature(const_fn_fn_ptr_basics)]
-#![feature(const_raw_ptr_to_usize_cast)]
-#![feature(min_type_alias_impl_trait)]
-#![feature(asm)]
+#![feature(const_trait_impl)]
+#![feature(const_generics)]
+#![feature(const_fn_trait_bound)]
+#![feature(const_btree_new)]
+#![feature(alloc_error_handler)]
+#![no_std]
+#![no_main]
 
 extern crate alloc;
+extern crate elf_rs;
+
 #[macro_use]
-extern crate sophon;
+pub mod utils;
+#[macro_use]
+pub mod log;
+pub mod arch;
+pub mod boot_driver;
+#[path = "../init-fs.rs"]
+pub mod initfs;
+pub mod kernel_tasks;
+pub mod memory;
+pub mod scheme;
+pub mod task;
 
 use core::panic::PanicInfo;
 
+use crate::arch::{Arch, TargetArch};
+use crate::initfs::InitFS;
+use crate::kernel_tasks::user::UserTask;
+use crate::kernel_tasks::Idle;
+use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
+use crate::memory::physical::PHYSICAL_MEMORY;
+use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
+use crate::task::Task;
 use alloc::vec;
 use boot::BootInfo;
 use fdt::Fdt;
-use sophon::arch::{Arch, TargetArch};
-use sophon::initfs::InitFS;
-use sophon::kernel_tasks::user::UserTask;
-use sophon::kernel_tasks::Idle;
-use sophon::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
-use sophon::memory::physical::PHYSICAL_MEMORY;
-use sophon::task::scheduler::{AbstractScheduler, SCHEDULER};
-use sophon::{scheme, task::*};
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
@@ -53,7 +69,7 @@ unsafe fn zero_bss() {
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
-        unsafe { sophon::log::BOOT_LOG.set_mmio_address(uart) }
+        unsafe { log::BOOT_LOG.set_mmio_address(uart) }
     }
     boot_log!("SOPHON");
     boot_log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
@@ -84,7 +100,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     let v = vec![1, 3, 5, 7, 9];
     log!("[kernel: test-alloc] {:?} @ {:?}", v, v.as_ptr());
 
-    ipc::init();
+    task::ipc::init();
     log!("[kernel: ipc initialized]");
 
     scheme::register_kernel_schemes();
