@@ -199,7 +199,11 @@ impl FreeListAllocator {
                     let align = cursor.as_usize().trailing_zeros();
                     let size = min(1 << align, end - cursor);
                     assert!(size > 0);
-                    let size_class = Self::size_class(size);
+                    let size_class = if size.is_power_of_two() {
+                        Self::size_class(size)
+                    } else {
+                        Self::size_class(size) - 1
+                    };
                     assert!(cursor.as_usize() & ((1 << size_class) - 1) == 0);
                     self.push_cell(size_class, cursor);
                     cursor += size;
