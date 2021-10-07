@@ -1,0 +1,13 @@
+[package]
+name = "boot"
+version = "0.0.1"
+authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+memory = { path = "../memory" }
+
+[features]
+default = []

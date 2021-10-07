@@ -20,6 +20,7 @@ extern crate sophon;
 use core::panic::PanicInfo;
 
 use alloc::vec;
+use boot::BootInfo;
 use fdt::Fdt;
 use sophon::arch::{Arch, TargetArch};
 use sophon::initfs::InitFS;
@@ -28,7 +29,6 @@ use sophon::kernel_tasks::Idle;
 use sophon::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use sophon::memory::physical::PHYSICAL_MEMORY;
 use sophon::task::scheduler::{AbstractScheduler, SCHEDULER};
-use sophon::BootInfo;
 use sophon::{scheme, task::*};
 
 #[global_allocator]

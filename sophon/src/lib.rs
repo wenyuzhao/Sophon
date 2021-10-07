@@ -44,10 +44,3 @@ pub mod kernel_tasks;
 pub mod memory;
 pub mod scheme;
 pub mod task;
-
-pub struct BootInfo {
-    pub available_physical_memory: &'static [Range<Frame>],
-    pub device_tree: &'static [u8],
-    pub init_fs: &'static [u8],
-    pub uart: Option<Address>,
-}

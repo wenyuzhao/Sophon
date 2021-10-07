@@ -1,13 +1,19 @@
 [workspace]
 members = [
+# Kernel
     "sophon",
+# Libraries
     "libs/bitflags",
+    "libs/boot",
     "libs/heap",
     "libs/interrupt",
     "libs/ipc",
     "libs/memory",
+# Tools
     "tools/initfs_builder",
+# Boot loaders
     "boot/uefi",
+# User programs
     "user/init",
 ]
 

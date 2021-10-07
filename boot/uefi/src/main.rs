@@ -9,6 +9,7 @@ extern crate alloc;
 
 use alloc::vec;
 use alloc::vec::Vec;
+use boot::BootInfo;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
 use cortex_a::registers::*;
@@ -17,7 +18,6 @@ use fdt::Fdt;
 use memory::address::*;
 use memory::page::*;
 use memory::page_table::*;
-use sophon::BootInfo;
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::*;
