@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "sophon",
+    "libs/heap",
+    "libs/ipc",
     "tools/initfs_builder",
     "boot/uefi",
     "user/init",

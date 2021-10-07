@@ -6,13 +6,13 @@ use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
-use crate::user::ipc::Resource;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::collections::BTreeSet;
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use ipc::scheme::Resource;
 use kernel_tasks::KernelTask;
 use spin::Mutex;
 

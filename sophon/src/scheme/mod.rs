@@ -1,12 +1,9 @@
 use core::intrinsics::transmute;
 
+use crate::task::Task;
 use alloc::{boxed::Box, collections::BTreeMap};
+use ipc::scheme::{Mode, Resource, Result as IoResult, SchemeRequest, SchemeServer, Uri};
 use spin::Mutex;
-
-use crate::{
-    task::{uri::Uri, Task},
-    user::ipc::{Mode, Resource, Result as IoResult, SchemeRequest, SchemeServer},
-};
 
 pub static SCHEMES: Mutex<BTreeMap<&'static str, Box<dyn SchemeServer + Send>>> =
     Mutex::new(BTreeMap::new());

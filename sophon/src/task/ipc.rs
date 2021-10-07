@@ -1,17 +1,17 @@
 use super::{Message, Task, TaskId};
-pub use crate::user::ipc::IPC;
 use crate::{arch::*, scheme::handle_scheme_request};
+use ipc::syscall::Syscall;
 
 pub fn init() {
     TargetArch::interrupt().set_handler(
         InterruptId::Soft,
         Some(box |ipc, a, b, c, d, e| {
-            let ipc: IPC = unsafe { core::mem::transmute(ipc) };
-            match ipc {
-                IPC::Log => log(a, b, c, d, e),
-                IPC::Send => send(a, b, c, d, e),
-                IPC::Receive => receive(a, b, c, d, e),
-                IPC::SchemeRequest => scheme_request(a, b, c, d, e),
+            let syscall: Syscall = unsafe { core::mem::transmute(ipc) };
+            match syscall {
+                Syscall::Log => log(a, b, c, d, e),
+                Syscall::Send => send(a, b, c, d, e),
+                Syscall::Receive => receive(a, b, c, d, e),
+                Syscall::SchemeRequest => scheme_request(a, b, c, d, e),
             }
         }),
     );

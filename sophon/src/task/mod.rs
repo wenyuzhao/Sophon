@@ -8,8 +8,6 @@ pub mod task;
 #[cfg(feature = "kernel")]
 pub use task::*;
 
-pub mod uri;
-
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub struct TaskId(pub usize);
 
@@ -59,17 +57,20 @@ impl Message {
 
     #[inline]
     pub fn send(self) {
-        crate::user::ipc::send(self);
+        unimplemented!()
+        // crate::user::ipc::send(self);
     }
 
     #[inline]
     pub fn receive(src: Option<TaskId>) -> Message {
-        crate::user::ipc::receive(src)
+        unimplemented!()
+        // crate::user::ipc::receive(src)
     }
 
     #[inline]
     pub fn reply<T>(&self, data: T) {
-        let m = Message::new(self.receiver, self.sender).with_data(data);
-        crate::user::ipc::send(m);
+        unimplemented!()
+        // let m = Message::new(self.receiver, self.sender).with_data(data);
+        // crate::user::ipc::send(m);
     }
 }

@@ -4,13 +4,9 @@
 #![no_std]
 #![no_main]
 
-#[macro_use]
-extern crate sophon;
-
-use sophon::{
-    user::ipc::{Mode, Resource},
-    utils::no_alloc::NoAlloc,
-};
+use heap::NoAlloc;
+use ipc::log;
+use ipc::scheme::{Mode, Resource};
 
 #[global_allocator]
 static ALLOCATOR: NoAlloc = NoAlloc;

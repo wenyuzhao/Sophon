@@ -1,5 +1,5 @@
 [package]
-name = "init"
+name = "heap"
 version = "0.0.1"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
@@ -7,8 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ipc = { path = "../../libs/ipc" }
-heap = { path = "../../libs/heap" }
+spin = "0.9.2"
 
 [features]
 default = []
