@@ -70,12 +70,23 @@ pub fn receive(from: Option<TaskId>) -> Message {
     }
 }
 
+#[repr(usize)]
+pub enum SchemeRequest {
+    Open = 0,
+    Read = 1,
+    Write = 2,
+}
+
 impl Uri<'_> {
     #[inline]
     pub fn open(uri: impl AsUri) -> Result<Resource> {
         let uri = uri.as_str();
         let mut resource: Resource = Resource(0);
-        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((0usize, &uri, &mut resource)));
+        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((
+            SchemeRequest::Open,
+            &uri,
+            &mut resource,
+        )));
         Ok(resource)
     }
 }
@@ -86,43 +97,27 @@ pub struct Resource(pub(crate) usize);
 
 impl Resource {
     pub fn read(&self, mut buf: &mut [u8]) -> Result<()> {
-        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((1usize, *self, &mut buf)));
+        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((
+            SchemeRequest::Read,
+            *self,
+            &mut buf,
+        )));
         Ok(())
     }
 
-    pub fn write(&self, _buf: &[u8]) -> Result<()> {
-        unimplemented!()
+    pub fn write(&self, buf: impl AsRef<[u8]>) -> Result<()> {
+        let buf = buf.as_ref();
+        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((
+            SchemeRequest::Write,
+            *self,
+            &buf,
+        )));
+        Ok(())
     }
 }
 
 pub trait SchemeServer {
     fn scheme(&self) -> &'static str;
-    fn register(&self) -> ! {
-        loop {
-            let m = Message::receive(None);
-            let args = m.get_data::<[u64; 6]>();
-            match args[0] {
-                0 => {
-                    let uri = unsafe { transmute::<_, &Uri>(args[1]) };
-                    let resource = self.open(uri).unwrap();
-                    m.reply(resource);
-                }
-                1 => {
-                    let fd = unsafe { transmute::<_, Resource>(args[1]) };
-                    let buf = unsafe { transmute::<_, &mut &mut [u8]>(args[2]) };
-                    self.read(fd, buf).unwrap();
-                    m.reply(0usize);
-                }
-                2 => {
-                    let fd = unsafe { transmute::<_, Resource>(args[1]) };
-                    let buf = unsafe { transmute::<_, &&[u8]>(args[2]) };
-                    self.write(fd, buf).unwrap();
-                    m.reply(0usize);
-                }
-                _ => unimplemented!(),
-            }
-        }
-    }
     fn open(&self, uri: &Uri) -> Result<Resource>;
     fn read(&self, fd: Resource, buf: &mut [u8]) -> Result<()>;
     fn write(&self, fd: Resource, buf: &[u8]) -> Result<()>;
