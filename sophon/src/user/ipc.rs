@@ -20,6 +20,7 @@ pub enum IPC {
     Log = 0,
     Send,
     Receive,
+    SchemeRequest,
 }
 
 #[inline]
@@ -73,22 +74,28 @@ pub fn receive(from: Option<TaskId>) -> Message {
 #[repr(usize)]
 pub enum SchemeRequest {
     Open = 0,
-    Read = 1,
-    Write = 2,
+    Close,
+    FStat,
+    LSeek,
+    Read,
+    Write,
+    // Stat,
 }
 
-impl Uri<'_> {
-    #[inline]
-    pub fn open(uri: impl AsUri) -> Result<Resource> {
-        let uri = uri.as_str();
-        let mut resource: Resource = Resource(0);
-        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((
-            SchemeRequest::Open,
-            &uri,
-            &mut resource,
-        )));
-        Ok(resource)
-    }
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Whence {
+    Set,
+    Cur,
+    End,
+}
+
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    ReadOnly,
+    WriteOnly,
+    ReadWrite,
 }
 
 #[repr(transparent)]
@@ -96,29 +103,76 @@ impl Uri<'_> {
 pub struct Resource(pub(crate) usize);
 
 impl Resource {
-    pub fn read(&self, mut buf: &mut [u8]) -> Result<()> {
-        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((
-            SchemeRequest::Read,
-            *self,
-            &mut buf,
-        )));
-        Ok(())
+    pub fn open(uri: impl AsUri, _flags: u32, _mode: Mode) -> Result<Resource> {
+        let uri = uri.as_str();
+        let fd = unsafe {
+            syscall(
+                IPC::SchemeRequest,
+                &[
+                    transmute(SchemeRequest::Open),
+                    transmute(&uri),
+                    transmute(&uri),
+                ],
+            )
+        };
+        Ok(Resource(fd as _))
+    }
+
+    pub fn close(self) -> Result<()> {
+        unimplemented!()
+    }
+
+    pub fn stat(&self) -> Result<()> {
+        unimplemented!()
+    }
+
+    pub fn lseek(&self, _offset: isize, _whence: Whence) -> Result<()> {
+        unimplemented!()
+    }
+
+    pub fn read(&self, mut buf: &mut [u8]) -> Result<usize> {
+        let r = unsafe {
+            syscall(
+                IPC::SchemeRequest,
+                &[
+                    transmute(SchemeRequest::Read),
+                    transmute(*self),
+                    transmute(&mut buf),
+                ],
+            )
+        };
+        if r < 0 {
+            return Err(Error::Other);
+        }
+        Ok(r as _)
     }
 
     pub fn write(&self, buf: impl AsRef<[u8]>) -> Result<()> {
         let buf = buf.as_ref();
-        send(Message::new(TaskId::NULL, TaskId::KERNEL).with_data((
-            SchemeRequest::Write,
-            *self,
-            &buf,
-        )));
+        let _ = unsafe {
+            syscall(
+                IPC::SchemeRequest,
+                &[
+                    transmute(SchemeRequest::Write),
+                    transmute(*self),
+                    transmute(&buf),
+                ],
+            )
+        };
         Ok(())
     }
 }
 
 pub trait SchemeServer {
     fn scheme(&self) -> &'static str;
-    fn open(&self, uri: &Uri) -> Result<Resource>;
-    fn read(&self, fd: Resource, buf: &mut [u8]) -> Result<()>;
+    fn open(&self, uri: &Uri, flags: u32, mode: Mode) -> Result<Resource>;
+    fn close(self, fd: Resource) -> Result<()>;
+    fn stat(&self, _fd: Resource) -> Result<()> {
+        unimplemented!()
+    }
+    fn lseek(&self, _fd: Resource, _offset: isize, _whence: Whence) -> Result<()> {
+        unimplemented!()
+    }
+    fn read(&self, fd: Resource, buf: &mut [u8]) -> Result<usize>;
     fn write(&self, fd: Resource, buf: &[u8]) -> Result<()>;
 }

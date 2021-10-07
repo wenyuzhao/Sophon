@@ -7,7 +7,10 @@
 #[macro_use]
 extern crate sophon;
 
-use sophon::{task::uri::Uri, utils::no_alloc::NoAlloc};
+use sophon::{
+    user::ipc::{Mode, Resource},
+    utils::no_alloc::NoAlloc,
+};
 
 #[global_allocator]
 static ALLOCATOR: NoAlloc = NoAlloc;
@@ -15,12 +18,12 @@ static ALLOCATOR: NoAlloc = NoAlloc;
 #[no_mangle]
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     log!("Init process start (user mode)");
-    let resource = Uri::open("system:/test").unwrap();
+    let resource = Resource::open("system:/test", 0, Mode::ReadWrite).unwrap();
     log!("system:test opened");
-    let mut data = [0u8; 4];
+    let mut data = [0u8; 5];
     loop {
         resource.read(&mut data).unwrap();
-        log!("system:test read -> {:?}", data);
+        log!("system:test read -> {:?}", core::str::from_utf8(&data));
         resource.write("hello, world").unwrap();
     }
 }

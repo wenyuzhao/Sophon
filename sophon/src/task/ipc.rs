@@ -11,6 +11,7 @@ pub fn init() {
                 IPC::Log => log(a, b, c, d, e),
                 IPC::Send => send(a, b, c, d, e),
                 IPC::Receive => receive(a, b, c, d, e),
+                IPC::SchemeRequest => scheme_request(a, b, c, d, e),
             }
         }),
     );
@@ -30,11 +31,7 @@ fn log(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
 fn send(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     let mut msg = unsafe { (*(x1 as *const Message)).clone() };
     msg.sender = Task::current().unwrap().id();
-    match handle_scheme_request(msg) {
-        Ok(()) => 0,
-        Err(e) => e,
-    }
-    // Task::send_message(msg)
+    Task::send_message(msg)
 }
 
 fn receive(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
@@ -52,4 +49,8 @@ fn receive(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
         from_id
     );
     Task::receive_message(from_id)
+}
+
+fn scheme_request(a: usize, b: usize, c: usize, d: usize, e: usize) -> isize {
+    handle_scheme_request(&[a, b, c, d, e]).unwrap_or_else(|e| e)
 }
