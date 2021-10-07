@@ -1,7 +1,8 @@
-use crate::{memory::page_table::PageTable, task::Message};
+use crate::task::Message;
 use alloc::boxed::Box;
 use core::ops::Range;
 use fdt::Fdt;
+use memory::page_table::PageTable;
 use memory::{address::*, page::Frame};
 
 #[repr(usize)]
@@ -15,12 +16,6 @@ pub enum InterruptId {
 pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize) -> isize>;
 
 static mut INTERRUPT_HANDLERS: [Option<InterruptHandler>; 3] = [None, None, None];
-
-pub trait ArchInterrupt: 'static + Sized {
-    fn is_enabled() -> bool;
-    fn enable();
-    fn disable();
-}
 
 pub trait ArchInterruptController {
     fn start_timer(&self);
@@ -69,22 +64,9 @@ pub trait ArchContext: Sized + 'static {
 
 pub trait Arch {
     type Context: ArchContext;
-    type Interrupt: ArchInterrupt;
 
     fn init(device_tree: &Fdt);
     fn interrupt() -> &'static dyn ArchInterruptController;
-    #[inline]
-    fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
-        let enabled = Self::Interrupt::is_enabled();
-        if enabled {
-            Self::Interrupt::disable();
-        }
-        let ret = f();
-        if enabled {
-            Self::Interrupt::enable();
-        }
-        ret
-    }
 
     fn get_current_page_table() -> Frame;
     fn set_current_page_table(page_table: Frame);

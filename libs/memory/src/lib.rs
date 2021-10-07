@@ -8,7 +8,10 @@
 #![feature(const_panic)]
 #![feature(const_raw_ptr_deref)]
 #![feature(const_option)]
+#![feature(never_type)]
+#![feature(asm)]
 #![no_std]
 
 pub mod address;
 pub mod page;
+pub mod page_table;

@@ -2,7 +2,6 @@ use super::KernelTask;
 use crate::arch::*;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::KERNEL_MEMORY_RANGE;
-use crate::memory::page_table::{PageFlags, PageTable, L4};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::Task;
 use core::iter::Step;
@@ -10,6 +9,7 @@ use core::ptr;
 use elf_rs::*;
 use memory::address::*;
 use memory::page::*;
+use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};
 
 const USER_STACK_START: Address<V> = Address::new(0x111900000);
 const USER_STACK_PAGES: usize = 4; // Too many???
@@ -26,7 +26,7 @@ impl UserTask {
     }
 
     fn setup_user_pagetable() -> &'static mut PageTable {
-        let page_table = PageTable::alloc();
+        let page_table = PageTable::alloc(&PHYSICAL_MEMORY);
         // Map kernel pages
         let kernel_memory = KERNEL_MEMORY_RANGE;
         let index = PageTable::<L4>::get_index(kernel_memory.start);
@@ -44,7 +44,7 @@ impl UserTask {
             let page = Step::forward(Page::<Size4K>::new(USER_STACK_START), i);
             let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
             let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
-            page_table.map(page, frame, PageFlags::user_stack_flags());
+            page_table.map(page, frame, PageFlags::user_stack_flags(), &PHYSICAL_MEMORY);
         }
     }
 
@@ -101,7 +101,12 @@ impl UserTask {
                 let page = Step::forward(start_page, i);
                 let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
                 let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
-                page_table.map(page, frame, PageFlags::user_code_flags_4k());
+                page_table.map(
+                    page,
+                    frame,
+                    PageFlags::user_code_flags_4k(),
+                    &PHYSICAL_MEMORY,
+                );
             }
             TargetArch::set_current_page_table(Frame::new(page_table.into()));
             // Copy data

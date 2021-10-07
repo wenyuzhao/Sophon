@@ -2,7 +2,7 @@ mod context;
 mod drivers;
 mod exception;
 
-use super::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
+use super::{Arch, ArchInterruptController, TargetArch};
 use alloc::boxed::Box;
 use context::AArch64Context;
 use core::ops::Range;
@@ -17,34 +17,13 @@ use tock_registers::interfaces::Readable;
 
 static mut INTERRUPT_CONTROLLER: Option<Box<dyn ArchInterruptController>> = None;
 
-pub struct AArch64Interrupt;
-
-impl ArchInterrupt for AArch64Interrupt {
-    fn is_enabled() -> bool {
-        unsafe {
-            let daif: usize;
-            asm!("mrs {}, DAIF", out(reg) daif);
-            daif & (1 << 7) == 0
-        }
-    }
-
-    fn enable() {
-        unsafe { asm!("msr daifclr, #2") };
-    }
-
-    fn disable() {
-        unsafe { asm!("msr daifset, #2") };
-    }
-}
-
 pub struct AArch64;
 
 impl Arch for AArch64 {
     type Context = AArch64Context;
-    type Interrupt = AArch64Interrupt;
 
     fn init(device_tree: &Fdt) {
-        Self::Interrupt::disable();
+        interrupt::disable();
         unsafe {
             drivers::init(device_tree);
         }

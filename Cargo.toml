@@ -1,7 +1,9 @@
 [workspace]
 members = [
     "sophon",
+    "libs/bitflags",
     "libs/heap",
+    "libs/interrupt",
     "libs/ipc",
     "libs/memory",
     "tools/initfs_builder",

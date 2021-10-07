@@ -1,4 +1,4 @@
-use crate::arch::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
+use crate::arch::ArchInterruptController;
 use crate::task::scheduler::AbstractScheduler;
 use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use crate::{
@@ -155,7 +155,7 @@ pub static mut GIC: GIC = GIC::new();
 impl BootDriver for GIC {
     const COMPATIBLE: &'static [&'static str] = &["arm,cortex-a15-gic", "arm,gic-400"];
     fn init(&mut self, node: &FdtNode, parent: Option<&FdtNode>) {
-        <TargetArch as Arch>::Interrupt::disable();
+        interrupt::disable();
 
         let mut regs = node.reg().unwrap();
         let mut gicd_address = Address::<P>::new(regs.next().unwrap().starting_address as usize);

@@ -1,7 +1,6 @@
 use super::exception::ExceptionFrame;
 use crate::memory::kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER};
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
-use crate::memory::page_table::*;
 use crate::task::Message;
 use crate::{arch::*, memory::physical::*};
 use core::iter::Step;
@@ -9,8 +8,8 @@ use core::ops::Range;
 use cortex_a::registers::*;
 use memory::address::{Address, P, V};
 use memory::page::*;
+use memory::page_table::*;
 use tock_registers::interfaces::Readable;
-// use
 
 #[repr(C, align(4096))]
 pub struct KernelStack {
@@ -131,7 +130,7 @@ impl ArchContext for AArch64Context {
     }
 
     unsafe extern "C" fn return_to_user(&mut self) -> ! {
-        assert!(!<TargetArch as Arch>::Interrupt::is_enabled());
+        assert!(!interrupt::is_enabled());
         // Switch page table
         if self.p4.as_usize() as u64 != TTBR0_EL1.get() {
             log!(
@@ -189,7 +188,7 @@ impl ArchContext for AArch64Context {
             entry as *const extern "C" fn(_argc: isize, _argv: *const *const u8),
             sp
         );
-        <TargetArch as Arch>::Interrupt::disable();
+        interrupt::disable();
         asm! {
             "
                 msr spsr_el1, {0}

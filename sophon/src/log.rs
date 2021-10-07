@@ -1,4 +1,3 @@
-use crate::arch::{Arch, TargetArch};
 use alloc::boxed::Box;
 use core::fmt;
 use core::fmt::Write;
@@ -11,7 +10,7 @@ pub static WRITER: Mutex<Option<Box<dyn Write + Send>>> = Mutex::new(None);
 #[doc(hidden)]
 #[inline(never)]
 pub fn _print(args: fmt::Arguments) {
-    TargetArch::uninterruptable(|| {
+    interrupt::uninterruptable(|| {
         let mut writer = WRITER.lock();
         if let Some(writer) = writer.as_mut() {
             writer.write_fmt(args).unwrap();

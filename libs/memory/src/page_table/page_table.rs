@@ -1,13 +1,15 @@
 use super::*;
-use crate::arch::{Arch, ArchInterrupt, TargetArch};
-use crate::memory::physical::PHYSICAL_MEMORY;
+use crate::address::*;
+use crate::page::*;
 use core::fmt::Debug;
 use core::intrinsics::transmute;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use core::ops::{Index, IndexMut};
-use memory::address::*;
-use memory::page::*;
+#[cfg(target_arch = "aarch64")]
+use cortex_a::registers::TTBR0_EL1;
+#[cfg(target_arch = "aarch64")]
+use tock_registers::interfaces::Readable;
 
 #[repr(C, align(4096))]
 #[derive(Debug)]
@@ -49,17 +51,42 @@ impl<L: TableLevel> PageTable<L> {
 }
 
 impl PageTable<L4> {
-    pub fn alloc() -> &'static mut Self {
-        let frame = Self::alloc_frame4k();
+    pub fn alloc(pa: &impl PageAllocator<P>) -> &'static mut Self {
+        let frame = Self::alloc_frame4k(pa);
         unsafe {
             frame.zero();
             frame.start().as_mut()
         }
     }
 
+    fn alloc_frame4k(pa: &impl PageAllocator<P>) -> Frame<Size4K> {
+        let frame = pa.alloc::<Size4K>().unwrap();
+        unsafe {
+            frame.zero();
+        }
+        frame
+    }
+
     #[inline]
+    #[cfg(target_arch = "aarch64")]
     pub fn get() -> &'static mut Self {
-        unsafe { TargetArch::get_current_page_table().start().as_mut() }
+        unsafe { &mut *(TTBR0_EL1.get() as usize as *mut Self) }
+    }
+
+    #[inline]
+    #[cfg(target_arch = "aarch64")]
+    pub fn set(p4: *mut Self) {
+        unsafe {
+            asm! {
+                "
+                msr	ttbr0_el1, {v}
+                tlbi vmalle1is
+                DSB ISH
+                isb
+            ",
+                v = in(reg) p4
+            }
+        }
     }
 
     #[inline]
@@ -72,10 +99,10 @@ impl PageTable<L4> {
         impl Drop for PageTables {
             fn drop(&mut self) {
                 if self.old != self.new {
-                    TargetArch::set_current_page_table(self.old);
+                    PageTable::<L4>::set(self.old.start().as_mut_ptr());
                 }
                 if self.irq_enabled {
-                    <TargetArch as Arch>::Interrupt::enable();
+                    interrupt::enable();
                 }
             }
         }
@@ -91,29 +118,26 @@ impl PageTable<L4> {
             }
         }
         let x = PageTables {
-            old: TargetArch::get_current_page_table(),
+            old: Page::new(PageTable::<L4>::get().into()),
             new: Frame::new((self as *const _ as usize).into()),
-            irq_enabled: <TargetArch as Arch>::Interrupt::is_enabled(),
+            irq_enabled: interrupt::is_enabled(),
         };
         if x.irq_enabled {
-            <TargetArch as Arch>::Interrupt::disable();
+            interrupt::disable();
         }
         if x.old != x.new {
-            TargetArch::set_current_page_table(x.new);
+            Self::set(x.new.start().as_mut_ptr());
         }
         x
     }
 
-    pub fn identity_map<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) -> Page<S> {
-        self.map(Page::new(frame.start().as_usize().into()), frame, flags)
-    }
-
-    fn alloc_frame4k() -> Frame<Size4K> {
-        let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
-        unsafe {
-            frame.zero();
-        }
-        frame
+    pub fn identity_map<S: PageSize>(
+        &mut self,
+        frame: Frame<S>,
+        flags: PageFlags,
+        pa: &impl PageAllocator<P>,
+    ) -> Page<S> {
+        self.map(Page::new(frame.start().as_usize().into()), frame, flags, pa)
     }
 
     pub fn map<S: PageSize>(
@@ -121,13 +145,14 @@ impl PageTable<L4> {
         page: Page<S>,
         frame: Frame<S>,
         flags: PageFlags,
+        pa: &impl PageAllocator<P>,
     ) -> Page<S> {
         // P4
         let table = self;
         // P3
         let index = PageTable::<L4>::get_index(page.start());
         if table[index].is_empty() {
-            table[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
+            table[index].set(Self::alloc_frame4k(pa), PageFlags::page_table_flags());
         }
         let table = table.get_next_table(index).unwrap();
         if S::BYTES == Size1G::BYTES {
@@ -137,7 +162,7 @@ impl PageTable<L4> {
         // P2
         let index = PageTable::<L3>::get_index(page.start());
         if table.entries[index].is_empty() {
-            table.entries[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
+            table.entries[index].set(Self::alloc_frame4k(pa), PageFlags::page_table_flags());
         }
         let table = table.get_next_table(index).unwrap();
         if S::BYTES == Size2M::BYTES {
@@ -147,7 +172,7 @@ impl PageTable<L4> {
         // P1
         let index = PageTable::<L2>::get_index(page.start());
         if table.entries[index].is_empty() {
-            table.entries[index].set(Self::alloc_frame4k(), PageFlags::page_table_flags());
+            table.entries[index].set(Self::alloc_frame4k(pa), PageFlags::page_table_flags());
         }
         let table = table.get_next_table(index).unwrap();
         table.entries[PageTable::<L1>::get_index(page.start())]

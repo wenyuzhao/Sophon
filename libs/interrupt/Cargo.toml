@@ -1,5 +1,5 @@
 [package]
-name = "memory"
+name = "interrupt"
 version = "0.0.1"
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = "2018"
@@ -8,12 +8,6 @@ edition = "2018"
 
 [dependencies]
 spin = "0.9.2"
-bitflags = { path = "../bitflags" }
-interrupt = { path = "../interrupt" }
-tock-registers = "0.7.0"
-
-[target.'cfg(target_arch = "aarch64")'.dependencies]
-cortex-a = "6.0.0"
 
 [features]
 default = []

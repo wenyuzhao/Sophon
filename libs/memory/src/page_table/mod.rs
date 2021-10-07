@@ -2,11 +2,11 @@ mod page_table;
 
 pub use page_table::*;
 
-use crate::utils::bitflags::{BitFlag, BitFlags};
+use crate::address::*;
+use crate::page::*;
+use bitflags::{BitFlag, BitFlags};
 use core::fmt::Debug;
 use core::ops::BitOr;
-use memory::address::*;
-use memory::page::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
@@ -42,8 +42,8 @@ impl BitOr for PageFlag {
 
 pub type PageFlags = BitFlags<PageFlag>;
 
-impl PageFlags {
-    pub fn page_table_flags() -> PageFlags {
+pub trait PageFlagsExt {
+    fn page_table_flags() -> PageFlags {
         PageFlag::NORMAL_MEMORY
             | PageFlag::PRESENT
             | PageFlag::SMALL_PAGE
@@ -51,28 +51,28 @@ impl PageFlags {
             | PageFlag::ACCESSED
             | PageFlag::USER
     }
-    pub fn kernel_data_flags_2m() -> PageFlags {
+    fn kernel_data_flags_2m() -> PageFlags {
         PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
     }
-    pub fn kernel_data_flags_4k() -> PageFlags {
+    fn kernel_data_flags_4k() -> PageFlags {
         Self::kernel_data_flags_2m() | PageFlag::SMALL_PAGE
     }
-    pub fn kernel_code_flags_1g() -> PageFlags {
+    fn kernel_code_flags_1g() -> PageFlags {
         Self::kernel_code_flags_2m()
     }
-    pub fn kernel_code_flags_2m() -> PageFlags {
+    fn kernel_code_flags_2m() -> PageFlags {
         PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
     }
-    pub fn kernel_code_flags_4k() -> PageFlags {
+    fn kernel_code_flags_4k() -> PageFlags {
         Self::kernel_code_flags_2m() | PageFlag::SMALL_PAGE
     }
-    pub fn user_code_flags_2m() -> PageFlags {
+    fn user_code_flags_2m() -> PageFlags {
         Self::kernel_code_flags_2m() | PageFlag::USER
     }
-    pub fn user_code_flags_4k() -> PageFlags {
+    fn user_code_flags_4k() -> PageFlags {
         Self::kernel_code_flags_4k() | PageFlag::USER
     }
-    pub fn user_stack_flags() -> PageFlags {
+    fn user_stack_flags() -> PageFlags {
         PageFlag::NORMAL_MEMORY
             | PageFlag::PRESENT
             | PageFlag::SMALL_PAGE
@@ -80,7 +80,7 @@ impl PageFlags {
             | PageFlag::ACCESSED
             | PageFlag::USER
     }
-    pub fn device() -> PageFlags {
+    fn device() -> PageFlags {
         PageFlag::DEVICE_MEMORY
             | PageFlag::PRESENT
             | PageFlag::SMALL_PAGE
@@ -88,6 +88,8 @@ impl PageFlags {
             | PageFlag::ACCESSED
     }
 }
+
+impl PageFlagsExt for PageFlags {}
 
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("Only supports 64bit machines");

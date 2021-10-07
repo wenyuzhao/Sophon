@@ -16,7 +16,7 @@ use elf_rs::*;
 use fdt::Fdt;
 use memory::address::*;
 use memory::page::*;
-use sophon::memory::page_table::*;
+use memory::page_table::*;
 use sophon::BootInfo;
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 use uefi::proto::loaded_image::LoadedImage;

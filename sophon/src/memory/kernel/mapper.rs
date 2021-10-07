@@ -1,8 +1,10 @@
-use super::super::page_table::{PageFlags, PageTable};
 use crate::memory::kernel::KERNEL_HEAP_RANGE;
+use crate::memory::physical::PHYSICAL_MEMORY;
 use core::ops::{Deref, DerefMut};
 use memory::page::*;
+use memory::page_table::{PageFlags, PageTable};
 use spin::Mutex;
+
 pub struct KernelMemoryMapper {
     page_table: Mutex<Option<Frame>>,
 }
@@ -35,7 +37,7 @@ impl KernelMemoryMapper {
             page.start() >= KERNEL_HEAP_RANGE.start && page.start() < KERNEL_HEAP_RANGE.end
         );
         let mut page_table = self.with_kernel_page_table();
-        page_table.map(page, frame, flags);
+        page_table.map(page, frame, flags, &PHYSICAL_MEMORY);
     }
 }
 

@@ -5,7 +5,6 @@ use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut};
 
 use super::{task::Task, Message, TaskId};
-// use task::*;
 
 /**
  *                        ___________
@@ -92,7 +91,7 @@ pub trait AbstractScheduler: Sized + 'static {
 
     #[inline]
     fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
-        TargetArch::uninterruptable(f)
+        interrupt::uninterruptable(f)
     }
 }
 

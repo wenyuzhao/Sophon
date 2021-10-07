@@ -1,9 +1,7 @@
-use crate::memory::{
-    kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER},
-    page_table::PageFlags,
-};
+use crate::memory::kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER};
 use core::{marker::PhantomData, ops::ControlFlow};
 use fdt::{node::FdtNode, Fdt};
+use memory::page_table::{PageFlags, PageFlagsExt};
 use memory::{
     address::{Address, P},
     page::*,

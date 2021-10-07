@@ -212,3 +212,8 @@ impl<S: PageSize, K: MemoryKind> const Step for Page<S, K> {
         Step::backward(start, count)
     }
 }
+
+pub trait PageAllocator<K: MemoryKind> {
+    fn alloc<S: PageSize>(&self) -> Option<Page<S, K>>;
+    fn dealloc<S: PageSize>(&self, page: Page<S, K>);
+}

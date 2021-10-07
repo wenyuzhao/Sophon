@@ -1,8 +1,6 @@
 use super::KERNEL_HEAP_RANGE;
 use super::KERNEL_HEAP_SIZE;
 use super::KERNEL_MEMORY_MAPPER;
-use crate::arch::*;
-use crate::memory::page_table::PageFlags;
 use crate::memory::physical::PHYSICAL_MEMORY;
 use core::alloc::{GlobalAlloc, Layout};
 use core::cmp::{max, min};
@@ -11,6 +9,7 @@ use core::ops::Range;
 use core::usize;
 use memory::address::*;
 use memory::page::*;
+use memory::page_table::{PageFlags, PageFlagsExt};
 use spin::Mutex;
 
 static VIRTUAL_PAGE_ALLOCATOR: Mutex<VirtualPageAllocator> =
@@ -257,10 +256,10 @@ pub struct KernelHeapAllocator;
 
 unsafe impl GlobalAlloc for KernelHeapAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        TargetArch::uninterruptable(|| KERNEL_HEAP.fa.lock().alloc(&layout).as_mut_ptr())
+        interrupt::uninterruptable(|| KERNEL_HEAP.fa.lock().alloc(&layout).as_mut_ptr())
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        TargetArch::uninterruptable(|| KERNEL_HEAP.fa.lock().free(ptr.into(), &layout))
+        interrupt::uninterruptable(|| KERNEL_HEAP.fa.lock().free(ptr.into(), &layout))
     }
 }
