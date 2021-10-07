@@ -1,13 +1,10 @@
-use crate::{
-    boot_driver::BootDriver,
-    utils::{
-        address::{Address, P},
-        page::Frame,
-        volatile::Volatile,
-    },
-};
+use crate::{boot_driver::BootDriver, utils::volatile::Volatile};
 use core::fmt::{self, Write};
 use fdt::node::FdtNode;
+use memory::{
+    address::{Address, P},
+    page::Frame,
+};
 
 #[repr(C)]
 pub struct UARTRegisters {

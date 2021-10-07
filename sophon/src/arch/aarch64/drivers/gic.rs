@@ -1,13 +1,13 @@
 use crate::arch::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
 use crate::task::scheduler::AbstractScheduler;
-use crate::utils::address::{Address, P};
-use crate::utils::page::Frame;
 use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use crate::{
     arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver, task::scheduler::SCHEDULER,
 };
 use cortex_a::{asm::barrier, registers::*};
 use fdt::node::FdtNode;
+use memory::address::{Address, P};
+use memory::page::Frame;
 use spin::Mutex;
 use tock_registers::interfaces::{Readable, Writeable};
 

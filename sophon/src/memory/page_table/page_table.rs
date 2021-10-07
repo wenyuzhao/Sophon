@@ -1,13 +1,13 @@
 use super::*;
 use crate::arch::{Arch, ArchInterrupt, TargetArch};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::utils::address::*;
-use crate::utils::page::*;
 use core::fmt::Debug;
 use core::intrinsics::transmute;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use core::ops::{Index, IndexMut};
+use memory::address::*;
+use memory::page::*;
 
 #[repr(C, align(4096))]
 #[derive(Debug)]

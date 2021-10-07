@@ -1,8 +1,8 @@
 use crate::arch::{Arch, TargetArch};
-use crate::utils::address::Address;
 use alloc::boxed::Box;
 use core::fmt;
 use core::fmt::Write;
+use memory::address::Address;
 use spin::Mutex;
 
 #[allow(dead_code)]

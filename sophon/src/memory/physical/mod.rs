@@ -2,8 +2,8 @@ mod physical_page_resource;
 
 use self::physical_page_resource::PHYSICAL_PAGE_RESOURCE;
 use super::kernel::KERNEL_MEMORY_MAPPER;
-use crate::utils::page::*;
 use core::ops::Range;
+use memory::page::*;
 
 pub struct PhysicalMemory {
     _private: (),

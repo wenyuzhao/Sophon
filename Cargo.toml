@@ -3,6 +3,7 @@ members = [
     "sophon",
     "libs/heap",
     "libs/ipc",
+    "libs/memory",
     "tools/initfs_builder",
     "boot/uefi",
     "user/init",

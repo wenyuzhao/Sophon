@@ -3,11 +3,12 @@ use crate::memory::kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER};
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::memory::page_table::*;
 use crate::task::Message;
-use crate::utils::page::*;
 use crate::{arch::*, memory::physical::*};
 use core::iter::Step;
 use core::ops::Range;
 use cortex_a::registers::*;
+use memory::address::{Address, P, V};
+use memory::page::*;
 use tock_registers::interfaces::Readable;
 // use
 

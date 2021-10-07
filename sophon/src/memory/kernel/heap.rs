@@ -4,13 +4,13 @@ use super::KERNEL_MEMORY_MAPPER;
 use crate::arch::*;
 use crate::memory::page_table::PageFlags;
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::utils::address::*;
-use crate::utils::page::*;
 use core::alloc::{GlobalAlloc, Layout};
 use core::cmp::{max, min};
 use core::iter::Step;
 use core::ops::Range;
 use core::usize;
+use memory::address::*;
+use memory::page::*;
 use spin::Mutex;
 
 static VIRTUAL_PAGE_ALLOCATOR: Mutex<VirtualPageAllocator> =

@@ -1,5 +1,5 @@
-use crate::utils::{address::Address, page::*};
 use core::ops::Range;
+use memory::{address::Address, page::*};
 
 pub const KERNEL_MEMORY_RANGE: Range<Address> =
     Address::new(0xff0000000000)..Address::new(0xff8000000000);

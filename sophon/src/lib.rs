@@ -26,8 +26,8 @@
 #![feature(const_btree_new)]
 #![no_std]
 
+use ::memory::{address::Address, page::Frame};
 use core::ops::Range;
-use utils::{address::Address, page::Frame};
 
 extern crate alloc;
 extern crate elf_rs;

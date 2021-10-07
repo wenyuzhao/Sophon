@@ -2,11 +2,11 @@ mod page_table;
 
 pub use page_table::*;
 
-use crate::utils::address::*;
 use crate::utils::bitflags::{BitFlag, BitFlags};
-use crate::utils::page::*;
 use core::fmt::Debug;
 use core::ops::BitOr;
+use memory::address::*;
+use memory::page::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]

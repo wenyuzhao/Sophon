@@ -1,6 +1,7 @@
 use super::super::page_table::{PageFlags, PageTable};
-use crate::{memory::kernel::KERNEL_HEAP_RANGE, utils::page::*};
+use crate::memory::kernel::KERNEL_HEAP_RANGE;
 use core::ops::{Deref, DerefMut};
+use memory::page::*;
 use spin::Mutex;
 pub struct KernelMemoryMapper {
     page_table: Mutex<Option<Frame>>,

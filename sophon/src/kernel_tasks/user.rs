@@ -5,11 +5,11 @@ use crate::memory::kernel::KERNEL_MEMORY_RANGE;
 use crate::memory::page_table::{PageFlags, PageTable, L4};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::Task;
-use crate::utils::address::*;
-use crate::utils::page::*;
 use core::iter::Step;
 use core::ptr;
 use elf_rs::*;
+use memory::address::*;
+use memory::page::*;
 
 const USER_STACK_START: Address<V> = Address::new(0x111900000);
 const USER_STACK_PAGES: usize = 4; // Too many???

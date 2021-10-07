@@ -16,4 +16,5 @@ uefi = { version = "0.11.0", features = ["exts", "alloc"] }
 uefi-services = "0.8.0"
 elf_rs = "0.1.1"
 sophon = { path = "../../sophon" }
+memory = { path = "../../libs/memory" }
 fdt = "0.1.3"

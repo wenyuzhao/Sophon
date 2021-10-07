@@ -3,16 +3,16 @@ mod drivers;
 mod exception;
 
 use super::{Arch, ArchInterrupt, ArchInterruptController, TargetArch};
-use crate::utils::{
-    address::{Address, MemoryKind},
-    page::Frame,
-};
 use alloc::boxed::Box;
 use context::AArch64Context;
 use core::ops::Range;
 use cortex_a::asm::barrier::*;
 use cortex_a::registers::TTBR0_EL1;
 use fdt::Fdt;
+use memory::{
+    address::{Address, MemoryKind},
+    page::Frame,
+};
 use tock_registers::interfaces::Readable;
 
 static mut INTERRUPT_CONTROLLER: Option<Box<dyn ArchInterruptController>> = None;

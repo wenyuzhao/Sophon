@@ -1,15 +1,13 @@
-use crate::{
-    memory::{
-        kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER},
-        page_table::PageFlags,
-    },
-    utils::{
-        address::{Address, P},
-        page::*,
-    },
+use crate::memory::{
+    kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER},
+    page_table::PageFlags,
 };
 use core::{marker::PhantomData, ops::ControlFlow};
 use fdt::{node::FdtNode, Fdt};
+use memory::{
+    address::{Address, P},
+    page::*,
+};
 
 pub trait BootDriver {
     const COMPATIBLE: &'static [&'static str];

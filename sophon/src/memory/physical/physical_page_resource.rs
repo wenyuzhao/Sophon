@@ -1,5 +1,5 @@
-use crate::utils::{address::*, page::*};
 use core::ops::Range;
+use memory::{address::*, page::*};
 use spin::Mutex;
 
 const LOG_MAX_ADDRESS_SPACE_SIZE: usize = 48;

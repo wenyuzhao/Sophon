@@ -1,11 +1,8 @@
-use crate::{
-    memory::page_table::PageTable,
-    task::Message,
-    utils::{address::*, page::Frame},
-};
+use crate::{memory::page_table::PageTable, task::Message};
 use alloc::boxed::Box;
 use core::ops::Range;
 use fdt::Fdt;
+use memory::{address::*, page::Frame};
 
 #[repr(usize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
