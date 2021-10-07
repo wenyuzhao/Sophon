@@ -7,7 +7,6 @@ edition = "2018"
 [[bin]]
 name = "sophon"
 path = "src/main.rs"
-required-features = ["kernel"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

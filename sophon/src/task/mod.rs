@@ -1,11 +1,7 @@
-#[cfg(feature = "kernel")]
 pub mod ipc;
-#[cfg(feature = "kernel")]
 pub mod scheduler;
-#[cfg(feature = "kernel")]
 pub mod task;
 
-#[cfg(feature = "kernel")]
 pub use task::*;
 
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
@@ -62,13 +58,13 @@ impl Message {
     }
 
     #[inline]
-    pub fn receive(src: Option<TaskId>) -> Message {
+    pub fn receive(_src: Option<TaskId>) -> Message {
         unimplemented!()
         // crate::user::ipc::receive(src)
     }
 
     #[inline]
-    pub fn reply<T>(&self, data: T) {
+    pub fn reply<T>(&self, _data: T) {
         unimplemented!()
         // let m = Message::new(self.receiver, self.sender).with_data(data);
         // crate::user::ipc::send(m);

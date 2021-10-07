@@ -34,25 +34,16 @@ extern crate elf_rs;
 
 #[macro_use]
 pub mod utils;
-#[cfg(feature = "kernel")]
 #[macro_use]
 pub mod log;
-#[cfg(feature = "kernel")]
 pub mod arch;
-#[cfg(feature = "kernel")]
 pub mod boot_driver;
-#[cfg(feature = "kernel")]
 #[path = "../init-fs.rs"]
 pub mod initfs;
-#[cfg(feature = "kernel")]
 pub mod kernel_tasks;
-#[cfg(feature = "kernel")]
 pub mod memory;
-#[cfg(feature = "kernel")]
 pub mod scheme;
 pub mod task;
-#[macro_use]
-pub mod user;
 
 pub struct BootInfo {
     pub available_physical_memory: &'static [Range<Frame>],
