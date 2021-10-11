@@ -58,9 +58,9 @@ impl SchemeServer for UserScheme {
         let len = s.len();
         let num_pages = (s.len() + Size4K::MASK) >> Size4K::LOG_BYTES;
         let (kernel_pages, handler_pages) = self.map_handler_pages(num_pages);
-        let kernel_buf: &mut [u8] =
-            unsafe { slice::from_raw_parts_mut(kernel_pages.start.start().as_mut_ptr(), len) };
         unsafe {
+            let kernel_buf: &mut [u8] =
+                slice::from_raw_parts_mut(kernel_pages.start.start().as_mut_ptr(), len);
             ptr::copy_nonoverlapping::<u8>(s.as_ptr(), kernel_buf.as_mut_ptr(), len);
         }
         let handler_buf: &mut [u8] =
@@ -89,14 +89,12 @@ impl SchemeServer for UserScheme {
         unimplemented!()
     }
     fn read(&self, fd: Resource, buf: &mut [u8]) -> IoResult<usize> {
-        // Get pages mapped in handler's address space
+        // Construct new buffer
         let num_pages = (buf.len() + Size4K::MASK) >> Size4K::LOG_BYTES;
         let (kernel_pages, handler_pages) = self.map_handler_pages(num_pages);
-        // Construct new buffer
-        let handler_buf_start = handler_pages.start.start();
         let len = buf.len();
         let handler_buf: &mut [u8] =
-            unsafe { slice::from_raw_parts_mut(handler_buf_start.as_mut_ptr(), len) };
+            unsafe { slice::from_raw_parts_mut(handler_pages.start.start().as_mut_ptr(), len) };
         // Call handler
         unsafe {
             Message::new(TaskId::NULL, self.handler)
@@ -112,11 +110,10 @@ impl SchemeServer for UserScheme {
         let result = ipc::syscall::receive(Some(self.handler));
         let return_code = *result.get_data::<isize>();
         // Copy data back
-        let kernel_buf_start = kernel_pages.start.start();
-        let kernel_buf: &mut [u8] =
-            unsafe { core::slice::from_raw_parts_mut(kernel_buf_start.as_mut_ptr(), len) };
         unsafe {
-            core::ptr::copy_nonoverlapping::<u8>(kernel_buf.as_ptr(), buf.as_mut_ptr(), len);
+            let kernel_buf: &mut [u8] =
+                slice::from_raw_parts_mut(kernel_pages.start.start().as_mut_ptr(), len);
+            ptr::copy_nonoverlapping::<u8>(kernel_buf.as_ptr(), buf.as_mut_ptr(), len);
         }
         self.unmap_handler_pages(kernel_pages, handler_pages);
         if return_code < 0 {
@@ -125,7 +122,38 @@ impl SchemeServer for UserScheme {
             Ok(return_code as _)
         }
     }
-    fn write(&self, _fd: Resource, _buf: &[u8]) -> IoResult<()> {
-        unimplemented!()
+    fn write(&self, fd: Resource, buf: &[u8]) -> IoResult<()> {
+        // Copy buffer
+        let num_pages = (buf.len() + Size4K::MASK) >> Size4K::LOG_BYTES;
+        let (kernel_pages, handler_pages) = self.map_handler_pages(num_pages);
+        let len = buf.len();
+        unsafe {
+            let kernel_buf: &mut [u8] =
+                slice::from_raw_parts_mut(kernel_pages.start.start().as_mut_ptr(), len);
+            ptr::copy_nonoverlapping::<u8>(buf.as_ptr(), kernel_buf.as_mut_ptr(), len);
+        }
+        let handler_buf: &mut [u8] =
+            unsafe { slice::from_raw_parts_mut(handler_pages.start.start().as_mut_ptr(), len) };
+        // Call handler
+        unsafe {
+            Message::new(TaskId::NULL, self.handler)
+                .with_data::<[usize; 5]>([
+                    transmute(SchemeRequest::Write),
+                    transmute(fd),
+                    transmute(handler_buf.as_ptr()),
+                    transmute(len),
+                    0,
+                ])
+                .send();
+        }
+        let result = ipc::syscall::receive(Some(self.handler));
+        let return_code = *result.get_data::<isize>();
+
+        self.unmap_handler_pages(kernel_pages, handler_pages);
+        if return_code < 0 {
+            Err(Error::Other)
+        } else {
+            Ok(())
+        }
     }
 }

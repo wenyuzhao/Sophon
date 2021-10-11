@@ -99,7 +99,11 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
         }
         SchemeRequest::Write => {
             let fd = unsafe { transmute::<_, Resource>(args[1]) };
-            let buf = unsafe { transmute::<_, &&[u8]>(args[2]) };
+            let buf = unsafe {
+                let buf_ptr = transmute::<_, *const u8>(args[2]);
+                let buf_len = transmute::<_, usize>(args[3]);
+                slice::from_raw_parts(buf_ptr, buf_len)
+            };
             let schemes = SCHEMES.lock();
             let scheme = schemes
                 .get(&Task::current().unwrap().resources.lock()[&fd])

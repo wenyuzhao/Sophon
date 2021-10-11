@@ -26,7 +26,7 @@ pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
             "system:test read -> {:?}",
             core::str::from_utf8(&data[..len])
         );
-        // resource.write("hello, world").unwrap();
+        resource.write("hello, world").unwrap();
     }
 }
 

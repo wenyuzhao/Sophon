@@ -111,7 +111,8 @@ impl Resource {
                 &[
                     transmute(SchemeRequest::Write),
                     transmute(*self),
-                    transmute(&buf),
+                    transmute(buf.as_ptr()),
+                    transmute(buf.len()),
                 ],
             )
         };
@@ -189,7 +190,14 @@ fn handle_user_scheme_request(scheme: &'static impl SchemeServer, args: &[usize;
             unsafe { transmute(r) }
         }
         SchemeRequest::Write => {
-            unimplemented!()
+            let fd = unsafe { transmute::<_, Resource>(args[1]) };
+            let buf = unsafe {
+                let data = transmute::<_, *const u8>(args[2]);
+                let len = transmute::<_, usize>(args[3]);
+                slice::from_raw_parts(data, len)
+            };
+            scheme.write(fd, buf).unwrap();
+            0
         }
     }
 }

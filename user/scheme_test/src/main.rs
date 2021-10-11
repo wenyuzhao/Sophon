@@ -40,8 +40,9 @@ impl SchemeServer for ExampleUserSchemeServer {
         }
         Ok(cursor)
     }
-    fn write(&self, _fd: Resource, _buf: &[u8]) -> IoResult<()> {
-        unimplemented!()
+    fn write(&self, _fd: Resource, buf: &[u8]) -> IoResult<()> {
+        log!("scheme-test write {:?}", core::str::from_utf8(buf));
+        Ok(())
     }
 }
 
