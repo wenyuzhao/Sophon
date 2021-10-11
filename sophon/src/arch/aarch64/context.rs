@@ -2,6 +2,7 @@ use super::exception::ExceptionFrame;
 use crate::memory::kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER};
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::task::{Message, Proc};
+use crate::utils::unint_lock::UnintMutex;
 use crate::{arch::*, memory::physical::*};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -12,6 +13,7 @@ use cortex_a::registers::*;
 use memory::address::{Address, V};
 use memory::page::*;
 use memory::page_table::*;
+use spin::Mutex;
 use tock_registers::interfaces::Readable;
 
 #[repr(C, align(4096))]
@@ -76,7 +78,7 @@ impl Drop for KernelStack {
 #[allow(improper_ctypes)]
 #[repr(C)]
 pub struct AArch64Context {
-    exception_frames: Vec<*mut ExceptionFrame>,
+    exception_frames: Mutex<Vec<*mut ExceptionFrame>>,
     // sp: *mut u8,
     // x19_to_x29: [usize; 11],
     // x19: usize,
@@ -95,30 +97,30 @@ pub struct AArch64Context {
     // q: [u128; 32], // Neon registers
     kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
-    response_message: Option<Message>,
-    response_status: Option<isize>,
+    response_message: UnintMutex<Option<Message>>,
+    response_status: UnintMutex<Option<isize>>,
 }
 
 impl AArch64Context {
-    pub fn push_exception_frame(&mut self, exception_frame: *mut ExceptionFrame) {
+    pub fn push_exception_frame(&self, exception_frame: *mut ExceptionFrame) {
         let _guard = interrupt::uninterruptable();
-        self.exception_frames.push(exception_frame)
+        self.exception_frames.lock().push(exception_frame)
     }
-    fn pop_exception_frame(&mut self) -> Option<*mut ExceptionFrame> {
+    fn pop_exception_frame(&self) -> Option<*mut ExceptionFrame> {
         let _guard = interrupt::uninterruptable();
-        self.exception_frames.pop()
+        self.exception_frames.lock().pop()
     }
 }
 
 impl ArchContext for AArch64Context {
     fn empty() -> Self {
         Self {
-            exception_frames: vec![],
+            exception_frames: Mutex::new(vec![]),
             entry_pc: ptr::null_mut(),
             kernel_stack: None,
             kernel_stack_top: ptr::null_mut(),
-            response_message: None,
-            response_status: None,
+            response_message: UnintMutex::new(None),
+            response_status: UnintMutex::new(None),
         }
     }
 
@@ -136,15 +138,15 @@ impl ArchContext for AArch64Context {
         ctx
     }
 
-    fn set_response_message(&mut self, m: Message) {
-        self.response_message = Some(m);
+    fn set_response_message(&self, m: Message) {
+        *self.response_message.lock() = Some(m);
     }
 
-    fn set_response_status(&mut self, s: isize) {
-        self.response_status = Some(s);
+    fn set_response_status(&self, s: isize) {
+        *self.response_status.lock() = Some(s);
     }
 
-    unsafe extern "C" fn return_to_user(&mut self) -> ! {
+    unsafe extern "C" fn return_to_user(&self) -> ! {
         assert!(!interrupt::is_enabled());
         // Switch page table
         let p4 = Proc::current().get_page_table();
@@ -164,15 +166,14 @@ impl ArchContext for AArch64Context {
             (*frame).spsr_el1 = 0b0101;
             frame
         });
-        if let Some(msg) = self.response_message.take() {
+        if let Some(msg) = self.response_message.lock().take() {
             let slot = Address::<V>::from((*exception_frame).x2 as *mut Message);
             ::core::ptr::write(slot.as_mut_ptr(), msg);
         }
-        if let Some(status) = self.response_status {
+        if let Some(status) = self.response_status.lock().take() {
             let slot = Address::<V>::from(&(*exception_frame).x0 as *const usize);
             slot.store(status);
             (*exception_frame).x0 = ::core::mem::transmute(status);
-            self.response_status = None;
         }
         // log!(
         //     "[return-to-user] SP={:?} IP={:?}",

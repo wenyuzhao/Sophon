@@ -47,10 +47,10 @@ pub trait ArchInterruptController {
 pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
-    fn set_response_message(&mut self, m: Message);
-    fn set_response_status(&mut self, s: isize);
+    fn set_response_message(&self, m: Message);
+    fn set_response_status(&self, s: isize);
 
-    unsafe extern "C" fn return_to_user(&mut self) -> !;
+    unsafe extern "C" fn return_to_user(&self) -> !;
     unsafe fn enter_usermode(
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,

@@ -34,11 +34,11 @@ pub trait AbstractScheduler: Sized + 'static {
 
     fn register_new_task(&self, task: Box<Task>) -> &'static mut Task;
     fn remove_task(&self, id: TaskId);
-    fn get_task_by_id(&self, id: TaskId) -> Option<&'static mut Task>;
+    fn get_task_by_id(&self, id: TaskId) -> Option<&'static Task>;
     fn get_current_task_id(&self) -> Option<TaskId>;
-    fn get_current_task(&self) -> Option<&'static mut Task>;
+    fn get_current_task(&self) -> Option<&'static Task>;
 
-    fn mark_task_as_ready(&self, t: &'static mut Task);
+    fn mark_task_as_ready(&self, t: &'static Task);
 
     fn unblock_sending_task(&self, id: TaskId, status: isize) {
         let _guard = interrupt::uninterruptable();

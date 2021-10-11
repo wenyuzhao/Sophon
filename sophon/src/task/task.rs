@@ -7,6 +7,7 @@ use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
+use crate::utils::unint_lock::UnintMutex;
 use crate::*;
 use ::memory::address::Address;
 use ::memory::address::V;
@@ -41,7 +42,7 @@ pub struct Task {
     scheduler_state: RefCell<<Scheduler as AbstractScheduler>::State>,
     pub context: <TargetArch as Arch>::Context,
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
-    block_to_send: Option<Message>,
+    block_to_send: UnintMutex<Option<Message>>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
     pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
     virtual_memory_highwater: Atomic<Address<V>>,
@@ -78,7 +79,7 @@ impl Task {
                 // Unblock this sender
                 blocked_senders.remove(&sender_id);
                 let sender = Task::by_id(sender_id).unwrap();
-                let m = sender.block_to_send.take().unwrap();
+                let m = sender.block_to_send.lock().take().unwrap();
                 SCHEDULER.unblock_sending_task(sender_id, 0);
                 // We've received a message, return to user program
                 receiver.context.set_response_message(m);
@@ -114,7 +115,7 @@ impl Task {
         }
         // Else, block the sender until message is delivered
         {
-            sender.block_to_send = Some(m);
+            *sender.block_to_send.lock() = Some(m);
             let mut blocked_senders = receiver.blocked_senders.lock();
             blocked_senders.insert(sender.id);
         }
@@ -129,7 +130,7 @@ impl Task {
             context: <TargetArch as Arch>::Context::new(entry as _, t as *mut ()),
             scheduler_state: RefCell::new(Default::default()),
             block_to_receive_from: Mutex::new(None),
-            block_to_send: None,
+            block_to_send: UnintMutex::new(None),
             blocked_senders: Mutex::new(BTreeSet::new()),
             resources: Mutex::new(BTreeMap::new()),
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
@@ -137,16 +138,16 @@ impl Task {
         }
     }
 
-    pub fn by_id(id: TaskId) -> Option<&'static mut Self> {
+    pub fn by_id(id: TaskId) -> Option<&'static Self> {
         SCHEDULER.get_task_by_id(id)
     }
 
-    pub fn current() -> Option<&'static mut Self> {
+    pub fn current() -> Option<&'static Self> {
         SCHEDULER.get_current_task()
     }
 
-    pub fn get_context<C: ArchContext>(&mut self) -> &mut C {
-        let ptr = &mut self.context as *mut _;
+    pub fn get_context<C: ArchContext>(&self) -> &C {
+        let ptr = &self.context as *const _;
         unsafe { &mut *(ptr as *mut C) }
     }
 

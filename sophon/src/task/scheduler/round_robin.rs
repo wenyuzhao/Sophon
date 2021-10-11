@@ -79,7 +79,7 @@ impl AbstractScheduler for RoundRobinScheduler {
         unimplemented!()
     }
 
-    fn get_task_by_id(&self, id: TaskId) -> Option<&'static mut Task> {
+    fn get_task_by_id(&self, id: TaskId) -> Option<&'static Task> {
         let _guard = interrupt::uninterruptable();
         let tasks = self.tasks.lock();
         let task = tasks.get(&id)?;
@@ -93,12 +93,12 @@ impl AbstractScheduler for RoundRobinScheduler {
         current_task_table[0]
     }
 
-    fn get_current_task(&self) -> Option<&'static mut Task> {
+    fn get_current_task(&self) -> Option<&'static Task> {
         let _guard = interrupt::uninterruptable();
         self.get_task_by_id(self.get_current_task_id()?)
     }
 
-    fn mark_task_as_ready(&self, task: &'static mut Task) {
+    fn mark_task_as_ready(&self, task: &'static Task) {
         assert!(task.scheduler_state::<Self>().borrow().run_state != RunState::Ready);
         **task.scheduler_state::<Self>().borrow_mut() = RunState::Ready;
         self.task_queue.lock().push_back(task.id());
@@ -215,7 +215,7 @@ impl RoundRobinScheduler {
         self.task_queue.lock().push_back(task.id());
     }
 
-    fn get_next_schedulable_task(&self) -> &'static mut Task {
+    fn get_next_schedulable_task(&self) -> &'static Task {
         debug_assert!(!interrupt::is_enabled());
         if let Some(next_runnable_task) = self.task_queue.lock().pop_front() {
             Task::by_id(next_runnable_task).expect("task not found")
