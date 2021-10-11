@@ -50,6 +50,7 @@ pub trait ArchInterruptController {
 pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
+    fn get_page_table(&self) -> &'static mut PageTable;
     fn set_page_table(&mut self, page_table: &'static mut PageTable);
     fn set_response_message(&mut self, m: Message);
     fn set_response_status(&mut self, s: isize);

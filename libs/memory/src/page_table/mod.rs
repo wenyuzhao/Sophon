@@ -72,6 +72,9 @@ pub trait PageFlagsExt {
     fn user_code_flags_4k() -> PageFlags {
         Self::kernel_code_flags_4k() | PageFlag::USER
     }
+    fn user_data_flags_4k() -> PageFlags {
+        Self::kernel_data_flags_4k() | PageFlag::USER
+    }
     fn user_stack_flags() -> PageFlags {
         PageFlag::NORMAL_MEMORY
             | PageFlag::PRESENT

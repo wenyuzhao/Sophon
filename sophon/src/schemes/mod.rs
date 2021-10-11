@@ -10,6 +10,7 @@ use alloc::{
 };
 use core::{
     intrinsics::transmute,
+    slice, str,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use ipc::scheme::{Resource, SchemeId, SchemeRequest, SchemeServer, Uri};
@@ -54,19 +55,31 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
             Ok(0)
         }
         SchemeRequest::Open => {
-            let uri = unsafe { transmute::<_, &&str>(args[1]) };
-            let uri = Uri::new(uri).unwrap();
+            log!("Handle SchemeRequest::Open");
+            let uri = unsafe {
+                let uri_ptr = transmute::<_, *const u8>(args[1]);
+                let uri_len = transmute::<_, usize>(args[2]);
+                log!(
+                    "Handle SchemeRequest::Open uri: {:?} {:?}",
+                    uri_ptr,
+                    uri_len
+                );
+                let uri_str = str::from_utf8_unchecked(slice::from_raw_parts(uri_ptr, uri_len));
+                Uri::new(uri_str).unwrap()
+            };
+            log!("Handle SchemeRequest::Open uri: {:?}", uri);
             let scheme_id = SchemeId::from_name(uri.scheme).unwrap();
             let schemes = SCHEMES.lock();
             let scheme = schemes.get(&scheme_id).unwrap();
             let resource = scheme
-                .open(&uri, args[2] as _, unsafe { transmute(args[3]) })
+                .open(&uri, args[3] as _, unsafe { transmute(args[4]) })
                 .unwrap();
             Task::current()
                 .unwrap()
                 .resources
                 .lock()
                 .insert(resource, scheme_id);
+            log!("Handle SchemeRequest::Open Done");
             Ok(unsafe { transmute(resource) })
         }
         SchemeRequest::Close => {

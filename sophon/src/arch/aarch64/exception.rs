@@ -1,9 +1,6 @@
 use crate::arch::InterruptId;
+use crate::arch::{aarch64::context::*, *};
 use crate::task::Task;
-use crate::{
-    arch::{aarch64::context::*, *},
-    *,
-};
 use cortex_a::{asm::barrier, registers::*};
 use tock_registers::interfaces::{Readable, Writeable};
 

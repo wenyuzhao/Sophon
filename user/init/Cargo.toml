@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 ipc = { path = "../../libs/ipc" }
 heap = { path = "../../libs/heap" }
+log = { path = "../../libs/log" }
 
 [features]
 default = []

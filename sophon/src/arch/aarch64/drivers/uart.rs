@@ -1,6 +1,7 @@
 use crate::{boot_driver::BootDriver, utils::volatile::Volatile};
-use core::fmt::{self, Write};
+use core::fmt;
 use fdt::node::FdtNode;
+use log::Logger;
 use memory::{
     address::{Address, P},
     page::Frame,
@@ -80,15 +81,18 @@ impl BootDriver for UART0 {
         let uart_page = Self::map_device_page(Frame::new(uart_frame));
         self.uart = Some(uart_page.start().as_mut_ptr());
         self.init_uart();
-        *crate::log::WRITER.lock() = Some(box Log);
+        log::init(&UART_LOGGER);
         log!("UART @ {:?} -> {:?}", uart_frame, uart_page);
     }
 }
 
-pub struct Log;
+static UART_LOGGER: UARTLogger = UARTLogger;
 
-impl Write for Log {
-    fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
+pub struct UARTLogger;
+
+impl Logger for UARTLogger {
+    fn log(&self, s: &str) -> Result<(), fmt::Error> {
+        let _guard = interrupt::uninterruptable();
         for c in s.chars() {
             if c == '\n' {
                 unsafe {
@@ -100,5 +104,9 @@ impl Write for Log {
             }
         }
         Ok(())
+    }
+    fn log_fmt(&self, args: fmt::Arguments) -> Result<(), fmt::Error> {
+        let _guard = interrupt::uninterruptable();
+        log::log_fmt(self, args)
     }
 }

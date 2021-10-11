@@ -24,14 +24,20 @@ pub fn is_enabled() -> bool {
 }
 
 #[inline]
-pub fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
+pub fn uninterruptable() -> impl Drop {
+    struct Guard {
+        enabled: bool,
+    }
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            if self.enabled {
+                enable();
+            }
+        }
+    }
     let enabled = is_enabled();
     if enabled {
         disable();
     }
-    let ret = f();
-    if enabled {
-        enable();
-    }
-    ret
+    Guard { enabled }
 }

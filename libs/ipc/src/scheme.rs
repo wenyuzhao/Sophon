@@ -4,6 +4,7 @@ use crate::{
     Message,
 };
 use core::intrinsics::transmute;
+use core::{slice, str};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 #[repr(usize)]
@@ -48,15 +49,19 @@ pub struct Resource(pub usize);
 
 impl Resource {
     #[inline]
-    pub fn open(uri: impl AsUri, _flags: u32, _mode: Mode) -> Result<Resource> {
+    pub fn open(uri: impl AsUri, flags: u32, mode: Mode) -> Result<Resource> {
         let uri = uri.as_str();
+        let uri_ptr = uri.as_ptr() as *const u8;
+        let uri_len = uri.len();
         let fd = unsafe {
             syscall::syscall(
                 Syscall::SchemeRequest,
                 &[
                     transmute(SchemeRequest::Open),
-                    transmute(&uri),
-                    transmute(&uri),
+                    transmute(uri_ptr),
+                    transmute(uri_len),
+                    transmute(flags as usize),
+                    transmute(mode),
                 ],
             )
         };
@@ -152,10 +157,14 @@ fn handle_user_scheme_request(scheme: &'static impl SchemeServer, args: &[usize;
     match unsafe { transmute::<_, SchemeRequest>(args[0]) } {
         SchemeRequest::Register => -1,
         SchemeRequest::Open => {
-            let uri = unsafe { transmute::<_, &&str>(args[1]) };
-            let uri = Uri::new(uri).unwrap();
+            let uri = unsafe {
+                let uri_ptr = transmute::<_, *const u8>(args[1]);
+                let uri_len = transmute::<_, usize>(args[2]);
+                let uri_str = str::from_utf8_unchecked(slice::from_raw_parts(uri_ptr, uri_len));
+                Uri::new(uri_str).unwrap()
+            };
             let resource = scheme
-                .open(&uri, args[2] as _, unsafe { transmute(args[3]) })
+                .open(&uri, args[3] as _, unsafe { transmute(args[4]) })
                 .unwrap();
             unsafe { transmute(resource) }
         }

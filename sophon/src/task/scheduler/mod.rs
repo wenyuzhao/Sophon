@@ -91,7 +91,8 @@ pub trait AbstractScheduler: Sized + 'static {
 
     #[inline]
     fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
-        interrupt::uninterruptable(f)
+        let _guard = interrupt::uninterruptable();
+        f()
     }
 }
 

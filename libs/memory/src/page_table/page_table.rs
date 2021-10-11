@@ -131,6 +131,40 @@ impl PageTable<L4> {
         x
     }
 
+    pub fn translate(&mut self, a: Address<V>) -> Option<Address<P>> {
+        // P4
+        let table = self;
+        // P3
+        let index = PageTable::<L4>::get_index(a);
+        if table[index].is_empty() {
+            return None;
+        }
+        let table = table.get_next_table(index).unwrap();
+        let index = PageTable::<L3>::get_index(a);
+        if table[index].is_empty() {
+            return None;
+        }
+        if table[index].is_block() {
+            return Some(table[index].address() + (a.as_usize() & Page::<Size1G>::MASK));
+        }
+        // P2
+        let table = table.get_next_table(index).unwrap();
+        let index = PageTable::<L2>::get_index(a);
+        if table[index].is_empty() {
+            return None;
+        }
+        if table[index].is_block() {
+            return Some(table[index].address() + (a.as_usize() & Page::<Size2M>::MASK));
+        }
+        // P1
+        let index = PageTable::<L1>::get_index(a);
+        if table[index].is_empty() {
+            return None;
+        } else {
+            return Some(table[index].address() + (a.as_usize() & Page::<Size4K>::MASK));
+        }
+    }
+
     pub fn identity_map<S: PageSize>(
         &mut self,
         frame: Frame<S>,

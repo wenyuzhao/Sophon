@@ -8,6 +8,7 @@ members = [
     "libs/heap",
     "libs/interrupt",
     "libs/ipc",
+    "libs/log",
     "libs/memory",
 # Tools
     "tools/initfs_builder",

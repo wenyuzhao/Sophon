@@ -10,7 +10,11 @@
 #![feature(const_option)]
 #![feature(never_type)]
 #![feature(asm)]
+#![feature(format_args_nl)]
 #![no_std]
+
+#[macro_use]
+extern crate log;
 
 pub mod address;
 pub mod page;

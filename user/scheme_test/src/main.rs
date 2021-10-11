@@ -4,9 +4,14 @@
 #![no_std]
 #![no_main]
 
+#[macro_use]
+extern crate log;
+
 use heap::NoAlloc;
-use ipc::log;
-use ipc::scheme::{self, Mode, Resource, Result as IoResult, SchemeServer, Uri};
+use ipc::{
+    log::UserLogger,
+    scheme::{self, Mode, Resource, Result as IoResult, SchemeServer, Uri},
+};
 
 #[global_allocator]
 static ALLOCATOR: NoAlloc = NoAlloc;
@@ -42,6 +47,7 @@ impl SchemeServer for ExampleUserSchemeServer {
 
 #[no_mangle]
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
+    UserLogger::init();
     log!("scheme_test start (user mode)");
     scheme::register_user_scheme(&ExampleUserSchemeServer {})
 }

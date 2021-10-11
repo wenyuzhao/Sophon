@@ -117,6 +117,10 @@ impl ArchContext for AArch64Context {
         ctx
     }
 
+    fn get_page_table(&self) -> &'static mut PageTable {
+        unsafe { self.p4.as_mut() }
+    }
+
     fn set_page_table(&mut self, page_table: &'static mut PageTable) {
         self.p4 = page_table.into();
     }
@@ -142,7 +146,7 @@ impl ArchContext for AArch64Context {
         }
 
         let exception_frame = {
-            if self.exception_frame as usize == 0 {
+            if self.exception_frame.is_null() {
                 let mut frame: *mut ExceptionFrame = (self.kernel_stack_top as usize
                     - ::core::mem::size_of::<ExceptionFrame>())
                     as _;

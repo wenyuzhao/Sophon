@@ -17,7 +17,9 @@ postcard = { version = "0.7.0", features = ["alloc"] }
 ipc = { path = "../libs/ipc" }
 memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
+log = { path = "../libs/log" }
 boot = { path = "../libs/boot" }
+atomic = "0.5"
 
 [build-dependencies]
 spin = "0.9.2"

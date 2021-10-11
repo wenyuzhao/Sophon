@@ -19,11 +19,11 @@
 
 extern crate alloc;
 extern crate elf_rs;
+#[macro_use]
+extern crate log;
 
 #[macro_use]
 pub mod utils;
-#[macro_use]
-pub mod log;
 pub mod arch;
 pub mod boot_driver;
 #[path = "../init-fs.rs"]
@@ -69,31 +69,31 @@ unsafe fn zero_bss() {
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
-        unsafe { log::BOOT_LOG.set_mmio_address(uart) }
+        utils::boot_log::init(uart);
     }
-    boot_log!("SOPHON");
-    boot_log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
+    log!("SOPHON");
+    log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
         *(boot_info as *const _ as *const usize)
     });
-    boot_log!("device_tree @ {:?}", boot_info.device_tree.as_ptr_range());
-    boot_log!(
+    log!("device_tree @ {:?}", boot_info.device_tree.as_ptr_range());
+    log!(
         "available_physical_memory @ {:?}",
         boot_info.available_physical_memory.as_ptr_range()
     );
     unsafe { zero_bss() }
-    boot_log!("zero_bss done");
+    log!("zero_bss done");
 
     // Initialize physical memory and kernel heap
     PHYSICAL_MEMORY.init(boot_info.available_physical_memory);
-    boot_log!("PHYSICAL_MEMORY done");
+    log!("PHYSICAL_MEMORY done");
     KERNEL_HEAP.init();
-    boot_log!("KERNEL_HEAP done");
+    log!("KERNEL_HEAP done");
 
     // Initialize arch and boot drivers
     let fdt = Fdt::new(boot_info.device_tree).unwrap();
-    boot_log!("fdt loaded");
+    log!("fdt loaded");
     TargetArch::init(&fdt);
-    boot_log!("TargetArch done");
+    log!("TargetArch done");
 
     log!("Hello Sophon!");
 
@@ -112,9 +112,9 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     let task = Task::create_kernel_task(box Idle);
     log!("[kernel: created kernel process: {:?}]", task.id());
 
-    // let program = InitFS::get().get_file("/scheme_test");
-    // let task = Task::create_kernel_task(box UserTask::new(program));
-    // log!("[kernel: created scheme_test process: {:?}]", task.id());
+    let program = InitFS::get().get_file("/scheme_test");
+    let task = Task::create_kernel_task(box UserTask::new(program));
+    log!("[kernel: created scheme_test process: {:?}]", task.id());
 
     let program = InitFS::get().get_file("/init");
     let task = Task::create_kernel_task(box UserTask::new(program));
