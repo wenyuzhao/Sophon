@@ -1,3 +1,4 @@
+mod initfs;
 mod system;
 mod user;
 
@@ -41,10 +42,10 @@ fn register_kernel_scheme(scheme: Box<dyn SchemeServer + Send>) {
 
 pub fn register_kernel_schemes() {
     register_kernel_scheme(box system::SystemScheme::new());
+    register_kernel_scheme(box initfs::InitFSScheme::new());
 }
 
 pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
-    log!("> handle_scheme_request");
     match unsafe { transmute::<_, SchemeRequest>(args[0]) } {
         SchemeRequest::Register => {
             let name = unsafe { transmute::<_, &&str>(args[1]) };

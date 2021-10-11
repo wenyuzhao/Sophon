@@ -4,6 +4,7 @@ use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::KERNEL_MEMORY_RANGE;
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::Proc;
+use alloc::vec::Vec;
 use core::iter::Step;
 use core::ptr;
 use elf_rs::*;
@@ -17,11 +18,11 @@ const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::BYTES;
 const USER_STACK_END: Address<V> = Address::new(USER_STACK_START.as_usize() + USER_STACK_SIZE);
 
 pub struct UserTask {
-    elf_data: &'static [u8],
+    elf_data: Vec<u8>,
 }
 
 impl UserTask {
-    pub fn new(elf_data: &'static [u8]) -> Self {
+    pub fn new(elf_data: Vec<u8>) -> Self {
         Self { elf_data }
     }
 

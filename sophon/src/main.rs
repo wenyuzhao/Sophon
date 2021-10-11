@@ -37,7 +37,7 @@ use core::panic::PanicInfo;
 
 use crate::arch::{Arch, TargetArch};
 use crate::initfs::InitFS;
-use crate::kernel_tasks::user::UserTask;
+use crate::kernel_tasks::system::System;
 use crate::kernel_tasks::Idle;
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
@@ -110,15 +110,10 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     log!("[kernel: initfs initialized]");
 
     let proc = Proc::spawn(box Idle);
-    log!("[kernel: created kernel process: {:?}]", proc.id);
+    log!("[kernel: created idle process: {:?}]", proc.id);
 
-    let program = InitFS::get().get_file("/scheme_test");
-    let proc = Proc::spawn(box UserTask::new(program));
-    log!("[kernel: created scheme_test process: {:?}]", proc.id);
-
-    let program = InitFS::get().get_file("/init");
-    let proc = Proc::spawn(box UserTask::new(program));
-    log!("[kernel: created init process: {:?}]", proc.id);
+    let proc = Proc::spawn(box System);
+    log!("[kernel: created system process: {:?}]", proc.id);
 
     TargetArch::interrupt().start_timer();
     log!("[kernel: timer started]");

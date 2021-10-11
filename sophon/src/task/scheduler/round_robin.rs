@@ -178,7 +178,7 @@ impl AbstractScheduler for RoundRobinScheduler {
             );
             scheduler_state.time_slice_units -= 1;
             if scheduler_state.time_slice_units == 0 {
-                log!("Schedule");
+                // log!("Schedule");
                 scheduler_state.time_slice_units = UNIT_TIME_SLICE;
                 ::core::mem::drop(scheduler_state);
                 self.enqueue_current_task_as_ready();

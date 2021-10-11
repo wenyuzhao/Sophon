@@ -91,7 +91,7 @@ impl InitFS {
         }
     }
 
-    pub fn get_file(&self, path: &'static str) -> &File {
+    pub fn get_file(&self, path: &str) -> &File {
         debug_assert!(path.starts_with('/'));
         let path = path.strip_prefix('/').unwrap();
         match self.root.get(path) {

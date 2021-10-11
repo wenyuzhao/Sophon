@@ -135,7 +135,7 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
     let irq = TargetArch::interrupt().get_active_irq();
-    log!("IRQ {}", irq);
+    // log!("IRQ {}", irq);
     TargetArch::interrupt().notify_end_of_interrupt();
     // FIXME: GICC.EOIR.set(iar);
     if irq < 256 {
