@@ -6,25 +6,12 @@ use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
-use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::utils::unint_lock::UnintMutex;
 use crate::*;
-use ::memory::address::Address;
-use ::memory::address::V;
-use ::memory::page::Page;
-use ::memory::page::PageSize;
-use ::memory::page::Size4K;
-use ::memory::page_table::{PageFlags, PageFlagsExt};
 use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
 use alloc::collections::BTreeSet;
-use atomic::Atomic;
 use core::cell::RefCell;
-use core::iter::Step;
-use core::ops::Range;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use ipc::scheme::Resource;
-use ipc::scheme::SchemeId;
 use kernel_tasks::KernelTask;
 use spin::Mutex;
 
@@ -44,8 +31,6 @@ pub struct Task {
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
     block_to_send: UnintMutex<Option<Message>>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
-    pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
-    virtual_memory_highwater: Atomic<Address<V>>,
     pub proc: &'static Proc,
 }
 
@@ -127,8 +112,6 @@ impl Task {
             block_to_receive_from: Mutex::new(None),
             block_to_send: UnintMutex::new(None),
             blocked_senders: Mutex::new(BTreeSet::new()),
-            resources: Mutex::new(BTreeMap::new()),
-            virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             proc,
         }
     }
@@ -144,40 +127,6 @@ impl Task {
     pub fn get_context<C: ArchContext>(&self) -> &C {
         let ptr = &self.context as *const _;
         unsafe { &mut *(ptr as *mut C) }
-    }
-
-    pub fn sbrk(&self, num_pages: usize) -> Option<Range<Page<Size4K>>> {
-        let result =
-            self.virtual_memory_highwater
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |old| {
-                    let old_aligned = old.align_up(Size4K::BYTES);
-                    Some(old_aligned + (num_pages << Size4K::LOG_BYTES))
-                });
-        log!("sbrk: {:?} {:?}", self.id, result);
-        match result {
-            Ok(a) => {
-                let old_top = a;
-                let start = Page::new(a.align_up(Size4K::BYTES));
-                let end = Page::forward(start, num_pages);
-                debug_assert_eq!(old_top, start.start());
-                // Map old_top .. end
-                {
-                    let page_table = self.proc.get_page_table();
-                    let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
-                    for page in start..end {
-                        let frame = PHYSICAL_MEMORY.acquire().unwrap();
-                        page_table.map(
-                            page,
-                            frame,
-                            PageFlags::user_data_flags_4k(),
-                            &PHYSICAL_MEMORY,
-                        );
-                    }
-                }
-                Some(start..end)
-            }
-            Err(_e) => return None,
-        }
     }
 }
 

@@ -1,7 +1,7 @@
 mod system;
 mod user;
 
-use crate::task::Task;
+use crate::task::{Proc, Task};
 use alloc::{
     borrow::ToOwned,
     boxed::Box,
@@ -67,7 +67,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
             let resource = scheme
                 .open(&uri, args[3] as _, unsafe { transmute(args[4]) })
                 .unwrap();
-            Task::current().resources.lock().insert(resource, scheme_id);
+            Proc::current().resources.lock().insert(resource, scheme_id);
             Ok(unsafe { transmute(resource) })
         }
         SchemeRequest::Close => {
@@ -87,7 +87,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
                 slice::from_raw_parts_mut(buf_ptr, buf_len)
             };
             let schemes = SCHEMES.lock();
-            let scheme = schemes.get(&Task::current().resources.lock()[&fd]).unwrap();
+            let scheme = schemes.get(&Proc::current().resources.lock()[&fd]).unwrap();
             let r = scheme.read(fd, buf).unwrap();
             Ok(unsafe { transmute(r) })
         }
@@ -99,7 +99,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
                 slice::from_raw_parts(buf_ptr, buf_len)
             };
             let schemes = SCHEMES.lock();
-            let scheme = schemes.get(&Task::current().resources.lock()[&fd]).unwrap();
+            let scheme = schemes.get(&Proc::current().resources.lock()[&fd]).unwrap();
             scheme.write(fd, buf).unwrap();
             Ok(0)
         }
