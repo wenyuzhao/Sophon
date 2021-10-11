@@ -35,7 +35,7 @@ impl Proc {
         let proc_mut = unsafe { &mut *(proc.as_mut() as *mut Proc) };
         // Create main thread
         let task = Task::create(unsafe { &mut *(proc.as_mut() as *mut Proc) }, t);
-        proc.threads.push(task.id());
+        proc.threads.push(task.id);
         // Add to list
         PROCS.lock().push_back(proc);
         // Spawn
@@ -55,6 +55,6 @@ impl Proc {
 
     #[inline]
     pub fn current() -> &'static Proc {
-        Task::current().unwrap().proc
+        Task::current().proc
     }
 }

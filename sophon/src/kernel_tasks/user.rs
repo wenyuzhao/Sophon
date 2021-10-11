@@ -149,7 +149,7 @@ impl KernelTask for UserTask {
         log!("User stack created");
         log!(
             "Start to enter usermode: {:?}",
-            crate::task::Task::current().map(|t| t.id())
+            crate::task::Task::current().id
         );
         // Enter usermode
         unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, USER_STACK_END, page_table) }

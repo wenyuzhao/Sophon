@@ -61,7 +61,6 @@ unsafe fn get_exception_class() -> ExceptionClass {
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
     // log!("Exception received");
     Task::current()
-        .unwrap()
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
     let exception = get_exception_class();
@@ -95,7 +94,7 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
         #[allow(unreachable_patterns)]
         _ => panic_for_unhandled_exception(exception_frame),
     }
-    Task::current().unwrap().context.return_to_user();
+    Task::current().context.return_to_user();
 }
 
 #[no_mangle]
@@ -133,7 +132,6 @@ unsafe fn panic_for_unhandled_exception(exception_frame: *mut ExceptionFrame) ->
 #[no_mangle]
 pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     Task::current()
-        .unwrap()
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
     let irq = TargetArch::interrupt().get_active_irq();
@@ -161,7 +159,7 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
 
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     unsafe {
-        Task::current().unwrap().context.return_to_user();
+        Task::current().context.return_to_user();
     }
 }
 

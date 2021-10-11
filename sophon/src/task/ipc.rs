@@ -30,7 +30,7 @@ fn log(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
 
 fn send(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     let mut msg = unsafe { (*(x1 as *const Message)).clone() };
-    msg.sender = Task::current().unwrap().id();
+    msg.sender = Task::current().id;
     Task::send_message(msg)
 }
 
@@ -45,7 +45,7 @@ fn receive(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     };
     log!(
         "{:?} start receiving from {:?}",
-        Task::current().unwrap().id(),
+        Task::current().id,
         from_id
     );
     Task::receive_message(from_id)

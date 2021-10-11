@@ -58,7 +58,7 @@ impl AbstractScheduler for RoundRobinScheduler {
 
     fn register_new_task(&self, task: Box<Task>) -> &'static mut Task {
         let _guard = interrupt::uninterruptable();
-        let id = task.id();
+        let id = task.id;
         let task_ref: &'static mut Task =
             unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
         self.tasks.lock().insert(id, task);
@@ -101,7 +101,7 @@ impl AbstractScheduler for RoundRobinScheduler {
     fn mark_task_as_ready(&self, task: &'static Task) {
         assert!(task.scheduler_state::<Self>().borrow().run_state != RunState::Ready);
         **task.scheduler_state::<Self>().borrow_mut() = RunState::Ready;
-        self.task_queue.lock().push_back(task.id());
+        self.task_queue.lock().push_back(task.id);
     }
 
     fn schedule(&self) -> ! {
@@ -134,8 +134,8 @@ impl AbstractScheduler for RoundRobinScheduler {
             });
             log!(
                 "Switch: {:?} -> {:?}",
-                current_task.as_ref().map(|t| t.id()),
-                next_task.id()
+                current_task.as_ref().map(|t| t.id),
+                next_task.id
             );
 
             // Run next task
@@ -144,7 +144,7 @@ impl AbstractScheduler for RoundRobinScheduler {
                 state.run_state = RunState::Running;
                 state.time_slice_units = UNIT_TIME_SLICE;
             }
-            self.set_current_task_id(next_task.id());
+            self.set_current_task_id(next_task.id);
 
             ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
             // log!("Schedule return_to_user");
@@ -174,7 +174,7 @@ impl AbstractScheduler for RoundRobinScheduler {
                 scheduler_state.run_state == RunState::Running,
                 "Invalid state {:?} for {:?}",
                 scheduler_state.run_state,
-                current_task.id()
+                current_task.id
             );
             scheduler_state.time_slice_units -= 1;
             if scheduler_state.time_slice_units == 0 {
@@ -212,7 +212,7 @@ impl RoundRobinScheduler {
         let task = self.get_current_task().unwrap();
         assert!(task.scheduler_state::<Self>().borrow().run_state != RunState::Ready);
         task.scheduler_state::<Self>().borrow_mut().run_state = RunState::Ready;
-        self.task_queue.lock().push_back(task.id());
+        self.task_queue.lock().push_back(task.id);
     }
 
     fn get_next_schedulable_task(&self) -> &'static Task {

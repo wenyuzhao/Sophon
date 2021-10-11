@@ -38,7 +38,7 @@ pub enum TaskState {
 }
 
 pub struct Task {
-    id: TaskId,
+    pub id: TaskId,
     scheduler_state: RefCell<<Scheduler as AbstractScheduler>::State>,
     pub context: <TargetArch as Arch>::Context,
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
@@ -51,11 +51,6 @@ pub struct Task {
 
 impl Task {
     #[inline]
-    pub fn id(&self) -> TaskId {
-        self.id
-    }
-
-    #[inline]
     pub fn scheduler_state<S: AbstractScheduler>(&self) -> &RefCell<S::State> {
         unsafe {
             &*(&self.scheduler_state as *const RefCell<<Scheduler as AbstractScheduler>::State>
@@ -65,7 +60,7 @@ impl Task {
 
     #[inline]
     pub fn receive_message(from: Option<TaskId>) -> ! {
-        let receiver = Task::current().unwrap();
+        let receiver = Task::current();
         // Search from blocked_senders
         {
             let mut blocked_senders = receiver.blocked_senders.lock();
@@ -95,7 +90,7 @@ impl Task {
     #[inline]
     pub fn send_message(m: Message) -> ! {
         let sender = Task::by_id(m.sender).unwrap();
-        debug_assert!(sender.id() == Task::current().unwrap().id());
+        debug_assert!(sender.id == Task::current().id);
         let receiver = Task::by_id(m.receiver).unwrap();
         // If the receiver is blocked for this sender, copy message & unblock the receiver
         {
@@ -142,8 +137,8 @@ impl Task {
         SCHEDULER.get_task_by_id(id)
     }
 
-    pub fn current() -> Option<&'static Self> {
-        SCHEDULER.get_current_task()
+    pub fn current() -> &'static Self {
+        SCHEDULER.get_current_task().unwrap()
     }
 
     pub fn get_context<C: ArchContext>(&self) -> &C {

@@ -50,7 +50,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
             let name = unsafe { transmute::<_, &&str>(args[1]) };
             register_kernel_scheme(box user::UserScheme::new(
                 name.to_string(),
-                Task::current().unwrap().id(),
+                Task::current().id,
             ));
             Ok(0)
         }
@@ -67,11 +67,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
             let resource = scheme
                 .open(&uri, args[3] as _, unsafe { transmute(args[4]) })
                 .unwrap();
-            Task::current()
-                .unwrap()
-                .resources
-                .lock()
-                .insert(resource, scheme_id);
+            Task::current().resources.lock().insert(resource, scheme_id);
             Ok(unsafe { transmute(resource) })
         }
         SchemeRequest::Close => {
@@ -91,9 +87,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
                 slice::from_raw_parts_mut(buf_ptr, buf_len)
             };
             let schemes = SCHEMES.lock();
-            let scheme = schemes
-                .get(&Task::current().unwrap().resources.lock()[&fd])
-                .unwrap();
+            let scheme = schemes.get(&Task::current().resources.lock()[&fd]).unwrap();
             let r = scheme.read(fd, buf).unwrap();
             Ok(unsafe { transmute(r) })
         }
@@ -105,9 +99,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
                 slice::from_raw_parts(buf_ptr, buf_len)
             };
             let schemes = SCHEMES.lock();
-            let scheme = schemes
-                .get(&Task::current().unwrap().resources.lock()[&fd])
-                .unwrap();
+            let scheme = schemes.get(&Task::current().resources.lock()[&fd]).unwrap();
             scheme.write(fd, buf).unwrap();
             Ok(0)
         }

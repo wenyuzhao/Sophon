@@ -74,7 +74,7 @@ pub trait AbstractScheduler: Sized + 'static {
         assert!(
             **task.scheduler_state::<Self>().borrow() == RunState::Running,
             "{:?} {:?}",
-            task.id(),
+            task.id,
             **task.scheduler_state::<Self>().borrow()
         );
         **task.scheduler_state::<Self>().borrow_mut() = RunState::Receiving;
