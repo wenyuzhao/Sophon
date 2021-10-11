@@ -3,7 +3,10 @@ use crate::{
     syscall::{self, Syscall},
     Message,
 };
-use core::intrinsics::transmute;
+use core::{
+    intrinsics::transmute,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 use core::{slice, str};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -135,6 +138,16 @@ pub trait SchemeServer {
     }
     fn read(&self, fd: Resource, buf: &mut [u8]) -> Result<usize>;
     fn write(&self, fd: Resource, buf: &[u8]) -> Result<()>;
+
+    // Helpers
+    fn allocate_resource_id(&self) -> Resource {
+        allocate_resource()
+    }
+}
+
+fn allocate_resource() -> Resource {
+    static COUNTER: AtomicUsize = AtomicUsize::new(1);
+    Resource(COUNTER.fetch_add(1, Ordering::SeqCst))
 }
 
 pub fn register_user_scheme(scheme: &'static impl SchemeServer) -> ! {

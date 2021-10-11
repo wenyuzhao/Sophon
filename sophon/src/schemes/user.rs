@@ -4,6 +4,7 @@ use crate::{
     memory::{kernel::KERNEL_HEAP, physical::PHYSICAL_MEMORY},
     task::Task,
 };
+use alloc::collections::BTreeMap;
 use alloc::string::String;
 use core::iter::Step;
 use core::{intrinsics::transmute, ops::Range};
@@ -14,15 +15,21 @@ use ipc::{
 };
 use memory::page::{Frame, Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageFlagsExt};
+use spin::Mutex;
 
 pub struct UserScheme {
     name: String,
+    user_fd_map: Mutex<BTreeMap<Resource, Resource>>,
     pub handler: TaskId,
 }
 
 impl UserScheme {
     pub fn new(name: String, handler: TaskId) -> Self {
-        Self { name, handler }
+        Self {
+            name,
+            user_fd_map: Default::default(),
+            handler,
+        }
     }
     // Allocate pages that is mapped in both kernel and handler's address space.
     fn map_handler_pages(&self, num_pages: usize) -> (Range<Page>, Range<Page>) {
@@ -82,13 +89,19 @@ impl SchemeServer for UserScheme {
         if return_code < 0 {
             Err(Error::Other)
         } else {
-            Ok(Resource(return_code as _))
+            let user_resource = Resource(return_code as _);
+            let kernel_resource = self.allocate_resource_id();
+            self.user_fd_map
+                .lock()
+                .insert(kernel_resource, user_resource);
+            Ok(kernel_resource)
         }
     }
     fn close(self, _fd: Resource) -> IoResult<()> {
         unimplemented!()
     }
     fn read(&self, fd: Resource, buf: &mut [u8]) -> IoResult<usize> {
+        let fd = self.user_fd_map.lock()[&fd];
         // Construct new buffer
         let num_pages = (buf.len() + Size4K::MASK) >> Size4K::LOG_BYTES;
         let (kernel_pages, handler_pages) = self.map_handler_pages(num_pages);
@@ -123,6 +136,7 @@ impl SchemeServer for UserScheme {
         }
     }
     fn write(&self, fd: Resource, buf: &[u8]) -> IoResult<()> {
+        let fd = self.user_fd_map.lock()[&fd];
         // Copy buffer
         let num_pages = (buf.len() + Size4K::MASK) >> Size4K::LOG_BYTES;
         let (kernel_pages, handler_pages) = self.map_handler_pages(num_pages);
