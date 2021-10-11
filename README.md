@@ -70,14 +70,14 @@ BTW, it is almost impossible to take care of performance for now...
 - [x] Scheduling/Context switch
 - [x] Syscalls support
 - [x] `Log` syscall (output to *UART*, for user process debugging)
+- [x] Scheme based Inter-Process Communication
+- [ ] Memory map related syscalls (`mmap`, `munmap`)
+- [ ] `ProcessExit` syscall
 - [ ] ~~`Fork` syscall (and handle copy-on-write pages after `fork()`)~~
   - Probably we only some `execve`-like syscalls.
-- [ ] `ProcessExit` syscall
-- [x] Inter Process Communication
-- [ ] Memory map related syscalls (`mmap`, `munmap`)
-- [ ] Multi-core support
 - [x] Simple init-fs
-- [ ] VFS
+- [ ] Process and multi-threading
+- [ ] Multi-core support
 
 ### User Space
 
