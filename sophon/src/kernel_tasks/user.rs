@@ -3,7 +3,7 @@ use crate::arch::*;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::KERNEL_MEMORY_RANGE;
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::task::Task;
+use crate::task::Proc;
 use core::iter::Step;
 use core::ptr;
 use elf_rs::*;
@@ -32,10 +32,11 @@ impl UserTask {
         let index = PageTable::<L4>::get_index(kernel_memory.start);
         debug_assert_eq!(index, PageTable::<L4>::get_index(kernel_memory.end - 1));
         page_table[index] = PageTable::get()[index].clone();
-        Task::current()
-            .unwrap()
-            .context
-            .set_page_table(unsafe { &mut *(page_table as *mut _) });
+        Proc::current().page_table = unsafe { &mut *(page_table as *mut _) };
+        // Task::current()
+        //     .unwrap()
+        //     .context
+        //     .set_page_table(unsafe { &mut *(page_table as *mut _) });
         page_table
     }
 

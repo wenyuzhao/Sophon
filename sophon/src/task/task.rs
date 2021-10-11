@@ -45,6 +45,7 @@ pub struct Task {
     blocked_senders: Mutex<BTreeSet<TaskId>>,
     pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
     virtual_memory_highwater: Atomic<Address<V>>,
+    pub proc: &'static mut Proc,
 }
 
 impl Task {
@@ -120,42 +121,20 @@ impl Task {
         SCHEDULER.block_current_task_as_sending();
     }
 
-    /// Fork a new task.
-    /// This will duplicate the virtual memory
-    // pub fn fork(&self) -> &'static mut Task {
-    //     let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
-    //     // Allocate task struct
-    //     let task = box Task {
-    //         id,
-    //         context: self.context.fork(),
-    //         scheduler_state: self.scheduler_state.clone(),
-    //         block_to_receive_from: Mutex::new(*self.block_to_receive_from.lock()),
-    //         block_to_send: None,
-    //         blocked_senders: Mutex::new(BTreeSet::new()),
-    //     };
-    //     GLOBAL_TASK_SCHEDULER.register_new_task(task)
-    // }
-    /// Create a init task with empty p4 table
-    pub fn create_kernel_task(t: Box<dyn KernelTask>) -> &'static mut Self {
-        let t = box t;
-        // Assign an id
+    pub(super) fn create(proc: &'static mut Proc, t: Box<dyn KernelTask>) -> Box<Self> {
+        let t = Box::into_raw(box t);
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
-        // Alloc task struct
-        let task = box Task {
+        box Task {
             id,
-            context: <TargetArch as Arch>::Context::new(
-                entry as _,
-                Box::into_raw(t) as usize as *mut (),
-            ),
+            context: <TargetArch as Arch>::Context::new(entry as _, t as *mut ()),
             scheduler_state: RefCell::new(Default::default()),
             block_to_receive_from: Mutex::new(None),
             block_to_send: None,
             blocked_senders: Mutex::new(BTreeSet::new()),
             resources: Mutex::new(BTreeMap::new()),
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
-        };
-        // Add this task to the scheduler
-        SCHEDULER.register_new_task(task)
+            proc,
+        }
     }
 
     pub fn by_id(id: TaskId) -> Option<&'static mut Self> {
@@ -187,7 +166,7 @@ impl Task {
                 debug_assert_eq!(old_top, start.start());
                 // Map old_top .. end
                 {
-                    let page_table = self.context.get_page_table();
+                    let page_table = self.proc.page_table();
                     let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
                     for page in start..end {
                         let frame = PHYSICAL_MEMORY.acquire().unwrap();

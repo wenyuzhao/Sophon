@@ -42,7 +42,7 @@ use crate::kernel_tasks::Idle;
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
-use crate::task::Task;
+use crate::task::Proc;
 use alloc::vec;
 use boot::BootInfo;
 use fdt::Fdt;
@@ -109,16 +109,16 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     InitFS::deserialize(boot_info.init_fs);
     log!("[kernel: initfs initialized]");
 
-    let task = Task::create_kernel_task(box Idle);
-    log!("[kernel: created kernel process: {:?}]", task.id());
+    let proc = Proc::spawn(box Idle);
+    log!("[kernel: created kernel process: {:?}]", proc.id());
 
     let program = InitFS::get().get_file("/scheme_test");
-    let task = Task::create_kernel_task(box UserTask::new(program));
-    log!("[kernel: created scheme_test process: {:?}]", task.id());
+    let proc = Proc::spawn(box UserTask::new(program));
+    log!("[kernel: created scheme_test process: {:?}]", proc.id());
 
     let program = InitFS::get().get_file("/init");
-    let task = Task::create_kernel_task(box UserTask::new(program));
-    log!("[kernel: created init process: {:?}]", task.id());
+    let proc = Proc::spawn(box UserTask::new(program));
+    log!("[kernel: created init process: {:?}]", proc.id());
 
     TargetArch::interrupt().start_timer();
     log!("[kernel: timer started]");

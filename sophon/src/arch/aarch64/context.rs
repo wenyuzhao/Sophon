@@ -1,7 +1,7 @@
 use super::exception::ExceptionFrame;
 use crate::memory::kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER};
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
-use crate::task::Message;
+use crate::task::{Message, Proc};
 use crate::{arch::*, memory::physical::*};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -9,7 +9,7 @@ use core::iter::Step;
 use core::ops::Range;
 use core::ptr;
 use cortex_a::registers::*;
-use memory::address::{Address, P, V};
+use memory::address::{Address, V};
 use memory::page::*;
 use memory::page_table::*;
 use tock_registers::interfaces::Readable;
@@ -93,7 +93,6 @@ pub struct AArch64Context {
     entry_pc: *mut u8, // x30
 
     // q: [u128; 32], // Neon registers
-    pub p4: Address<P>,
     kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
     response_message: Option<Message>,
@@ -116,7 +115,6 @@ impl ArchContext for AArch64Context {
         Self {
             exception_frames: vec![],
             entry_pc: ptr::null_mut(),
-            p4: Address::ZERO,
             kernel_stack: None,
             kernel_stack_top: ptr::null_mut(),
             response_message: None,
@@ -133,18 +131,9 @@ impl ArchContext for AArch64Context {
         let mut ctx = Self::empty();
         ctx.entry_pc = entry as _;
         ctx.kernel_stack_top = sp;
-        ctx.p4 = PageTable::get().into();
         ctx.kernel_stack = Some(kernel_stack);
         ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
         ctx
-    }
-
-    fn get_page_table(&self) -> &'static mut PageTable {
-        unsafe { self.p4.as_mut() }
-    }
-
-    fn set_page_table(&mut self, page_table: &'static mut PageTable) {
-        self.p4 = page_table.into();
     }
 
     fn set_response_message(&mut self, m: Message) {
@@ -158,13 +147,14 @@ impl ArchContext for AArch64Context {
     unsafe extern "C" fn return_to_user(&mut self) -> ! {
         assert!(!interrupt::is_enabled());
         // Switch page table
-        if self.p4.as_usize() as u64 != TTBR0_EL1.get() {
+        let p4 = Proc::current().page_table();
+        if p4 as *mut _ as u64 != TTBR0_EL1.get() {
             log!(
                 "Switch page table {:?} -> {:?}",
                 TTBR0_EL1.get() as *mut u8,
-                self.p4
+                p4 as *mut _
             );
-            TargetArch::set_current_page_table(Frame::new(self.p4));
+            TargetArch::set_current_page_table(Frame::new(p4.into()));
         }
 
         let exception_frame = self.pop_exception_frame().unwrap_or_else(|| {

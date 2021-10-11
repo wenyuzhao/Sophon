@@ -57,17 +57,16 @@ impl AbstractScheduler for RoundRobinScheduler {
     type State = State;
 
     fn register_new_task(&self, task: Box<Task>) -> &'static mut Task {
-        Self::uninterruptable(|| {
-            let id = task.id();
-            let task_ref: &'static mut Task =
-                unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
-            self.tasks.lock().insert(id, task);
-            if task_ref.scheduler_state::<Self>().borrow().run_state == RunState::Ready {
-                debug_assert!(!interrupt::is_enabled());
-                self.task_queue.lock().push_back(id);
-            }
-            task_ref
-        })
+        let _guard = interrupt::uninterruptable();
+        let id = task.id();
+        let task_ref: &'static mut Task =
+            unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
+        self.tasks.lock().insert(id, task);
+        if task_ref.scheduler_state::<Self>().borrow().run_state == RunState::Ready {
+            debug_assert!(!interrupt::is_enabled());
+            self.task_queue.lock().push_back(id);
+        }
+        task_ref
     }
 
     fn remove_task(&self, id: TaskId) {
@@ -81,13 +80,12 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     fn get_task_by_id(&self, id: TaskId) -> Option<&'static mut Task> {
-        Self::uninterruptable(|| {
-            let tasks = self.tasks.lock();
-            let task = tasks.get(&id)?;
-            let task_ref: &'static mut Task =
-                unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
-            Some(task_ref)
-        })
+        let _guard = interrupt::uninterruptable();
+        let tasks = self.tasks.lock();
+        let task = tasks.get(&id)?;
+        let task_ref: &'static mut Task =
+            unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
+        Some(task_ref)
     }
 
     fn get_current_task_id(&self) -> Option<TaskId> {
@@ -96,7 +94,8 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     fn get_current_task(&self) -> Option<&'static mut Task> {
-        Self::uninterruptable(|| self.get_task_by_id(self.get_current_task_id()?))
+        let _guard = interrupt::uninterruptable();
+        self.get_task_by_id(self.get_current_task_id()?)
     }
 
     fn mark_task_as_ready(&self, task: &'static mut Task) {

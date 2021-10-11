@@ -41,59 +41,48 @@ pub trait AbstractScheduler: Sized + 'static {
     fn mark_task_as_ready(&self, t: &'static mut Task);
 
     fn unblock_sending_task(&self, id: TaskId, status: isize) {
-        Self::uninterruptable(|| {
-            let task = self.get_task_by_id(id).unwrap();
-            assert!(**task.scheduler_state::<Self>().borrow() == RunState::Sending);
-            // Set response
-            task.context.set_response_status(status);
-            // Add this task to ready queue
-            self.mark_task_as_ready(task)
-        })
+        let _guard = interrupt::uninterruptable();
+        let task = self.get_task_by_id(id).unwrap();
+        assert!(**task.scheduler_state::<Self>().borrow() == RunState::Sending);
+        // Set response
+        task.context.set_response_status(status);
+        // Add this task to ready queue
+        self.mark_task_as_ready(task)
     }
 
     fn unblock_receiving_task(&self, id: TaskId, status: isize, m: Message) {
-        Self::uninterruptable(|| {
-            let task = self.get_task_by_id(id).unwrap();
-            assert!(**task.scheduler_state::<Self>().borrow() == RunState::Receiving);
-            // Set response
-            task.context.set_response_message(m);
-            task.context.set_response_status(status);
-            // Add this task to ready queue
-            self.mark_task_as_ready(task)
-        })
+        let task = self.get_task_by_id(id).unwrap();
+        assert!(**task.scheduler_state::<Self>().borrow() == RunState::Receiving);
+        // Set response
+        task.context.set_response_message(m);
+        task.context.set_response_status(status);
+        // Add this task to ready queue
+        self.mark_task_as_ready(task)
     }
 
     fn block_current_task_as_sending(&self) -> ! {
-        Self::uninterruptable(|| {
-            let task = self.get_current_task().unwrap();
-            assert!(**task.scheduler_state::<Self>().borrow() == RunState::Running);
-            **task.scheduler_state::<Self>().borrow_mut() = RunState::Sending;
-            self.schedule();
-        })
+        let _guard = interrupt::uninterruptable();
+        let task = self.get_current_task().unwrap();
+        assert!(**task.scheduler_state::<Self>().borrow() == RunState::Running);
+        **task.scheduler_state::<Self>().borrow_mut() = RunState::Sending;
+        self.schedule();
     }
 
     fn block_current_task_as_receiving(&self) -> ! {
-        Self::uninterruptable(|| {
-            let task = self.get_current_task().unwrap();
-            assert!(
-                **task.scheduler_state::<Self>().borrow() == RunState::Running,
-                "{:?} {:?}",
-                task.id(),
-                **task.scheduler_state::<Self>().borrow()
-            );
-            **task.scheduler_state::<Self>().borrow_mut() = RunState::Receiving;
-            self.schedule();
-        })
+        let _guard = interrupt::uninterruptable();
+        let task = self.get_current_task().unwrap();
+        assert!(
+            **task.scheduler_state::<Self>().borrow() == RunState::Running,
+            "{:?} {:?}",
+            task.id(),
+            **task.scheduler_state::<Self>().borrow()
+        );
+        **task.scheduler_state::<Self>().borrow_mut() = RunState::Receiving;
+        self.schedule();
     }
 
     fn schedule(&self) -> !;
     fn timer_tick(&self);
-
-    #[inline]
-    fn uninterruptable<R, F: FnOnce() -> R>(f: F) -> R {
-        let _guard = interrupt::uninterruptable();
-        f()
-    }
 }
 
 pub type Scheduler = impl AbstractScheduler;
