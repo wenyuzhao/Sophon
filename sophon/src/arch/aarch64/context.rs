@@ -147,7 +147,7 @@ impl ArchContext for AArch64Context {
     unsafe extern "C" fn return_to_user(&mut self) -> ! {
         assert!(!interrupt::is_enabled());
         // Switch page table
-        let p4 = Proc::current().page_table();
+        let p4 = Proc::current().get_page_table();
         if p4 as *mut _ as u64 != TTBR0_EL1.get() {
             log!(
                 "Switch page table {:?} -> {:?}",

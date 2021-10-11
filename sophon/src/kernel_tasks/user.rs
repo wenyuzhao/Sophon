@@ -32,11 +32,7 @@ impl UserTask {
         let index = PageTable::<L4>::get_index(kernel_memory.start);
         debug_assert_eq!(index, PageTable::<L4>::get_index(kernel_memory.end - 1));
         page_table[index] = PageTable::get()[index].clone();
-        Proc::current().page_table = unsafe { &mut *(page_table as *mut _) };
-        // Task::current()
-        //     .unwrap()
-        //     .context
-        //     .set_page_table(unsafe { &mut *(page_table as *mut _) });
+        Proc::current().set_page_table(unsafe { &mut *(page_table as *mut _) });
         page_table
     }
 

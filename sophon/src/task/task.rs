@@ -45,7 +45,7 @@ pub struct Task {
     blocked_senders: Mutex<BTreeSet<TaskId>>,
     pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
     virtual_memory_highwater: Atomic<Address<V>>,
-    pub proc: &'static mut Proc,
+    pub proc: &'static Proc,
 }
 
 impl Task {
@@ -166,7 +166,7 @@ impl Task {
                 debug_assert_eq!(old_top, start.start());
                 // Map old_top .. end
                 {
-                    let page_table = self.proc.page_table();
+                    let page_table = self.proc.get_page_table();
                     let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
                     for page in start..end {
                         let frame = PHYSICAL_MEMORY.acquire().unwrap();
