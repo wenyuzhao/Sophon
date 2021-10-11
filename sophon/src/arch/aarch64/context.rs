@@ -3,8 +3,11 @@ use crate::memory::kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER};
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::task::Message;
 use crate::{arch::*, memory::physical::*};
+use alloc::vec;
+use alloc::vec::Vec;
 use core::iter::Step;
 use core::ops::Range;
+use core::ptr;
 use cortex_a::registers::*;
 use memory::address::{Address, P, V};
 use memory::page::*;
@@ -73,7 +76,7 @@ impl Drop for KernelStack {
 #[allow(improper_ctypes)]
 #[repr(C)]
 pub struct AArch64Context {
-    pub exception_frame: *mut ExceptionFrame,
+    exception_frames: Vec<*mut ExceptionFrame>,
     // sp: *mut u8,
     // x19_to_x29: [usize; 11],
     // x19: usize,
@@ -97,9 +100,28 @@ pub struct AArch64Context {
     response_status: Option<isize>,
 }
 
+impl AArch64Context {
+    pub fn push_exception_frame(&mut self, exception_frame: *mut ExceptionFrame) {
+        let _guard = interrupt::uninterruptable();
+        self.exception_frames.push(exception_frame)
+    }
+    fn pop_exception_frame(&mut self) -> Option<*mut ExceptionFrame> {
+        let _guard = interrupt::uninterruptable();
+        self.exception_frames.pop()
+    }
+}
+
 impl ArchContext for AArch64Context {
     fn empty() -> Self {
-        unsafe { ::core::mem::zeroed() }
+        Self {
+            exception_frames: vec![],
+            entry_pc: ptr::null_mut(),
+            p4: Address::ZERO,
+            kernel_stack: None,
+            kernel_stack_top: ptr::null_mut(),
+            response_message: None,
+            response_status: None,
+        }
     }
 
     /// Create a new context with empty regs, given kernel stack,
@@ -145,21 +167,13 @@ impl ArchContext for AArch64Context {
             TargetArch::set_current_page_table(Frame::new(self.p4));
         }
 
-        let exception_frame = {
-            if self.exception_frame.is_null() {
-                let mut frame: *mut ExceptionFrame = (self.kernel_stack_top as usize
-                    - ::core::mem::size_of::<ExceptionFrame>())
-                    as _;
-                (*frame).elr_el1 = self.entry_pc as _;
-                (*frame).spsr_el1 = 0b0101;
-                frame
-            } else {
-                let p = self.exception_frame;
-                debug_assert!(p as usize != 0);
-                self.exception_frame = 0usize as _;
-                p
-            }
-        };
+        let exception_frame = self.pop_exception_frame().unwrap_or_else(|| {
+            let mut frame: *mut ExceptionFrame =
+                (self.kernel_stack_top as usize - ::core::mem::size_of::<ExceptionFrame>()) as _;
+            (*frame).elr_el1 = self.entry_pc as _;
+            (*frame).spsr_el1 = 0b0101;
+            frame
+        });
         if let Some(msg) = self.response_message.take() {
             let slot = Address::<V>::from((*exception_frame).x2 as *mut Message);
             ::core::ptr::write(slot.as_mut_ptr(), msg);

@@ -178,7 +178,7 @@ impl Task {
                     let old_aligned = old.align_up(Size4K::BYTES);
                     Some(old_aligned + (num_pages << Size4K::LOG_BYTES))
                 });
-        log!("brk: {:?}", result);
+        log!("brk: {:?} {:?}", self.id, result);
         match result {
             Ok(a) => {
                 let old_top = a;

@@ -29,7 +29,7 @@ impl SchemeServer for ExampleUserSchemeServer {
         unimplemented!()
     }
     fn read(&self, _fd: Resource, buf: &mut [u8]) -> IoResult<usize> {
-        let msg = "UserSchemeServer".as_bytes();
+        let msg = "scheme-test says: hello".as_bytes();
         let mut cursor = 0;
         for b in msg {
             if cursor >= buf.len() {

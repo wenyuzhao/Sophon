@@ -84,14 +84,15 @@ impl Resource {
     }
 
     #[inline]
-    pub fn read(&self, mut buf: &mut [u8]) -> Result<usize> {
+    pub fn read(&self, buf: &mut [u8]) -> Result<usize> {
         let r = unsafe {
             syscall::syscall(
                 Syscall::SchemeRequest,
                 &[
                     transmute(SchemeRequest::Read),
                     transmute(*self),
-                    transmute(&mut buf),
+                    transmute(buf.as_mut_ptr()),
+                    transmute(buf.len()),
                 ],
             )
         };
@@ -179,7 +180,11 @@ fn handle_user_scheme_request(scheme: &'static impl SchemeServer, args: &[usize;
         }
         SchemeRequest::Read => {
             let fd = unsafe { transmute::<_, Resource>(args[1]) };
-            let buf = unsafe { transmute::<_, &mut &mut [u8]>(args[2]) };
+            let buf = unsafe {
+                let data = transmute::<_, *mut u8>(args[2]);
+                let len = transmute::<_, usize>(args[3]);
+                slice::from_raw_parts_mut(data, len)
+            };
             let r = scheme.read(fd, buf).unwrap();
             unsafe { transmute(r) }
         }

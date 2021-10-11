@@ -44,7 +44,7 @@ pub fn register_kernel_schemes() {
 }
 
 pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
-    log!("handle_scheme_request");
+    log!("> handle_scheme_request");
     match unsafe { transmute::<_, SchemeRequest>(args[0]) } {
         SchemeRequest::Register => {
             let name = unsafe { transmute::<_, &&str>(args[1]) };
@@ -55,19 +55,12 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
             Ok(0)
         }
         SchemeRequest::Open => {
-            log!("Handle SchemeRequest::Open");
             let uri = unsafe {
                 let uri_ptr = transmute::<_, *const u8>(args[1]);
                 let uri_len = transmute::<_, usize>(args[2]);
-                log!(
-                    "Handle SchemeRequest::Open uri: {:?} {:?}",
-                    uri_ptr,
-                    uri_len
-                );
                 let uri_str = str::from_utf8_unchecked(slice::from_raw_parts(uri_ptr, uri_len));
                 Uri::new(uri_str).unwrap()
             };
-            log!("Handle SchemeRequest::Open uri: {:?}", uri);
             let scheme_id = SchemeId::from_name(uri.scheme).unwrap();
             let schemes = SCHEMES.lock();
             let scheme = schemes.get(&scheme_id).unwrap();
@@ -79,7 +72,6 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
                 .resources
                 .lock()
                 .insert(resource, scheme_id);
-            log!("Handle SchemeRequest::Open Done");
             Ok(unsafe { transmute(resource) })
         }
         SchemeRequest::Close => {
@@ -93,7 +85,11 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
         }
         SchemeRequest::Read => {
             let fd = unsafe { transmute::<_, Resource>(args[1]) };
-            let buf = unsafe { transmute::<_, &mut &mut [u8]>(args[2]) };
+            let buf = unsafe {
+                let buf_ptr = transmute::<_, *mut u8>(args[2]);
+                let buf_len = transmute::<_, usize>(args[3]);
+                slice::from_raw_parts_mut(buf_ptr, buf_len)
+            };
             let schemes = SCHEMES.lock();
             let scheme = schemes
                 .get(&Task::current().unwrap().resources.lock()[&fd])

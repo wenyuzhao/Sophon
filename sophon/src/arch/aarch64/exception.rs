@@ -60,7 +60,10 @@ unsafe fn get_exception_class() -> ExceptionClass {
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
     // log!("Exception received");
-    Task::current().map(|t| t.get_context::<AArch64Context>().exception_frame = exception_frame);
+    Task::current()
+        .unwrap()
+        .get_context::<AArch64Context>()
+        .push_exception_frame(exception_frame);
     let exception = get_exception_class();
     match exception {
         ExceptionClass::SVCAArch64 => {
@@ -132,7 +135,7 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     Task::current()
         .unwrap()
         .get_context::<AArch64Context>()
-        .exception_frame = exception_frame;
+        .push_exception_frame(exception_frame);
     let irq = TargetArch::interrupt().get_active_irq();
     log!("IRQ {}", irq);
     TargetArch::interrupt().notify_end_of_interrupt();
@@ -158,7 +161,6 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
 
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     unsafe {
-        // debug!(Kernel: "return_to_use00");
         Task::current().unwrap().context.return_to_user();
     }
 }

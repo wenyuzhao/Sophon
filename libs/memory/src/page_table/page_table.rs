@@ -157,6 +157,7 @@ impl PageTable<L4> {
             return Some(table[index].address() + (a.as_usize() & Page::<Size2M>::MASK));
         }
         // P1
+        let table = table.get_next_table(index).unwrap();
         let index = PageTable::<L1>::get_index(a);
         if table[index].is_empty() {
             return None;

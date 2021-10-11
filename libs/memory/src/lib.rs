@@ -13,6 +13,7 @@
 #![feature(format_args_nl)]
 #![no_std]
 
+#[allow(unused)]
 #[macro_use]
 extern crate log;
 

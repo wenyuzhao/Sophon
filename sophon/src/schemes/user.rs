@@ -1,6 +1,3 @@
-use core::iter::Step;
-use core::{intrinsics::transmute, ops::Range};
-
 use crate::arch::ArchContext;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::{
@@ -8,6 +5,9 @@ use crate::{
     task::Task,
 };
 use alloc::string::String;
+use core::iter::Step;
+use core::{intrinsics::transmute, ops::Range};
+use core::{ptr, slice, str};
 use ipc::{
     scheme::{Error, Mode, Resource, Result as IoResult, SchemeRequest, SchemeServer, Uri},
     Message, TaskId,
@@ -54,24 +54,18 @@ impl SchemeServer for UserScheme {
     }
     fn open(&self, uri: &Uri, flags: u32, mode: Mode) -> IoResult<Resource> {
         // Copy uri string
-        log!("UserScheme Open Start {:?}", uri);
         let s = uri.raw.as_bytes();
         let len = s.len();
         let num_pages = (s.len() + Size4K::MASK) >> Size4K::LOG_BYTES;
-        log!("num_pages={}", num_pages);
         let (kernel_pages, handler_pages) = self.map_handler_pages(num_pages);
-        log!("{:?} {:?}", kernel_pages, handler_pages);
-        let kernel_buf: &mut [u8] = unsafe {
-            core::slice::from_raw_parts_mut(kernel_pages.start.start().as_mut_ptr(), len)
-        };
+        let kernel_buf: &mut [u8] =
+            unsafe { slice::from_raw_parts_mut(kernel_pages.start.start().as_mut_ptr(), len) };
         unsafe {
-            core::ptr::copy_nonoverlapping::<u8>(s.as_ptr(), kernel_buf.as_mut_ptr(), len);
+            ptr::copy_nonoverlapping::<u8>(s.as_ptr(), kernel_buf.as_mut_ptr(), len);
         }
-        let handler_buf: &mut [u8] = unsafe {
-            core::slice::from_raw_parts_mut(handler_pages.start.start().as_mut_ptr(), len)
-        };
+        let handler_buf: &mut [u8] =
+            unsafe { slice::from_raw_parts_mut(handler_pages.start.start().as_mut_ptr(), len) };
         // Call handler
-        log!("UserScheme Open Call");
         unsafe {
             Message::new(TaskId::NULL, self.handler)
                 .with_data::<[usize; 5]>([
@@ -83,9 +77,7 @@ impl SchemeServer for UserScheme {
                 ])
                 .send();
         }
-        log!("UserScheme Open start receive response");
         let result = ipc::syscall::receive(Some(self.handler));
-        log!("UserScheme Open get data");
         let return_code = *result.get_data::<isize>();
         if return_code < 0 {
             Err(Error::Other)
@@ -103,16 +95,16 @@ impl SchemeServer for UserScheme {
         // Construct new buffer
         let handler_buf_start = handler_pages.start.start();
         let len = buf.len();
-        let mut handler_buf: &mut [u8] =
-            unsafe { core::slice::from_raw_parts_mut(handler_buf_start.as_mut_ptr(), len) };
+        let handler_buf: &mut [u8] =
+            unsafe { slice::from_raw_parts_mut(handler_buf_start.as_mut_ptr(), len) };
         // Call handler
         unsafe {
             Message::new(TaskId::NULL, self.handler)
                 .with_data::<[usize; 5]>([
                     transmute(SchemeRequest::Read),
                     transmute(fd),
-                    transmute(&mut handler_buf),
-                    0,
+                    transmute(handler_buf.as_mut_ptr()),
+                    transmute(len),
                     0,
                 ])
                 .send();

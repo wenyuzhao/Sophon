@@ -24,16 +24,13 @@ pub trait ArchInterruptController {
 
     fn notify_end_of_interrupt(&self);
 
-    fn handle(&self, id: InterruptId, args: &[usize]) -> usize {
+    fn handle(&self, id: InterruptId, args: &[usize]) -> isize {
         let mut x = [0usize; 6];
         for i in 0..args.len() {
             x[i] = args[i];
         }
         if let Some(handler) = unsafe { &INTERRUPT_HANDLERS[id as usize] } {
-            handler(x[0], x[1], x[2], x[3], x[4], x[5]);
-            0
-            // result
-            // exception_frame.x0 = unsafe { ::core::mem::transmute(result) };
+            handler(x[0], x[1], x[2], x[3], x[4], x[5])
         } else {
             log!("Interrupt<{:?}> has no handler!", id);
             0
