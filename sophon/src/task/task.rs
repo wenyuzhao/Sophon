@@ -171,14 +171,14 @@ impl Task {
         unsafe { &mut *(ptr as *mut C) }
     }
 
-    pub fn brk(&self, num_pages: usize) -> Option<Range<Page<Size4K>>> {
+    pub fn sbrk(&self, num_pages: usize) -> Option<Range<Page<Size4K>>> {
         let result =
             self.virtual_memory_highwater
                 .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |old| {
                     let old_aligned = old.align_up(Size4K::BYTES);
                     Some(old_aligned + (num_pages << Size4K::LOG_BYTES))
                 });
-        log!("brk: {:?} {:?}", self.id, result);
+        log!("sbrk: {:?} {:?}", self.id, result);
         match result {
             Ok(a) => {
                 let old_top = a;

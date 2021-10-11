@@ -27,7 +27,7 @@ impl UserScheme {
     // Allocate pages that is mapped in both kernel and handler's address space.
     fn map_handler_pages(&self, num_pages: usize) -> (Range<Page>, Range<Page>) {
         let handler = Task::by_id(self.handler).unwrap();
-        let handler_pages = handler.brk(num_pages).unwrap();
+        let handler_pages = handler.sbrk(num_pages).unwrap();
         let kernel_pages = KERNEL_HEAP.virtual_allocate::<Size4K>(num_pages);
         let handler_page_table = handler.context.get_page_table();
         let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
