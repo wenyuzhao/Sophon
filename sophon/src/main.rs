@@ -14,6 +14,7 @@
 #![feature(const_fn_trait_bound)]
 #![feature(const_btree_new)]
 #![feature(alloc_error_handler)]
+#![feature(const_evaluatable_checked)]
 #![no_std]
 #![no_main]
 

@@ -1,6 +1,6 @@
 use core::intrinsics::{volatile_load, volatile_store};
 use core::mem;
-use core::ops::{Deref, DerefMut, Range};
+use core::ops::{Deref, DerefMut};
 
 #[repr(transparent)]
 pub struct Volatile<T: Copy>(T);
@@ -43,10 +43,10 @@ impl<T: Copy, const N: usize> VolatileArray<T, N> {
     }
 }
 
-pub type VolatileArrayForRange<T, const RANGE: Range<usize>> =
-    VolatileArray<T, { (RANGE.end - RANGE.start) / mem::size_of::<T>() }>;
+pub type VolatileArrayForRange<T, const START: usize, const END: usize> =
+    VolatileArray<T, { (END - START) / mem::size_of::<T>() }>;
 
-pub type PaddingForRange<const RANGE: Range<usize>> = [u8; RANGE.end - RANGE.start];
+pub type PaddingForRange<const START: usize, const END: usize> = [u8; END - START];
 
 pub type PaddingForBytes<const N: usize> = [u8; N];
 

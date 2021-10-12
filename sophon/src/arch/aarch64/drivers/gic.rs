@@ -19,27 +19,27 @@ pub const IRQ_LINES: usize = 256;
 #[allow(non_snake_case)]
 pub struct GICD {
     pub CTLR: Volatile<u32>,
-    _0: PaddingForRange<{ 0x0004..0x0080 }>,
-    pub IGROUPR: VolatileArrayForRange<u32, { 0x0080..0x00FC }>,
-    _1: PaddingForRange<{ 0x00FC..0x0100 }>,
-    pub ISENABLER: VolatileArrayForRange<u32, { 0x0100..0x017C }>,
-    _2: PaddingForRange<{ 0x017C..0x0180 }>,
-    pub ICENABLER: VolatileArrayForRange<u32, { 0x0180..0x01FC }>,
-    _3: PaddingForRange<{ 0x01FC..0x0200 }>,
-    pub ISPENDR: VolatileArrayForRange<u32, { 0x0200..0x027C }>,
-    _4: PaddingForRange<{ 0x027C..0x0280 }>,
-    pub ICPENDR: VolatileArrayForRange<u32, { 0x0280..0x02FC }>,
-    _5: PaddingForRange<{ 0x02FC..0x0300 }>,
-    pub ISACTIVER: VolatileArrayForRange<u32, { 0x0300..0x037C }>,
-    _6: PaddingForRange<{ 0x037C..0x0380 }>,
-    pub ICACTIVER: VolatileArrayForRange<u32, { 0x0380..0x03FC }>,
-    _7: PaddingForRange<{ 0x03FC..0x0400 }>,
-    pub IPRIORITYR: VolatileArrayForRange<u32, { 0x0400..0x07E0 }>,
-    _8: PaddingForRange<{ 0x07E0..0x0800 }>,
-    pub ITARGETSR: VolatileArrayForRange<u32, { 0x0800..0x0BE0 }>,
-    _9: PaddingForRange<{ 0x0BE0..0x0C00 }>,
-    pub ICFGR: VolatileArrayForRange<u32, { 0x0C00..0x0CF8 }>,
-    _10: PaddingForRange<{ 0x0CF8..0x0F00 }>,
+    _0: PaddingForRange<0x0004, 0x0080>,
+    pub IGROUPR: VolatileArrayForRange<u32, 0x0080, 0x00FC>,
+    _1: PaddingForRange<0x00FC, 0x0100>,
+    pub ISENABLER: VolatileArrayForRange<u32, 0x0100, 0x017C>,
+    _2: PaddingForRange<0x017C, 0x0180>,
+    pub ICENABLER: VolatileArrayForRange<u32, 0x0180, 0x01FC>,
+    _3: PaddingForRange<0x01FC, 0x0200>,
+    pub ISPENDR: VolatileArrayForRange<u32, 0x0200, 0x027C>,
+    _4: PaddingForRange<0x027C, 0x0280>,
+    pub ICPENDR: VolatileArrayForRange<u32, 0x0280, 0x02FC>,
+    _5: PaddingForRange<0x02FC, 0x0300>,
+    pub ISACTIVER: VolatileArrayForRange<u32, 0x0300, 0x037C>,
+    _6: PaddingForRange<0x037C, 0x0380>,
+    pub ICACTIVER: VolatileArrayForRange<u32, 0x0380, 0x03FC>,
+    _7: PaddingForRange<0x03FC, 0x0400>,
+    pub IPRIORITYR: VolatileArrayForRange<u32, 0x0400, 0x07E0>,
+    _8: PaddingForRange<0x07E0, 0x0800>,
+    pub ITARGETSR: VolatileArrayForRange<u32, 0x0800, 0x0BE0>,
+    _9: PaddingForRange<0x0BE0, 0x0C00>,
+    pub ICFGR: VolatileArrayForRange<u32, 0x0C00, 0x0CF8>,
+    _10: PaddingForRange<0x0CF8, 0x0F00>,
     pub SGIR: Volatile<u32>, /* 0x0F00 */
 }
 
@@ -64,7 +64,7 @@ impl GICD {
 pub struct GICC {
     pub CTLR: Volatile<u32>, // 0x000
     pub PMR: Volatile<u32>,  // 0x004;
-    _0: PaddingForRange<{ 0x0008..0x00C }>,
+    _0: PaddingForRange<0x0008, 0x00C>,
     pub IAR: Volatile<u32>,  // 0x00C
     pub EOIR: Volatile<u32>, // 0x010
 }

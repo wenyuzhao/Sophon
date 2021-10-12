@@ -11,8 +11,10 @@ pub const KERNEL_HEAP_RANGE: Range<Address> =
 pub const KERNEL_STACK_PAGES: usize = 8;
 pub const KERNEL_STACK_SIZE: usize = KERNEL_STACK_PAGES << Size4K::LOG_BYTES;
 
+mod free_list_allocator;
 mod heap;
 mod mapper;
+mod virtual_page_allocator;
 
 pub use heap::{KernelHeapAllocator, KERNEL_HEAP};
 pub use mapper::KERNEL_MEMORY_MAPPER;
