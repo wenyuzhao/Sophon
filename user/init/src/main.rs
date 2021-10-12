@@ -23,7 +23,7 @@ pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     loop {
         let len = resource.read(&mut data).unwrap();
         log!(
-            "system:test read -> {:?}",
+            "[init] read from scheme-test -> {:?}",
             core::str::from_utf8(&data[..len])
         );
         resource.write("hello, world").unwrap();
