@@ -51,14 +51,23 @@ pub fn _print(args: fmt::Arguments) {
 
 #[macro_export]
 macro_rules! log {
-    (noeol: $($arg:tt)*) => ({
-        if $crate::IS_ENABLED {
-            $crate::_print(format_args!($($arg)*))
-        }
-    });
     ($($arg:tt)*) => ({
         if $crate::IS_ENABLED {
             $crate::_print(format_args_nl!($($arg)*))
         }
+    });
+}
+
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ({
+        $crate::_print(format_args!($($arg)*))
+    });
+}
+
+#[macro_export]
+macro_rules! println {
+    ($($arg:tt)*) => ({
+        $crate::_print(format_args_nl!($($arg)*))
     });
 }

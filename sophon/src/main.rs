@@ -72,7 +72,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
         utils::boot_log::init(uart);
     }
-    log!("SOPHON");
+    println!("[ Hello, Sophon! ]");
     log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
         *(boot_info as *const _ as *const usize)
     });

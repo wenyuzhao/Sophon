@@ -6,6 +6,8 @@
 #![feature(step_trait)]
 
 extern crate alloc;
+#[macro_use]
+extern crate log;
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -24,8 +26,9 @@ use uefi::proto::media::file::*;
 use uefi::Guid;
 use uefi::{prelude::*, table::boot::*};
 
-#[macro_use]
-mod log;
+use crate::uefi_logger::UEFILogger;
+
+mod uefi_logger;
 
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 static mut IMAGE: Option<Handle> = None;
@@ -507,6 +510,7 @@ pub unsafe extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Statu
     uefi_services::init(&st).expect_success("Failed to initialize utilities");
     BOOT_SYSTEM_TABLE = Some(st.unsafe_clone());
     IMAGE = Some(image);
+    UEFILogger::init();
     log!("Hello, UEFI!");
     log!("CurrentEL {:?}", CurrentEL.get() >> 2);
 

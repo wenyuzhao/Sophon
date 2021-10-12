@@ -17,4 +17,5 @@ uefi-services = "0.8.0"
 elf_rs = "0.1.1"
 memory = { path = "../../libs/memory" }
 boot = { path = "../../libs/boot" }
+log = { path = "../../libs/log" }
 fdt = "0.1.3"
