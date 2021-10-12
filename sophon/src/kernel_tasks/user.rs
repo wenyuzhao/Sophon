@@ -41,7 +41,7 @@ impl UserTask {
         for i in 0..USER_STACK_PAGES {
             let page = Step::forward(Page::<Size4K>::new(USER_STACK_START), i);
             let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
-            let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+            let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
             page_table.map(page, frame, PageFlags::user_stack_flags(), &PHYSICAL_MEMORY);
         }
     }
@@ -98,7 +98,7 @@ impl UserTask {
             for i in 0..pages {
                 let page = Step::forward(start_page, i);
                 let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
-                let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+                let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
                 page_table.map(
                     page,
                     frame,

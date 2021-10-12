@@ -12,7 +12,7 @@ pub trait BootDriver {
     fn init(&mut self, node: &FdtNode, parent: Option<&FdtNode>);
     fn map_device_page(frame: Frame) -> Page {
         let page = KERNEL_HEAP.virtual_allocate::<Size4K>(1).start;
-        KERNEL_MEMORY_MAPPER.map_fixed(page, frame, PageFlags::device());
+        KERNEL_MEMORY_MAPPER.map(page, frame, PageFlags::device());
         page
     }
     fn translate_address(a: Address<P>, node: &FdtNode) -> Address<P> {

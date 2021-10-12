@@ -191,7 +191,7 @@ impl FreeListAllocator {
                 for i in 0..pages {
                     let v = Page::forward(vs.start, i);
                     let p = PHYSICAL_MEMORY.acquire::<Size2M>().unwrap();
-                    KERNEL_MEMORY_MAPPER.map_fixed(v, p, PageFlags::kernel_data_flags_2m());
+                    KERNEL_MEMORY_MAPPER.map(v, p, PageFlags::kernel_data_flags_2m());
                 }
                 let mut cursor = vs.start.start();
                 let end = vs.end.start();
@@ -249,8 +249,37 @@ impl KernelHeap {
         self.fa.lock().init()
     }
 
+    /// Allocate virtual pages that are backed by physical memory.
+    pub fn allocate_pages<S: PageSize>(&self, pages: usize) -> Range<Page<S>> {
+        let virtual_pages = self.virtual_allocate::<S>(pages);
+        for i in 0..pages {
+            let frame = PHYSICAL_MEMORY.acquire::<S>().unwrap();
+            KERNEL_MEMORY_MAPPER.map(
+                Page::forward(virtual_pages.start, i),
+                frame,
+                PageFlags::kernel_data_flags_4k(),
+            );
+        }
+        virtual_pages
+    }
+
+    /// Release and unmap virtual pages.
+    pub fn release_pages<S: PageSize>(&self, pages: Range<Page<S>>) {
+        for page in pages {
+            let frame = Frame::<S>::new(KERNEL_MEMORY_MAPPER.translate(page.start()).unwrap());
+            KERNEL_MEMORY_MAPPER.unmap(page);
+            PHYSICAL_MEMORY.release(frame);
+        }
+    }
+
+    /// Allocate virtual pages that are not backed by any physical memory.
     pub fn virtual_allocate<S: PageSize>(&self, pages: usize) -> Range<Page<S>> {
         VIRTUAL_PAGE_ALLOCATOR.lock().acquire(pages)
+    }
+
+    /// Release virtual pages, without updating memory mapping.
+    pub fn virtual_release<S: PageSize>(&self, pages: Range<Page<S>>) {
+        VIRTUAL_PAGE_ALLOCATOR.lock().release(pages)
     }
 }
 

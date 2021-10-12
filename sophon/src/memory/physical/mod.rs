@@ -20,12 +20,12 @@ impl PhysicalMemory {
     }
 
     pub fn acquire<S: PageSize>(&self) -> Option<Frame<S>> {
-        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
         PHYSICAL_PAGE_RESOURCE.lock().acquire()
     }
 
     pub fn release<S: PageSize>(&self, frame: Frame<S>) {
-        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
         PHYSICAL_PAGE_RESOURCE.lock().release(frame)
     }
 }

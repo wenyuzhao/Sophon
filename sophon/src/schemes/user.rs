@@ -36,7 +36,7 @@ impl UserScheme {
         let handler_pages = handler.sbrk(num_pages).unwrap();
         let kernel_pages = KERNEL_HEAP.virtual_allocate::<Size4K>(num_pages);
         let handler_page_table = handler.get_page_table();
-        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
         for (i, page) in handler_pages.clone().enumerate() {
             let frame = Frame::<Size4K>::new(handler_page_table.translate(page.start()).unwrap());
             handler_page_table.map(

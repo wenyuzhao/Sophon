@@ -37,7 +37,7 @@ impl Proc {
             threads: vec![],
             page_table: {
                 // the initial page table is the kernel page table
-                let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+                let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
                 Atomic::new(PageTable::get())
             },
             resources: UnintMutex::new(BTreeMap::new()),
@@ -86,7 +86,7 @@ impl Proc {
                 // Map old_top .. end
                 {
                     let page_table = self.get_page_table();
-                    let _guard = KERNEL_MEMORY_MAPPER.with_kernel_page_table();
+                    let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
                     for page in start..end {
                         let frame = PHYSICAL_MEMORY.acquire().unwrap();
                         page_table.map(

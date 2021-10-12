@@ -1,18 +1,16 @@
 use super::exception::ExceptionFrame;
-use crate::memory::kernel::{KERNEL_HEAP, KERNEL_MEMORY_MAPPER};
+use crate::arch::*;
+use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::task::{Message, Proc};
 use crate::utils::unint_lock::UnintMutex;
-use crate::{arch::*, memory::physical::*};
 use alloc::vec;
 use alloc::vec::Vec;
-use core::iter::Step;
 use core::ops::Range;
 use core::ptr;
 use cortex_a::registers::*;
 use memory::address::{Address, V};
 use memory::page::*;
-use memory::page_table::*;
 use spin::Mutex;
 use tock_registers::interfaces::Readable;
 
@@ -26,15 +24,7 @@ pub struct KernelStack {
 impl KernelStack {
     pub fn new() -> &'static mut Self {
         let pages = KERNEL_STACK_PAGES + 1;
-        let stack = KERNEL_HEAP.virtual_allocate::<Size4K>(pages);
-        for i in 0..pages {
-            let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
-            KERNEL_MEMORY_MAPPER.map_fixed(
-                Page::forward(stack.start, i),
-                frame,
-                PageFlags::kernel_data_flags_4k(),
-            );
-        }
+        let stack = KERNEL_HEAP.allocate_pages::<Size4K>(pages);
         let kernel_stack = unsafe { stack.start.start().as_mut::<Self>() };
         kernel_stack.init();
         kernel_stack
