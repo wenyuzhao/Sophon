@@ -46,7 +46,7 @@ impl KernelMemoryMapper {
             page.start() >= KERNEL_HEAP_RANGE.start && page.start() < KERNEL_HEAP_RANGE.end
         );
         let mut page_table = self.with_kernel_address_space();
-        page_table.unmap(page);
+        page_table.unmap(page, &PHYSICAL_MEMORY);
     }
 
     /// Unmap a virtual page (does not release the physical page)

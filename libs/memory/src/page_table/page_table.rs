@@ -36,6 +36,11 @@ impl<L: TableLevel> PageTable<L> {
     const MASK: usize = 0b111111111 << L::SHIFT;
 
     #[inline]
+    pub fn is_clear(&self) -> bool {
+        self.entries.iter().all(|e| e.is_empty())
+    }
+
+    #[inline]
     pub const fn get_index(a: Address<V>) -> usize {
         (a.as_usize() & Self::MASK) >> L::SHIFT
     }
@@ -215,7 +220,49 @@ impl PageTable<L4> {
         page
     }
 
-    pub fn unmap<S: PageSize>(&mut self, _page: Page<S>) {
-        unimplemented!()
+    pub fn unmap<S: PageSize>(&mut self, page: Page<S>, pa: &impl PageAllocator<P>) {
+        let a = page.start();
+        // P4
+        let p4 = self;
+        // P3
+        let p4_index = PageTable::<L4>::get_index(a);
+        debug_assert!(!p4[p4_index].is_empty());
+        let p3 = p4.get_next_table(p4_index).unwrap();
+        let p3_index = PageTable::<L3>::get_index(a);
+        debug_assert!(!p3[p3_index].is_empty());
+        if !p3[p3_index].is_block() {
+            // P2
+            let p2 = p3.get_next_table(p3_index).unwrap();
+            let p2_index = PageTable::<L2>::get_index(a);
+            debug_assert!(!p2[p2_index].is_empty());
+            if !p2[p2_index].is_block() {
+                // P1
+                let p1 = p2.get_next_table(p2_index).unwrap();
+                let p1_index = PageTable::<L1>::get_index(a);
+                // Clear P1 entry
+                p1[p1_index].clear();
+                if !p1.is_clear() {
+                    return;
+                }
+                // Release P1
+                pa.dealloc::<S>(Page::new(p1.into()));
+            }
+            // Clear P2 entry
+            p2[p2_index].clear();
+            if !p2.is_clear() {
+                return;
+            }
+            // Release P2
+            pa.dealloc::<S>(Page::new(p2.into()));
+        }
+        // Clear P3 entry
+        p3[p3_index].clear();
+        if !p3.is_clear() {
+            return;
+        }
+        // Release P3
+        pa.dealloc::<S>(Page::new(p3.into()));
+        // Clear P4 entry
+        p4[p4_index].clear();
     }
 }

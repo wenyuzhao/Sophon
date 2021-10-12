@@ -51,11 +51,24 @@ pub trait PageFlagsExt {
             | PageFlag::ACCESSED
             | PageFlag::USER
     }
+    fn kernel_data_flags<S: PageSize>() -> PageFlags {
+        let mut flags = PageFlag::NORMAL_MEMORY
+            | PageFlag::PRESENT
+            | PageFlag::ACCESSED
+            | PageFlag::OUTER_SHARE;
+        if S::BYTES == Size4K::BYTES {
+            flags = flags | PageFlag::SMALL_PAGE;
+        }
+        flags
+    }
+    fn kernel_data_flags_1g() -> PageFlags {
+        Self::kernel_data_flags::<Size1G>()
+    }
     fn kernel_data_flags_2m() -> PageFlags {
-        PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
+        Self::kernel_data_flags::<Size2M>()
     }
     fn kernel_data_flags_4k() -> PageFlags {
-        Self::kernel_data_flags_2m() | PageFlag::SMALL_PAGE
+        Self::kernel_data_flags::<Size4K>()
     }
     fn kernel_code_flags_1g() -> PageFlags {
         Self::kernel_code_flags_2m()

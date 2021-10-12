@@ -139,6 +139,18 @@ impl FreeListAllocator {
 
     fn init(&mut self) {}
 
+    #[inline(always)]
+    fn pop_cell(&mut self, size_class: usize) -> Option<Address> {
+        let cell = self.cells[size_class];
+        if cell.is_zero() {
+            None
+        } else {
+            self.cells[size_class] = unsafe { cell.load() };
+            Some(cell)
+        }
+    }
+
+    #[inline(always)]
     fn push_cell(&mut self, size_class: usize, cell: Address) {
         unsafe {
             cell.store(self.cells[size_class]);
@@ -146,21 +158,32 @@ impl FreeListAllocator {
         self.cells[size_class] = cell;
     }
 
-    fn size_class(block_size: usize) -> usize {
+    const fn size_class(block_size: usize) -> usize {
         block_size.next_power_of_two().trailing_zeros() as _
     }
 
+    #[inline(always)]
     fn cell_size(layout: &Layout) -> usize {
         max(layout.pad_to_align().size(), Self::MIN_SIZE)
+    }
+
+    fn release_large_pages(&mut self) {
+        let start_sc = Self::size_class(Size2M::BYTES);
+        let mut sc = start_sc;
+        while sc < self.cells.len() {
+            while let Some(cell) = self.pop_cell(sc) {
+                let pages = 1usize << sc >> Size2M::LOG_BYTES;
+                let start = Page::<Size2M>::new(cell);
+                KERNEL_HEAP.release_pages(start..Page::forward(start, pages));
+            }
+            sc += 1;
+        }
     }
 
     fn alloc_cell(&mut self, size_class: usize) -> Option<Address> {
         if size_class >= self.cells.len() {
             None
-        } else if !self.cells[size_class].is_zero() {
-            let cell = self.cells[size_class];
-            self.cells[size_class] = unsafe { cell.load() };
-            unsafe { cell.store(Address::<V>::ZERO) };
+        } else if let Some(cell) = self.pop_cell(size_class) {
             Some(cell)
         } else {
             let next_level_cell = self.alloc_cell(size_class + 1)?;
@@ -172,9 +195,7 @@ impl FreeListAllocator {
 
     #[inline(always)]
     fn alloc_cell_fast(&mut self, size_class: usize) -> Option<Address> {
-        if !self.cells[size_class].is_zero() {
-            let cell = self.cells[size_class];
-            self.cells[size_class] = unsafe { cell.load() };
+        if let Some(cell) = self.pop_cell(size_class) {
             Some(cell)
         } else {
             None
@@ -187,12 +208,7 @@ impl FreeListAllocator {
             None => {
                 assert!(!self.retry, "OutOfMemory");
                 let pages = (((1 << size_class) + Size2M::MASK) >> Size2M::LOG_BYTES) << 1;
-                let vs = VIRTUAL_PAGE_ALLOCATOR.lock().acquire::<Size2M>(pages);
-                for i in 0..pages {
-                    let v = Page::forward(vs.start, i);
-                    let p = PHYSICAL_MEMORY.acquire::<Size2M>().unwrap();
-                    KERNEL_MEMORY_MAPPER.map(v, p, PageFlags::kernel_data_flags_2m());
-                }
+                let vs = KERNEL_HEAP.allocate_pages::<Size2M>(pages);
                 let mut cursor = vs.start.start();
                 let end = vs.end.start();
                 while cursor < end {
@@ -231,6 +247,7 @@ impl FreeListAllocator {
         let cell_size = Self::cell_size(&layout);
         let size_class = Self::size_class(cell_size);
         self.push_cell(size_class, start);
+        self.release_large_pages();
     }
 }
 
@@ -257,7 +274,7 @@ impl KernelHeap {
             KERNEL_MEMORY_MAPPER.map(
                 Page::forward(virtual_pages.start, i),
                 frame,
-                PageFlags::kernel_data_flags_4k(),
+                PageFlags::kernel_data_flags::<S>(),
             );
         }
         virtual_pages
