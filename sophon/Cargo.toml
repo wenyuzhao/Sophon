@@ -29,4 +29,4 @@ yaml-rust = "0.4"
 
 [features]
 default = []
-kernel = []
+disable_log = ["log/disable"]

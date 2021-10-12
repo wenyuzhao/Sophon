@@ -3,6 +3,8 @@
 use core::fmt;
 use core::fmt::Write;
 
+pub const IS_ENABLED: bool = cfg!(not(feature = "disable"));
+
 pub fn format(
     args: fmt::Arguments,
     f: impl Fn(&str) -> Result<(), fmt::Error>,
@@ -50,9 +52,13 @@ pub fn _print(args: fmt::Arguments) {
 #[macro_export]
 macro_rules! log {
     (noeol: $($arg:tt)*) => ({
-        $crate::_print(format_args!($($arg)*))
+        if $crate::IS_ENABLED {
+            $crate::_print(format_args!($($arg)*))
+        }
     });
     ($($arg:tt)*) => ({
-        $crate::_print(format_args_nl!($($arg)*))
+        if $crate::IS_ENABLED {
+            $crate::_print(format_args_nl!($($arg)*))
+        }
     });
 }

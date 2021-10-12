@@ -24,7 +24,7 @@ pub fn init() {
 fn log(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     let string_pointer = a as *const &str;
     let s: &str = unsafe { &*string_pointer };
-    log!(noeol: "{}", s);
+    log::_print(format_args!("{}", s));
     0
 }
 

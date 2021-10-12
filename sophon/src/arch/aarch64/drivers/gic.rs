@@ -11,7 +11,7 @@ use memory::page::Frame;
 use spin::Mutex;
 use tock_registers::interfaces::{Readable, Writeable};
 
-const TIMER_INTERRUPT_FREQUENCY: usize = 1; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 10; // Hz
 
 pub const IRQ_LINES: usize = 256;
 
