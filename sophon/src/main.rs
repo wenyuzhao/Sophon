@@ -15,6 +15,7 @@
 #![feature(const_btree_new)]
 #![feature(alloc_error_handler)]
 #![feature(const_evaluatable_checked)]
+#![feature(const_mut_refs)]
 #![no_std]
 #![no_main]
 

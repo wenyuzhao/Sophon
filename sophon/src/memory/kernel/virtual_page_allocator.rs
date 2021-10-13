@@ -42,7 +42,7 @@ where
         self.set_unit(Self::LOG_UNITS, 0, FREE);
     }
 
-    fn get(&self, sc: usize, i: usize) -> usize {
+    const fn get(&self, sc: usize, i: usize) -> usize {
         let bit_offset = (1usize << (Self::LOG_UNITS - sc)) + (i << 1);
         let mask = 0b11;
         let shift = bit_offset & (Self::BITS_IN_ENTRY - 1);
@@ -50,7 +50,7 @@ where
         ((entry >> shift) & mask) as usize
     }
 
-    fn set(&mut self, sc: usize, i: usize, v: usize) {
+    const fn set(&mut self, sc: usize, i: usize, v: usize) {
         let bit_offset = (1usize << (Self::LOG_UNITS - sc)) + (i << 1);
         let mask = 0b11;
         let shift = bit_offset & (Self::BITS_IN_ENTRY - 1);
@@ -59,11 +59,11 @@ where
         self.table[bit_offset >> Self::LOG_BITS_IN_ENTRY] = new_entry;
     }
 
-    fn get_unit(&self, size_class: usize, unit: usize) -> usize {
+    const fn get_unit(&self, size_class: usize, unit: usize) -> usize {
         self.get(size_class, Self::index_in_size_class(size_class, unit))
     }
 
-    fn set_unit(&mut self, size_class: usize, unit: usize, v: usize) {
+    const fn set_unit(&mut self, size_class: usize, unit: usize, v: usize) {
         self.set(size_class, Self::index_in_size_class(size_class, unit), v)
     }
 
@@ -73,6 +73,10 @@ where
 
     const fn entries_in_size_class(size_class: usize) -> usize {
         1usize << (Self::LOG_UNITS - size_class)
+    }
+
+    const fn words_in_size_class(size_class: usize) -> usize {
+        1usize << (Self::LOG_UNITS - size_class - Self::LOG_BITS_IN_ENTRY)
     }
 
     const fn index_in_size_class(size_class: usize, unit: usize) -> usize {
@@ -92,10 +96,25 @@ where
     }
 
     fn search_and_allocate_cell(&mut self, size_class: usize) -> Option<usize> {
-        for i in 0..Self::entries_in_size_class(size_class) {
-            if self.get(size_class, i) == FREE {
-                self.set(size_class, i, USED);
-                return Some(i << size_class);
+        if Self::LOG_UNITS - Self::LOG_BITS_IN_ENTRY >= size_class {
+            let base = 1usize << (Self::LOG_UNITS - Self::LOG_BITS_IN_ENTRY - size_class);
+            for i in 0..Self::words_in_size_class(size_class) {
+                if self.table[base + i] != 0 {
+                    for j in 0..(Self::BITS_IN_ENTRY / 2) {
+                        let index = (i << 3) + j;
+                        if self.get(size_class, index) == FREE {
+                            self.set(size_class, index, USED);
+                            return Some(index << size_class);
+                        }
+                    }
+                }
+            }
+        } else {
+            for i in 0..Self::entries_in_size_class(size_class) {
+                if self.get(size_class, i) == FREE {
+                    self.set(size_class, i, USED);
+                    return Some(i << size_class);
+                }
             }
         }
         None
@@ -142,7 +161,6 @@ where
         let size_class = Self::size_class(small_pages);
         let unit = self.allocate_cell(size_class).unwrap();
         let addr = self.base + (unit << Size4K::LOG_BYTES);
-
         let page = Page::new(addr);
         page..Page::forward(page, pages)
     }
