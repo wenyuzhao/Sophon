@@ -60,15 +60,13 @@ extern "C" {
 unsafe fn zero_bss() {
     let start = &mut __bss_start as *mut u8;
     let end = &mut __bss_end as *mut u8;
-    let mut cursor = start;
-    while cursor < end {
-        ::core::intrinsics::volatile_store(cursor, 0);
-        cursor = cursor.offset(1);
-    }
+    let bytes = end.offset_from(start);
+    core::ptr::write_bytes(start, 0, bytes as _)
 }
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
+    unsafe { zero_bss() }
     if let Some(uart) = boot_info.uart {
         utils::boot_log::init(uart);
     }
@@ -81,8 +79,6 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
         "available_physical_memory @ {:?}",
         boot_info.available_physical_memory.as_ptr_range()
     );
-    unsafe { zero_bss() }
-    log!("zero_bss done");
 
     // Initialize physical memory and kernel heap
     PHYSICAL_MEMORY.init(boot_info.available_physical_memory);

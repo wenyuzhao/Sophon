@@ -124,7 +124,7 @@ unsafe fn panic_for_unhandled_exception(exception_frame: *mut ExceptionFrame) ->
         sp_el0,
     );
     panic!(
-        "Unknown excception 0b{:b}",
+        "Unknown exception 0b{:b}",
         ::core::mem::transmute::<_, u32>(exception)
     );
 }

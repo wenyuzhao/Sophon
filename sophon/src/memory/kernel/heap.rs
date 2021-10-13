@@ -1,6 +1,6 @@
 use super::free_list_allocator::FreeListAllocator;
 use super::virtual_page_allocator::VIRTUAL_PAGE_ALLOCATOR;
-use super::KERNEL_MEMORY_MAPPER;
+use super::{KERNEL_HEAP_RANGE, KERNEL_MEMORY_MAPPER};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::utils::unint_lock::UnintMutex;
 use core::alloc::{GlobalAlloc, Layout};
@@ -23,6 +23,7 @@ impl KernelHeap {
     }
 
     pub fn init(&self) {
+        VIRTUAL_PAGE_ALLOCATOR.lock().init(KERNEL_HEAP_RANGE.start);
         self.fa.lock().init()
     }
 

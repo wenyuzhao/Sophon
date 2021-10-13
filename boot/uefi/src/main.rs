@@ -174,12 +174,9 @@ fn map_kernel_page_4k(
 
 fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
     for i in 0..pages {
-        map_kernel_page_4k(
-            p4,
-            Page::new(Address::from((start + ((i as u64) << 12)) as usize)),
-            new_page4k(),
-            PageFlags::kernel_code_flags_4k(),
-        );
+        let page = Page::new(Address::from((start + ((i as u64) << 12)) as usize));
+        let frame = new_page4k();
+        map_kernel_page_4k(p4, page, frame, PageFlags::kernel_code_flags_4k());
     }
 }
 
@@ -249,7 +246,7 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
                     let offset = dst_start - start;
                     let dst = f.start() + (dst_start - cursor);
                     ptr::copy_nonoverlapping::<u8>(src.add(offset), dst.as_mut_ptr(), bytes);
-
+                    memory::cache::flush_cache::<P>(dst..dst + bytes);
                     cursor += Size4K::BYTES;
                 }
             }

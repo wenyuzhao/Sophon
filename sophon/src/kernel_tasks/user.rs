@@ -130,7 +130,7 @@ impl UserTask {
                     ptr::write_bytes::<u8>(start.as_mut_ptr(), 0, size);
                 }
             }
-            TargetArch::clear_cache(vaddr_start..vaddr_end);
+            memory::cache::flush_cache(vaddr_start..vaddr_end);
             entry
         } else {
             unimplemented!("elf32 is not supported")

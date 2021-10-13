@@ -18,5 +18,6 @@
 extern crate log;
 
 pub mod address;
+pub mod cache;
 pub mod page;
 pub mod page_table;
