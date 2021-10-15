@@ -1,18 +1,24 @@
-use super::free_list_allocator::FreeListAllocator;
-use super::virtual_page_allocator::VIRTUAL_PAGE_ALLOCATOR;
-use super::{KERNEL_HEAP_RANGE, KERNEL_MEMORY_MAPPER};
+use super::{KERNEL_HEAP_RANGE, KERNEL_MEMORY_MAPPER, LOG_KERNEL_HEAP_SIZE};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::utils::unint_lock::UnintMutex;
 use core::alloc::{GlobalAlloc, Layout};
 use core::iter::Step;
 use core::ops::Range;
 use core::usize;
+use memory::address::V;
+use memory::bitmap_page_allocator::BitMapPageAllocator;
+use memory::free_list_allocator::FreeListAllocator;
 use memory::page::*;
 use memory::page_table::{PageFlags, PageFlagsExt};
 
+static VIRTUAL_PAGE_ALLOCATOR: UnintMutex<BitMapPageAllocator<V, LOG_KERNEL_HEAP_SIZE>> =
+    UnintMutex::new(BitMapPageAllocator::new());
+
+pub static KERNEL_HEAP: KernelHeap = KernelHeap::new();
+
 /// The kernel heap memory manager.
 pub struct KernelHeap {
-    fa: UnintMutex<FreeListAllocator>,
+    fa: UnintMutex<FreeListAllocator<V, Self, LOG_KERNEL_HEAP_SIZE>>,
 }
 
 impl KernelHeap {
@@ -22,32 +28,9 @@ impl KernelHeap {
         }
     }
 
-    pub fn init(&self) {
+    pub fn init(&'static self) {
         VIRTUAL_PAGE_ALLOCATOR.lock().init(KERNEL_HEAP_RANGE.start);
-        self.fa.lock().init()
-    }
-
-    /// Allocate virtual pages that are backed by physical memory.
-    pub fn allocate_pages<S: PageSize>(&self, pages: usize) -> Range<Page<S>> {
-        let virtual_pages = self.virtual_allocate::<S>(pages);
-        for i in 0..pages {
-            let frame = PHYSICAL_MEMORY.acquire::<S>().unwrap();
-            KERNEL_MEMORY_MAPPER.map(
-                Page::forward(virtual_pages.start, i),
-                frame,
-                PageFlags::kernel_data_flags::<S>(),
-            );
-        }
-        virtual_pages
-    }
-
-    /// Release and unmap virtual pages.
-    pub fn release_pages<S: PageSize>(&self, pages: Range<Page<S>>) {
-        for page in pages {
-            let frame = Frame::<S>::new(KERNEL_MEMORY_MAPPER.translate(page.start()).unwrap());
-            KERNEL_MEMORY_MAPPER.unmap(page);
-            PHYSICAL_MEMORY.release(frame);
-        }
+        self.fa.lock().init(self)
     }
 
     /// Allocate virtual pages that are not backed by any physical memory.
@@ -61,7 +44,30 @@ impl KernelHeap {
     }
 }
 
-pub static KERNEL_HEAP: KernelHeap = KernelHeap::new();
+impl PageResource<V> for KernelHeap {
+    /// Allocate virtual pages that are backed by physical memory.
+    fn acquire_pages<S: PageSize>(&self, pages: usize) -> Option<Range<Page<S>>> {
+        let virtual_pages = KERNEL_HEAP.virtual_allocate::<S>(pages);
+        for i in 0..pages {
+            let frame = PHYSICAL_MEMORY.acquire::<S>().unwrap();
+            KERNEL_MEMORY_MAPPER.map(
+                Page::forward(virtual_pages.start, i),
+                frame,
+                PageFlags::kernel_data_flags::<S>(),
+            );
+        }
+        Some(virtual_pages)
+    }
+
+    /// Release and unmap virtual pages.
+    fn release_pages<S: PageSize>(&self, pages: Range<Page<S>>) {
+        for page in pages {
+            let frame = Frame::<S>::new(KERNEL_MEMORY_MAPPER.translate(page.start()).unwrap());
+            KERNEL_MEMORY_MAPPER.unmap(page);
+            PHYSICAL_MEMORY.release(frame);
+        }
+    }
+}
 
 /// Rust global allocator that allocate objects into the kernel heap.
 pub struct KernelHeapAllocator;

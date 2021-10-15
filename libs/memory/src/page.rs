@@ -213,7 +213,20 @@ impl<S: PageSize, K: MemoryKind> const Step for Page<S, K> {
     }
 }
 
+/// Single page allocator.
 pub trait PageAllocator<K: MemoryKind> {
     fn alloc<S: PageSize>(&self) -> Option<Page<S, K>>;
     fn dealloc<S: PageSize>(&self, page: Page<S, K>);
+}
+
+/// Page allocator for allocating and deallocating contiguous multiple pages.
+/// Page start address is aligned to next-power-of-two.
+pub trait PageResource<K: MemoryKind> {
+    fn acquire_pages<S: PageSize>(&self, pages: usize) -> Option<Range<Page<S, K>>>;
+    fn release_pages<S: PageSize>(&self, pages: Range<Page<S, K>>);
+}
+
+pub trait UnalignedPageResource<K: MemoryKind> {
+    fn acquire_unaligned_pages<S: PageSize>(&self, pages: usize) -> Option<Range<Page<S, K>>>;
+    fn release_unaligned_pages<S: PageSize>(&self, pages: Range<Page<S, K>>);
 }

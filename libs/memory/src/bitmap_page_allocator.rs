@@ -1,10 +1,8 @@
-use super::LOG_KERNEL_HEAP_SIZE;
-use crate::utils::unint_lock::UnintMutex;
+use crate::{
+    address::{Address, MemoryKind},
+    page::*,
+};
 use core::{iter::Step, ops::Range};
-use memory::{address::Address, page::*};
-
-pub static VIRTUAL_PAGE_ALLOCATOR: UnintMutex<VirtualPageAllocator<LOG_KERNEL_HEAP_SIZE>> =
-    UnintMutex::new(VirtualPageAllocator::new());
 
 #[doc(hidden)]
 pub const fn table_length(log_heap_size: usize) -> usize {
@@ -16,15 +14,15 @@ const USED: usize = 0b0;
 const MASK: u64 = 0b1;
 type Word = u64;
 
-pub struct VirtualPageAllocator<const LOG_HEAP_SIZE: usize>
+pub struct BitMapPageAllocator<K: MemoryKind, const LOG_HEAP_SIZE: usize>
 where
     [(); table_length(LOG_HEAP_SIZE)]: Sized,
 {
-    base: Address,
+    base: Address<K>,
     table: [Word; table_length(LOG_HEAP_SIZE)],
 }
 
-impl<const LOG_HEAP_SIZE: usize> VirtualPageAllocator<LOG_HEAP_SIZE>
+impl<K: MemoryKind, const LOG_HEAP_SIZE: usize> BitMapPageAllocator<K, LOG_HEAP_SIZE>
 where
     [(); table_length(LOG_HEAP_SIZE)]: Sized,
 {
@@ -39,7 +37,7 @@ where
         }
     }
 
-    pub fn init(&mut self, base: Address) {
+    pub fn init(&mut self, base: Address<K>) {
         self.base = base;
         self.set_unit(Self::LOG_UNITS, 0, FREE);
     }
@@ -183,7 +181,7 @@ where
         }
     }
 
-    pub fn acquire<S: PageSize>(&mut self, pages: usize) -> Range<Page<S>> {
+    pub fn acquire<S: PageSize>(&mut self, pages: usize) -> Range<Page<S, K>> {
         let small_pages = pages << (S::LOG_BYTES - Size4K::LOG_BYTES);
         let unit = self.acquire_units(small_pages).unwrap();
         let addr = self.base + (unit << Size4K::LOG_BYTES);
@@ -191,7 +189,7 @@ where
         page..Page::forward(page, pages)
     }
 
-    pub fn release<S: PageSize>(&mut self, pages: Range<Page<S>>) {
+    pub fn release<S: PageSize>(&mut self, pages: Range<Page<S, K>>) {
         let start = (pages.start.start() - self.base) >> Size4K::LOG_BYTES;
         let units = Page::steps_between(&pages.start, &pages.end).unwrap()
             << (S::LOG_BYTES - Size4K::LOG_BYTES);

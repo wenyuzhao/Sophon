@@ -1,6 +1,7 @@
 use core::cmp::Ordering;
 use core::convert::From;
 use core::fmt;
+use core::intrinsics::transmute;
 use core::iter::Step;
 use core::marker::PhantomData;
 use core::ops::*;
@@ -117,25 +118,25 @@ impl<K: MemoryKind> const From<usize> for Address<K> {
 
 impl<K: MemoryKind, T> const From<*const T> for Address<K> {
     fn from(value: *const T) -> Self {
-        unsafe { Self::new(value as _) }
+        unsafe { Self::new(transmute(value)) }
     }
 }
 
 impl<K: MemoryKind, T> const From<*mut T> for Address<K> {
     fn from(value: *mut T) -> Self {
-        unsafe { Self::new(value as _) }
+        unsafe { Self::new(transmute(value)) }
     }
 }
 
 impl<K: MemoryKind, T> const From<&T> for Address<K> {
     fn from(value: &T) -> Self {
-        unsafe { Self::new(value as *const T as _) }
+        unsafe { Self::new(transmute(value as *const T)) }
     }
 }
 
 impl<K: MemoryKind, T> const From<&mut T> for Address<K> {
     fn from(value: &mut T) -> Self {
-        unsafe { Self::new(value as *const T as _) }
+        unsafe { Self::new(transmute(value as *const T)) }
     }
 }
 

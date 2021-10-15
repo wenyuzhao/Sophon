@@ -1,27 +1,45 @@
-use super::{KERNEL_HEAP, KERNEL_HEAP_SIZE};
+use crate::address::MemoryKind;
+use crate::{address::Address, page::*};
 use core::cmp::{max, min};
 use core::{alloc::Layout, iter::Step};
-use memory::{address::Address, page::*};
 
-pub struct FreeListAllocator {
-    cells: [Address; KERNEL_HEAP_SIZE.trailing_zeros() as usize + 1],
+pub struct FreeListAllocator<
+    K: MemoryKind,
+    PA: PageResource<K> + 'static,
+    const LOG_HEAP_SIZE: usize,
+> where
+    [(); LOG_HEAP_SIZE + 1]: Sized,
+{
+    cells: [Address<K>; LOG_HEAP_SIZE + 1],
     retry: bool,
+    page_resource: Option<&'static PA>,
 }
 
-impl FreeListAllocator {
+impl<K: MemoryKind, PA: PageResource<K> + 'static, const LOG_HEAP_SIZE: usize>
+    FreeListAllocator<K, PA, LOG_HEAP_SIZE>
+where
+    [(); LOG_HEAP_SIZE + 1]: Sized,
+{
     const MIN_SIZE: usize = 1 << 4;
 
     pub const fn new() -> Self {
         Self {
-            cells: [Address::ZERO; KERNEL_HEAP_SIZE.trailing_zeros() as usize + 1],
+            cells: [Address::ZERO; LOG_HEAP_SIZE + 1],
             retry: false,
+            page_resource: None,
         }
     }
 
-    pub fn init(&mut self) {}
+    pub fn init(&mut self, page_resource: &'static PA) {
+        self.page_resource = Some(page_resource);
+    }
+
+    const fn page_resource(&self) -> &'static PA {
+        self.page_resource.unwrap()
+    }
 
     #[inline(always)]
-    fn pop_cell(&mut self, size_class: usize) -> Option<Address> {
+    fn pop_cell(&mut self, size_class: usize) -> Option<Address<K>> {
         let cell = self.cells[size_class];
         if cell.is_zero() {
             None
@@ -32,7 +50,7 @@ impl FreeListAllocator {
     }
 
     #[inline(always)]
-    fn push_cell(&mut self, size_class: usize, cell: Address) {
+    fn push_cell(&mut self, size_class: usize, cell: Address<K>) {
         unsafe {
             cell.store(self.cells[size_class]);
         }
@@ -54,14 +72,15 @@ impl FreeListAllocator {
         while sc < self.cells.len() {
             while let Some(cell) = self.pop_cell(sc) {
                 let pages = 1usize << sc >> Size2M::LOG_BYTES;
-                let start = Page::<Size2M>::new(cell);
-                KERNEL_HEAP.release_pages(start..Page::forward(start, pages));
+                let start = Page::<Size2M, K>::new(cell);
+                self.page_resource()
+                    .release_pages(start..Page::forward(start, pages));
             }
             sc += 1;
         }
     }
 
-    fn alloc_cell(&mut self, size_class: usize) -> Option<Address> {
+    fn alloc_cell(&mut self, size_class: usize) -> Option<Address<K>> {
         if size_class >= self.cells.len() {
             None
         } else if let Some(cell) = self.pop_cell(size_class) {
@@ -75,7 +94,7 @@ impl FreeListAllocator {
     }
 
     #[inline(always)]
-    fn alloc_cell_fast(&mut self, size_class: usize) -> Option<Address> {
+    fn alloc_cell_fast(&mut self, size_class: usize) -> Option<Address<K>> {
         if let Some(cell) = self.pop_cell(size_class) {
             Some(cell)
         } else {
@@ -83,13 +102,13 @@ impl FreeListAllocator {
         }
     }
 
-    fn alloc_cell_slow(&mut self, size_class: usize) -> Address {
+    fn alloc_cell_slow(&mut self, size_class: usize) -> Address<K> {
         match self.alloc_cell(size_class) {
             Some(cell) => cell,
             None => {
                 assert!(!self.retry, "OutOfMemory");
                 let pages = (((1 << size_class) + Size2M::MASK) >> Size2M::LOG_BYTES) << 1;
-                let vs = KERNEL_HEAP.allocate_pages::<Size2M>(pages);
+                let vs = self.page_resource().acquire_pages::<Size2M>(pages).unwrap();
                 let mut cursor = vs.start.start();
                 let end = vs.end.start();
                 while cursor < end {
@@ -114,7 +133,7 @@ impl FreeListAllocator {
     }
 
     #[inline(always)]
-    pub fn alloc(&mut self, layout: &Layout) -> Address {
+    pub fn alloc(&mut self, layout: &Layout) -> Address<K> {
         let cell_size = Self::cell_size(&layout);
         let size_class = Self::size_class(cell_size);
         if let Some(cell) = self.alloc_cell_fast(size_class) {
@@ -124,7 +143,7 @@ impl FreeListAllocator {
     }
 
     #[inline(always)]
-    pub fn free(&mut self, start: Address, layout: &Layout) {
+    pub fn free(&mut self, start: Address<K>, layout: &Layout) {
         let cell_size = Self::cell_size(&layout);
         let size_class = Self::size_class(cell_size);
         self.push_cell(size_class, start);

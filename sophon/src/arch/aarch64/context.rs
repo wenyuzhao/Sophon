@@ -10,6 +10,7 @@ use core::ops::Range;
 use core::ptr;
 use cortex_a::registers::*;
 use memory::address::{Address, V};
+use memory::page::PageResource;
 use memory::page::*;
 use spin::Mutex;
 use tock_registers::interfaces::Readable;
@@ -24,7 +25,7 @@ pub struct KernelStack {
 impl KernelStack {
     pub fn new() -> &'static mut Self {
         let pages = KERNEL_STACK_PAGES + 1;
-        let stack = KERNEL_HEAP.allocate_pages::<Size4K>(pages);
+        let stack = KERNEL_HEAP.acquire_pages::<Size4K>(pages).unwrap();
         let kernel_stack = unsafe { stack.start.start().as_mut::<Self>() };
         kernel_stack.init();
         kernel_stack
