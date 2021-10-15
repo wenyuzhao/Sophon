@@ -147,7 +147,7 @@ impl ArchContext for AArch64Context {
             //     TTBR0_EL1.get() as *mut u8,
             //     p4 as *mut _
             // );
-            TargetArch::set_current_page_table(Frame::new(p4.into()));
+            PageTable::set(p4);
         }
 
         let exception_frame = self.pop_exception_frame().unwrap_or_else(|| {

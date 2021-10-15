@@ -1,8 +1,8 @@
 use crate::task::Message;
 use alloc::boxed::Box;
 use fdt::Fdt;
+use memory::address::*;
 use memory::page_table::PageTable;
-use memory::{address::*, page::Frame};
 
 #[repr(usize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -62,9 +62,6 @@ pub trait Arch {
 
     fn init(device_tree: &Fdt);
     fn interrupt() -> &'static dyn ArchInterruptController;
-
-    fn get_current_page_table() -> Frame;
-    fn set_current_page_table(page_table: Frame);
 }
 
 pub type TargetArch = impl Arch;

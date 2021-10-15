@@ -106,7 +106,7 @@ impl UserTask {
                     &PHYSICAL_MEMORY,
                 );
             }
-            TargetArch::set_current_page_table(Frame::new(page_table.into()));
+            PageTable::set(page_table);
             // Copy data
             for p in elf
                 .program_header_iter()
