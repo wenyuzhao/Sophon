@@ -1,4 +1,5 @@
 mod initfs;
+mod proc;
 mod system;
 mod user;
 
@@ -43,6 +44,7 @@ fn register_kernel_scheme(scheme: Arc<dyn SchemeServer + Send + Sync>) {
 pub fn register_kernel_schemes() {
     register_kernel_scheme(Arc::new(system::SystemScheme::new()));
     register_kernel_scheme(Arc::new(initfs::InitFSScheme::new()));
+    register_kernel_scheme(Arc::new(proc::ProcScheme::new()));
 }
 
 fn get_scheme_by_id(id: SchemeId) -> Arc<dyn SchemeServer> {

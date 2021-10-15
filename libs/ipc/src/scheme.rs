@@ -121,6 +121,13 @@ impl Resource {
         };
         Ok(())
     }
+
+    #[inline]
+    pub fn write_any<T: Sized>(&self, buf: T) -> Result<()> {
+        let size = core::mem::size_of::<T>();
+        let ptr = &buf as *const T as *const u8;
+        self.write(unsafe { core::slice::from_raw_parts(ptr, size) })
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]

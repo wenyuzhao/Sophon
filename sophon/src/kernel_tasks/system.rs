@@ -1,10 +1,7 @@
-use alloc::vec;
 use ipc::{
     scheme::{Mode, Resource},
     ProcId,
 };
-
-use crate::{kernel_tasks::user::UserTask, task::Proc};
 
 use super::KernelTask;
 
@@ -12,17 +9,10 @@ pub struct System;
 
 impl System {
     fn spawn_user_process(file: &str) -> ProcId {
-        let mut data = vec![];
-        let resource = Resource::open(file, 0, Mode::ReadOnly).unwrap();
-        loop {
-            let mut buf = [0u8; 4096];
-            let len = resource.read(&mut buf).unwrap();
-            if len == 0 {
-                break;
-            }
-            data.extend_from_slice(&buf[..len]);
-        }
-        Proc::spawn(box UserTask::new(data)).id
+        let resource = Resource::open("proc:/spawn", 0, Mode::ReadOnly).unwrap();
+        let mut proc_id: ProcId = ProcId::NULL;
+        resource.write_any((file, &mut proc_id)).unwrap();
+        proc_id
     }
 }
 
