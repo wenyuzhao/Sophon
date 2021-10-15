@@ -102,4 +102,8 @@ impl Proc {
             Err(_e) => return None,
         }
     }
+
+    pub fn exit(&self) {
+        SCHEDULER.remove_task(Task::current().id);
+    }
 }

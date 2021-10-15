@@ -28,6 +28,11 @@ pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
         );
         resource.write("hello, world").unwrap();
     }
+    // Resource::open("proc:/me/exit", 0, Mode::ReadWrite)
+    //     .unwrap()
+    //     .write(&[])
+    //     .unwrap();
+    // unreachable!();
 }
 
 #[panic_handler]

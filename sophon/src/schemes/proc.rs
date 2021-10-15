@@ -63,7 +63,8 @@ impl SchemeServer for ProcScheme {
                 Ok(())
             }
             "/me/exit" => {
-                unimplemented!()
+                Proc::current().exit();
+                Ok(())
             }
             v => unimplemented!("{:?}", v),
         }
