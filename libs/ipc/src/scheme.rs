@@ -46,6 +46,69 @@ pub enum Mode {
     ReadWrite,
 }
 
+#[repr(C)]
+pub struct Args<'a> {
+    buf: &'a [u8],
+    index: AtomicUsize,
+}
+
+impl<'a> Args<'a> {
+    #[inline]
+    pub fn new<T: Sized>(t: T) -> impl AsRef<[u8]> {
+        struct X<T: Sized>(T);
+        impl<T: Sized> AsRef<[u8]> for X<T> {
+            #[inline]
+            fn as_ref(&self) -> &[u8] {
+                let ptr = &self.0 as *const T as *const u8;
+                let size = core::mem::size_of::<T>();
+                unsafe { slice::from_raw_parts(ptr, size) }
+            }
+        }
+        X(t)
+    }
+
+    #[inline]
+    pub fn from(buf: &'a [u8]) -> Self {
+        Self {
+            buf,
+            index: AtomicUsize::new(0),
+        }
+    }
+
+    #[inline]
+    pub fn get<T>(&self) -> T {
+        let align = core::mem::align_of::<T>();
+        let mut i = self.index.load(Ordering::SeqCst);
+        i = (i + align - 1) & !(align - 1);
+        self.index
+            .store(i + core::mem::size_of::<T>(), Ordering::SeqCst);
+        unsafe { core::ptr::read(self.buf.as_ptr().add(i) as *const T) }
+    }
+
+    #[inline]
+    pub fn get_slice<T>(&self) -> &[T] {
+        let ptr = self.get::<*const u8>() as *const T;
+        let size = self.get::<usize>();
+        let len = size / core::mem::size_of::<T>();
+        unsafe { slice::from_raw_parts(ptr, len) }
+    }
+
+    #[inline]
+    pub fn get_mut_slice<T>(&self) -> &mut [T] {
+        let ptr = self.get::<*mut u8>() as *mut T;
+        let size = self.get::<usize>();
+        let len = size / core::mem::size_of::<T>();
+        unsafe { slice::from_raw_parts_mut(ptr, len) }
+    }
+
+    #[inline]
+    pub fn get_str(&self) -> Option<&str> {
+        let ptr = self.get::<*const u8>();
+        let size = self.get::<usize>();
+        unsafe { str::from_utf8(slice::from_raw_parts(ptr, size)).ok() }
+    }
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Resource(pub usize);
@@ -120,13 +183,6 @@ impl Resource {
             )
         };
         Ok(())
-    }
-
-    #[inline]
-    pub fn write_any<T: Sized>(&self, buf: T) -> Result<()> {
-        let size = core::mem::size_of::<T>();
-        let ptr = &buf as *const T as *const u8;
-        self.write(unsafe { core::slice::from_raw_parts(ptr, size) })
     }
 }
 

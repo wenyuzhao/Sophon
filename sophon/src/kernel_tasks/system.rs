@@ -1,5 +1,5 @@
 use ipc::{
-    scheme::{Mode, Resource},
+    scheme::{Args, Mode, Resource},
     ProcId,
 };
 
@@ -11,7 +11,7 @@ impl System {
     fn spawn_user_process(file: &str) -> ProcId {
         let resource = Resource::open("proc:/spawn", 0, Mode::ReadOnly).unwrap();
         let mut proc_id: ProcId = ProcId::NULL;
-        resource.write_any((file, &mut proc_id)).unwrap();
+        resource.write(Args::new((file, &mut proc_id))).unwrap();
         proc_id
     }
 }

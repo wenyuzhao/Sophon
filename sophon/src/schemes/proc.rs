@@ -4,7 +4,7 @@ use alloc::{
     vec,
 };
 use ipc::{
-    scheme::{Mode, Resource, Result as IoResult, SchemeServer, Uri},
+    scheme::{Args, Mode, Resource, Result as IoResult, SchemeServer, Uri},
     ProcId,
 };
 use spin::Mutex;
@@ -45,10 +45,9 @@ impl SchemeServer for ProcScheme {
         let uris = self.uris.lock();
         match uris[&fd].as_str() {
             "/spawn" => {
-                type Args<'a> = (&'a str, &'a mut ProcId);
-                let (executable_path, proc_id) =
-                    unsafe { core::mem::transmute::<*const u8, &mut Args>(buf.as_ptr()) };
-                // let executable_path = core::str::from_utf8(buf).unwrap();
+                let args = Args::from(buf);
+                let executable_path = args.get_str().unwrap();
+                let proc_id = args.get::<&mut ProcId>();
                 let mut data = vec![];
                 let resource = Resource::open(executable_path, 0, Mode::ReadOnly).unwrap();
                 loop {
@@ -60,7 +59,7 @@ impl SchemeServer for ProcScheme {
                     data.extend_from_slice(&buf[..len]);
                 }
                 let id = Proc::spawn(box UserTask::new(data)).id;
-                **proc_id = id;
+                *proc_id = id;
                 Ok(())
             }
             "/me/exit" => {
