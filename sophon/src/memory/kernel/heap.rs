@@ -1,30 +1,31 @@
 use super::{KERNEL_HEAP_RANGE, KERNEL_MEMORY_MAPPER, LOG_KERNEL_HEAP_SIZE};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::utils::unint_lock::UnintMutex;
 use core::alloc::{GlobalAlloc, Layout};
 use core::iter::Step;
 use core::ops::Range;
 use core::usize;
+use interrupt::UninterruptibleMutex;
 use memory::address::V;
 use memory::bitmap_page_allocator::BitMapPageAllocator;
 use memory::free_list_allocator::FreeListAllocator;
 use memory::page::*;
 use memory::page_table::{PageFlags, PageFlagsExt};
+use spin::Mutex;
 
-static VIRTUAL_PAGE_ALLOCATOR: UnintMutex<BitMapPageAllocator<V, LOG_KERNEL_HEAP_SIZE>> =
-    UnintMutex::new(BitMapPageAllocator::new());
+static VIRTUAL_PAGE_ALLOCATOR: Mutex<BitMapPageAllocator<V, LOG_KERNEL_HEAP_SIZE>> =
+    Mutex::new(BitMapPageAllocator::new());
 
 pub static KERNEL_HEAP: KernelHeap = KernelHeap::new();
 
 /// The kernel heap memory manager.
 pub struct KernelHeap {
-    fa: UnintMutex<FreeListAllocator<V, Self, LOG_KERNEL_HEAP_SIZE>>,
+    fa: Mutex<FreeListAllocator<V, Self, LOG_KERNEL_HEAP_SIZE>>,
 }
 
 impl KernelHeap {
     const fn new() -> Self {
         Self {
-            fa: UnintMutex::new(FreeListAllocator::new()),
+            fa: Mutex::new(FreeListAllocator::new()),
         }
     }
 
@@ -74,12 +75,17 @@ pub struct KernelHeapAllocator;
 
 unsafe impl GlobalAlloc for KernelHeapAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let _guard = interrupt::uninterruptible();
-        KERNEL_HEAP.fa.lock().alloc(&layout).as_mut_ptr()
+        KERNEL_HEAP
+            .fa
+            .lock_uninterruptible()
+            .alloc(&layout)
+            .as_mut_ptr()
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let _guard = interrupt::uninterruptible();
-        KERNEL_HEAP.fa.lock().free(ptr.into(), &layout)
+        KERNEL_HEAP
+            .fa
+            .lock_uninterruptible()
+            .free(ptr.into(), &layout)
     }
 }

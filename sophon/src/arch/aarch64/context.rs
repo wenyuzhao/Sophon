@@ -3,12 +3,12 @@ use crate::arch::*;
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::task::{Message, Proc};
-use crate::utils::unint_lock::UnintMutex;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::Range;
 use core::ptr;
 use cortex_a::registers::*;
+use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::PageResource;
 use memory::page::*;
@@ -88,8 +88,8 @@ pub struct AArch64Context {
     // q: [u128; 32], // Neon registers
     kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
-    response_message: UnintMutex<Option<Message>>,
-    response_status: UnintMutex<Option<isize>>,
+    response_message: Mutex<Option<Message>>,
+    response_status: Mutex<Option<isize>>,
 }
 
 impl AArch64Context {
@@ -110,8 +110,8 @@ impl ArchContext for AArch64Context {
             entry_pc: ptr::null_mut(),
             kernel_stack: None,
             kernel_stack_top: ptr::null_mut(),
-            response_message: UnintMutex::new(None),
-            response_status: UnintMutex::new(None),
+            response_message: Mutex::new(None),
+            response_status: Mutex::new(None),
         }
     }
 
@@ -130,11 +130,11 @@ impl ArchContext for AArch64Context {
     }
 
     fn set_response_message(&self, m: Message) {
-        *self.response_message.lock() = Some(m);
+        *self.response_message.lock_uninterruptible() = Some(m);
     }
 
     fn set_response_status(&self, s: isize) {
-        *self.response_status.lock() = Some(s);
+        *self.response_status.lock_uninterruptible() = Some(s);
     }
 
     unsafe extern "C" fn return_to_user(&self) -> ! {

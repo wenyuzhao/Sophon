@@ -15,6 +15,7 @@ use core::{
     slice, str,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use interrupt::UninterruptibleMutex;
 use ipc::scheme::{Resource, SchemeId, SchemeRequest, SchemeServer, Uri};
 use spin::Mutex;
 
@@ -73,7 +74,10 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
             let resource = scheme
                 .open(&uri, args[3] as _, unsafe { transmute(args[4]) })
                 .unwrap();
-            Proc::current().resources.lock().insert(resource, scheme_id);
+            Proc::current()
+                .resources
+                .lock_uninterruptible()
+                .insert(resource, scheme_id);
             Ok(unsafe { transmute(resource) })
         }
         SchemeRequest::Close => {
@@ -92,7 +96,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
                 let buf_len = transmute::<_, usize>(args[3]);
                 slice::from_raw_parts_mut(buf_ptr, buf_len)
             };
-            let scheme = get_scheme_by_id(Proc::current().resources.lock()[&fd]);
+            let scheme = get_scheme_by_id(Proc::current().resources.lock_uninterruptible()[&fd]);
             let r = scheme.read(fd, buf).unwrap();
             Ok(unsafe { transmute(r) })
         }
@@ -103,7 +107,7 @@ pub fn handle_scheme_request(args: &[usize; 5]) -> Result<isize, isize> {
                 let buf_len = transmute::<_, usize>(args[3]);
                 slice::from_raw_parts(buf_ptr, buf_len)
             };
-            let scheme = get_scheme_by_id(Proc::current().resources.lock()[&fd]);
+            let scheme = get_scheme_by_id(Proc::current().resources.lock_uninterruptible()[&fd]);
             scheme.write(fd, buf).unwrap();
             Ok(0)
         }

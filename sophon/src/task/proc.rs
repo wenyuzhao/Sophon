@@ -1,26 +1,28 @@
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
-use crate::{kernel_tasks::KernelTask, task::Task, utils::unint_lock::UnintMutex};
+use crate::{kernel_tasks::KernelTask, task::Task};
 use alloc::collections::BTreeMap;
 use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::iter::Step;
 use core::ops::Range;
 use core::sync::atomic::AtomicUsize;
+use interrupt::UninterruptibleMutex;
 use ipc::scheme::{Resource, SchemeId};
 use ipc::{ProcId, TaskId};
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageFlagsExt, PageTable};
+use spin::Mutex;
 
-static PROCS: UnintMutex<LinkedList<Box<Proc>>> = UnintMutex::new(LinkedList::new());
+static PROCS: Mutex<LinkedList<Box<Proc>>> = Mutex::new(LinkedList::new());
 
 pub struct Proc {
     pub id: ProcId,
     threads: Vec<TaskId>,
     page_table: Atomic<*mut PageTable>,
-    pub resources: UnintMutex<BTreeMap<Resource, SchemeId>>,
+    pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
     virtual_memory_highwater: Atomic<Address<V>>,
 }
 
@@ -40,7 +42,7 @@ impl Proc {
                 let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
                 Atomic::new(PageTable::get())
             },
-            resources: UnintMutex::new(BTreeMap::new()),
+            resources: Mutex::new(BTreeMap::new()),
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
         };
         let proc_mut = unsafe { &mut *(proc.as_mut() as *mut Proc) };
@@ -48,7 +50,7 @@ impl Proc {
         let task = Task::create(unsafe { &mut *(proc.as_mut() as *mut Proc) }, t);
         proc.threads.push(task.id);
         // Add to list
-        PROCS.lock().push_back(proc);
+        PROCS.lock_uninterruptible().push_back(proc);
         // Spawn
         SCHEDULER.register_new_task(task);
         proc_mut

@@ -6,12 +6,12 @@ use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
-use crate::utils::unint_lock::UnintMutex;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use interrupt::UninterruptibleMutex;
 use kernel_tasks::KernelTask;
 use spin::Mutex;
 
@@ -29,7 +29,7 @@ pub struct Task {
     scheduler_state: RefCell<<Scheduler as AbstractScheduler>::State>,
     pub context: <TargetArch as Arch>::Context,
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
-    block_to_send: UnintMutex<Option<Message>>,
+    block_to_send: Mutex<Option<Message>>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
     pub proc: &'static Proc,
 }
@@ -59,7 +59,7 @@ impl Task {
                 // Unblock this sender
                 blocked_senders.remove(&sender_id);
                 let sender = Task::by_id(sender_id).unwrap();
-                let m = sender.block_to_send.lock().take().unwrap();
+                let m = sender.block_to_send.lock_uninterruptible().take().unwrap();
                 SCHEDULER.unblock_sending_task(sender_id, 0);
                 // We've received a message, return to user program
                 receiver.context.set_response_message(m);
@@ -95,7 +95,7 @@ impl Task {
         }
         // Else, block the sender until message is delivered
         {
-            *sender.block_to_send.lock() = Some(m);
+            *sender.block_to_send.lock_uninterruptible() = Some(m);
             let mut blocked_senders = receiver.blocked_senders.lock();
             blocked_senders.insert(sender.id);
         }
@@ -110,7 +110,7 @@ impl Task {
             context: <TargetArch as Arch>::Context::new(entry as _, t as *mut ()),
             scheduler_state: RefCell::new(Default::default()),
             block_to_receive_from: Mutex::new(None),
-            block_to_send: UnintMutex::new(None),
+            block_to_send: Mutex::new(None),
             blocked_senders: Mutex::new(BTreeSet::new()),
             proc,
         }
