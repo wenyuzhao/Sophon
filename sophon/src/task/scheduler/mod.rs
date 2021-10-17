@@ -41,7 +41,7 @@ pub trait AbstractScheduler: Sized + 'static {
     fn mark_task_as_ready(&self, t: &'static Task);
 
     fn unblock_sending_task(&self, id: TaskId, status: isize) {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         let task = self.get_task_by_id(id).unwrap();
         assert!(**task.scheduler_state::<Self>().borrow() == RunState::Sending);
         // Set response
@@ -61,7 +61,7 @@ pub trait AbstractScheduler: Sized + 'static {
     }
 
     fn block_current_task_as_sending(&self) -> ! {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         let task = self.get_current_task().unwrap();
         assert!(**task.scheduler_state::<Self>().borrow() == RunState::Running);
         **task.scheduler_state::<Self>().borrow_mut() = RunState::Sending;
@@ -69,7 +69,7 @@ pub trait AbstractScheduler: Sized + 'static {
     }
 
     fn block_current_task_as_receiving(&self) -> ! {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         let task = self.get_current_task().unwrap();
         assert!(
             **task.scheduler_state::<Self>().borrow() == RunState::Running,

@@ -92,7 +92,7 @@ pub struct UARTLogger;
 
 impl Logger for UARTLogger {
     fn log(&self, s: &str) -> Result<(), fmt::Error> {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         for c in s.chars() {
             if c == '\n' {
                 unsafe {
@@ -106,7 +106,7 @@ impl Logger for UARTLogger {
         Ok(())
     }
     fn log_fmt(&self, args: fmt::Arguments) -> Result<(), fmt::Error> {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         log::log_fmt(self, args)
     }
 }

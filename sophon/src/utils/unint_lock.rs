@@ -2,7 +2,7 @@ use core::ops::{Deref, DerefMut};
 
 use spin::{Mutex, MutexGuard};
 
-// Uninterruptable Mutex
+// uninterruptible Mutex
 pub struct UnintMutex<T> {
     mutex: Mutex<T>,
 }

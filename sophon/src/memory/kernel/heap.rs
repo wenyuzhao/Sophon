@@ -74,12 +74,12 @@ pub struct KernelHeapAllocator;
 
 unsafe impl GlobalAlloc for KernelHeapAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         KERNEL_HEAP.fa.lock().alloc(&layout).as_mut_ptr()
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         KERNEL_HEAP.fa.lock().free(ptr.into(), &layout)
     }
 }

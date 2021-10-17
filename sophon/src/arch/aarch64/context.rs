@@ -94,11 +94,11 @@ pub struct AArch64Context {
 
 impl AArch64Context {
     pub fn push_exception_frame(&self, exception_frame: *mut ExceptionFrame) {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         self.exception_frames.lock().push(exception_frame)
     }
     fn pop_exception_frame(&self) -> Option<*mut ExceptionFrame> {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         self.exception_frames.lock().pop()
     }
 }

@@ -24,7 +24,7 @@ pub fn is_enabled() -> bool {
 }
 
 #[inline]
-pub fn uninterruptable() -> impl Drop {
+pub fn uninterruptible() -> impl Drop {
     struct Guard {
         enabled: bool,
     }

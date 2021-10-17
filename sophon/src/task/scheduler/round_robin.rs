@@ -57,7 +57,7 @@ impl AbstractScheduler for RoundRobinScheduler {
     type State = State;
 
     fn register_new_task(&self, task: Box<Task>) -> &'static mut Task {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         let id = task.id;
         let task_ref: &'static mut Task =
             unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
@@ -80,7 +80,7 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     fn get_task_by_id(&self, id: TaskId) -> Option<&'static Task> {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         let tasks = self.tasks.lock();
         let task = tasks.get(&id)?;
         let task_ref: &'static mut Task =
@@ -94,7 +94,7 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     fn get_current_task(&self) -> Option<&'static Task> {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         self.get_task_by_id(self.get_current_task_id()?)
     }
 

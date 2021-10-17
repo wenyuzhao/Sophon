@@ -21,7 +21,7 @@ impl BootLogger {
 
 impl Logger for BootLogger {
     fn log(&self, s: &str) -> Result<(), fmt::Error> {
-        let _guard = interrupt::uninterruptable();
+        let _guard = interrupt::uninterruptible();
         let mmio = match self.0 {
             Some(a) => a,
             _ => return Ok(()),
