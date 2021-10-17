@@ -9,7 +9,13 @@ use ipc::{
 };
 use spin::Mutex;
 
-use crate::{kernel_tasks::user::UserTask, task::Proc};
+use crate::{
+    kernel_tasks::user::UserTask,
+    task::{
+        scheduler::{AbstractScheduler, SCHEDULER},
+        Proc,
+    },
+};
 
 pub struct ProcScheme {
     uris: Mutex<BTreeMap<Resource, String>>,
@@ -64,6 +70,7 @@ impl SchemeServer for ProcScheme {
             }
             "/me/exit" => {
                 Proc::current().exit();
+                SCHEDULER.schedule();
                 Ok(())
             }
             v => unimplemented!("{:?}", v),

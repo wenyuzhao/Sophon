@@ -75,8 +75,9 @@ impl AbstractScheduler for RoundRobinScheduler {
         debug_assert!(!interrupt::is_enabled());
         debug_assert!(!self.task_queue.lock().contains(&id));
         let current_task_table = unsafe { &mut *self.current_task.get() };
-        current_task_table[0] = None;
-        unimplemented!()
+        if current_task_table[0] == Some(id) {
+            current_task_table[0] = None;
+        }
     }
 
     fn get_task_by_id(&self, id: TaskId) -> Option<&'static Task> {
@@ -123,9 +124,9 @@ impl AbstractScheduler for RoundRobinScheduler {
                 current_task.unwrap().context.return_to_user();
             }
         } else {
-            // Current Task is blocked, switch to a new task
+            // No current task or the current Task is blocked, switch to a new task.
 
-            // Find a scheduleable task
+            // Find a schedulable task
             let next_task = self.get_next_schedulable_task();
 
             debug_assert!({
