@@ -64,13 +64,21 @@ unsafe fn zero_bss() {
     core::ptr::write_bytes(start, 0, bytes as _)
 }
 
+fn display_banner() {
+    println!(r"");
+    println!(r" ____ ____ ___  _  _ ____ _  _    ____ ____ ");
+    println!(r" [__  |  | |__] |__| |  | |\ |    |  | [__  ");
+    println!(r" ___] |__| |    |  | |__| | \|    |__| ___] ");
+    println!(r"");
+}
+
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     unsafe { zero_bss() }
     if let Some(uart) = boot_info.uart {
         utils::boot_log::init(uart);
     }
-    println!("[ Hello, Sophon! ]");
+    display_banner();
     log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
         *(boot_info as *const _ as *const usize)
     });
