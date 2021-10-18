@@ -8,8 +8,7 @@ use alloc::collections::BTreeMap;
 use core::ops::Deref;
 use core::sync::atomic::AtomicUsize;
 use crossbeam::queue::SegQueue;
-use interrupt::UninterruptibleRwLock;
-use spin::{Mutex, RwLock};
+use spin::Mutex;
 
 const UNIT_TIME_SLICE: usize = 1;
 
@@ -44,7 +43,7 @@ impl Default for State {
 }
 
 pub struct RoundRobinScheduler {
-    current_task: RwLock<[Option<TaskId>; 4]>,
+    current_task: [Atomic<Option<TaskId>>; 4],
     tasks: Mutex<BTreeMap<TaskId, Box<Task>>>,
     task_queue: SegQueue<TaskId>,
 }
@@ -71,10 +70,13 @@ impl AbstractScheduler for RoundRobinScheduler {
         let _task = self.get_task_by_id(id).unwrap();
         self.tasks.lock().remove(&id);
         debug_assert!(!interrupt::is_enabled());
-        let mut current_task_table = self.current_task.write_uninterruptible();
-        if current_task_table[0] == Some(id) {
-            current_task_table[0] = None;
-        }
+        let _ = self.current_task[0].fetch_update(Ordering::SeqCst, Ordering::SeqCst, |curr| {
+            if curr == Some(id) {
+                Some(None)
+            } else {
+                None
+            }
+        });
     }
 
     #[inline]
@@ -89,7 +91,7 @@ impl AbstractScheduler for RoundRobinScheduler {
 
     #[inline]
     fn get_current_task_id(&self) -> Option<TaskId> {
-        self.current_task.read_uninterruptible()[0]
+        self.current_task[0].load(Ordering::SeqCst)
     }
 
     #[inline]
@@ -195,7 +197,12 @@ impl AbstractScheduler for RoundRobinScheduler {
 impl RoundRobinScheduler {
     pub const fn new() -> Self {
         Self {
-            current_task: RwLock::new([None; 4]),
+            current_task: [
+                Atomic::new(None),
+                Atomic::new(None),
+                Atomic::new(None),
+                Atomic::new(None),
+            ],
             tasks: Mutex::new(BTreeMap::new()),
             task_queue: SegQueue::new(),
         }
@@ -203,8 +210,7 @@ impl RoundRobinScheduler {
 
     #[inline]
     pub fn set_current_task_id(&self, id: TaskId) {
-        let mut current_task_table = self.current_task.write_uninterruptible();
-        current_task_table[0] = Some(id);
+        self.current_task[0].store(Some(id), Ordering::SeqCst);
     }
 
     #[inline]
