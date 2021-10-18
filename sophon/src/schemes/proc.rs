@@ -71,7 +71,6 @@ impl SchemeServer for ProcScheme {
             "/me/exit" => {
                 Proc::current().exit();
                 SCHEDULER.schedule();
-                Ok(())
             }
             v => unimplemented!("{:?}", v),
         }

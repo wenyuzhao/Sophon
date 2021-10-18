@@ -20,7 +20,7 @@ pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     log!("Init process start (user mode)");
     let resource = Resource::open("scheme-test:/test", 0, Mode::ReadWrite).unwrap();
     let mut data = [0u8; 100];
-    loop {
+    for _ in 0..10 {
         let len = resource.read(&mut data).unwrap();
         log!(
             "[init] read from scheme-test -> {:?}",
@@ -28,11 +28,11 @@ pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
         );
         resource.write("hello, world").unwrap();
     }
-    // Resource::open("proc:/me/exit", 0, Mode::ReadWrite)
-    //     .unwrap()
-    //     .write(&[])
-    //     .unwrap();
-    // unreachable!();
+    Resource::open("proc:/me/exit", 0, Mode::ReadWrite)
+        .unwrap()
+        .write(&[])
+        .unwrap();
+    unreachable!();
 }
 
 #[panic_handler]
