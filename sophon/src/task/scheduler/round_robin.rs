@@ -3,7 +3,6 @@ use crate::arch::*;
 use crate::task::task::Task;
 use crate::task::TaskId;
 use crate::*;
-use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use core::ops::Deref;
 use core::sync::atomic::AtomicUsize;
@@ -44,7 +43,7 @@ impl Default for State {
 
 pub struct RoundRobinScheduler {
     current_task: [Atomic<Option<TaskId>>; 4],
-    tasks: Mutex<BTreeMap<TaskId, Box<Task>>>,
+    tasks: Mutex<BTreeMap<TaskId, Arc<Task>>>,
     task_queue: SegQueue<TaskId>,
 }
 
@@ -52,17 +51,15 @@ impl AbstractScheduler for RoundRobinScheduler {
     type State = State;
 
     #[inline]
-    fn register_new_task(&self, task: Box<Task>) -> &'static mut Task {
+    fn register_new_task(&self, task: Arc<Task>) -> Arc<Task> {
         let _guard = interrupt::uninterruptible();
         let id = task.id;
-        let task_ref: &'static mut Task =
-            unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
-        self.tasks.lock().insert(id, task);
-        if task_ref.scheduler_state::<Self>().load(Ordering::SeqCst) == RunState::Ready {
+        self.tasks.lock().insert(id, task.clone());
+        if task.scheduler_state::<Self>().load(Ordering::SeqCst) == RunState::Ready {
             debug_assert!(!interrupt::is_enabled());
             self.task_queue.push(id);
         }
-        task_ref
+        task
     }
 
     #[inline]
@@ -80,13 +77,11 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     #[inline]
-    fn get_task_by_id(&self, id: TaskId) -> Option<&'static Task> {
+    fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>> {
         let _guard = interrupt::uninterruptible();
         let tasks = self.tasks.lock();
         let task = tasks.get(&id)?;
-        let task_ref: &'static mut Task =
-            unsafe { &mut *((&task as &Task) as *const Task as usize as *mut Task) };
-        Some(task_ref)
+        Some(task.clone())
     }
 
     #[inline]
@@ -95,13 +90,13 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     #[inline]
-    fn get_current_task(&self) -> Option<&'static Task> {
+    fn get_current_task(&self) -> Option<Arc<Task>> {
         let _guard = interrupt::uninterruptible();
         self.get_task_by_id(self.get_current_task_id()?)
     }
 
     #[inline]
-    fn mark_task_as_ready(&self, task: &'static Task) {
+    fn mark_task_as_ready(&self, task: Arc<Task>) {
         assert!(task.scheduler_state::<Self>().load(Ordering::SeqCst) != RunState::Ready);
         task.scheduler_state::<Self>()
             .store(RunState::Ready, Ordering::SeqCst);
@@ -227,7 +222,7 @@ impl RoundRobinScheduler {
     }
 
     #[inline]
-    fn get_next_schedulable_task(&self) -> &'static Task {
+    fn get_next_schedulable_task(&self) -> Arc<Task> {
         debug_assert!(!interrupt::is_enabled());
         if let Some(next_runnable_task) = self.task_queue.pop() {
             Task::by_id(next_runnable_task).expect("task not found")

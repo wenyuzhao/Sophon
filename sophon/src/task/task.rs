@@ -9,6 +9,7 @@ use crate::arch::TargetArch;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
+use alloc::sync::Arc;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use interrupt::UninterruptibleMutex;
 use kernel_tasks::KernelTask;
@@ -30,7 +31,7 @@ pub struct Task {
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
     block_to_send: Mutex<Option<Message>>,
     blocked_senders: Mutex<BTreeSet<TaskId>>,
-    pub proc: &'static Proc,
+    pub proc: Arc<Proc>,
 }
 
 impl Task {
@@ -99,10 +100,10 @@ impl Task {
         SCHEDULER.block_current_task_as_sending();
     }
 
-    pub(super) fn create(proc: &'static Proc, t: Box<dyn KernelTask>) -> Box<Self> {
+    pub(super) fn create(proc: Arc<Proc>, t: Box<dyn KernelTask>) -> Arc<Self> {
         let t = Box::into_raw(box t);
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
-        box Task {
+        Arc::new(Task {
             id,
             context: <TargetArch as Arch>::Context::new(entry as _, t as *mut ()),
             scheduler_state: Default::default(),
@@ -110,14 +111,14 @@ impl Task {
             block_to_send: Mutex::new(None),
             blocked_senders: Mutex::new(BTreeSet::new()),
             proc,
-        }
+        })
     }
 
-    pub fn by_id(id: TaskId) -> Option<&'static Self> {
+    pub fn by_id(id: TaskId) -> Option<Arc<Self>> {
         SCHEDULER.get_task_by_id(id)
     }
 
-    pub fn current() -> &'static Self {
+    pub fn current() -> Arc<Self> {
         SCHEDULER.get_current_task().unwrap()
     }
 

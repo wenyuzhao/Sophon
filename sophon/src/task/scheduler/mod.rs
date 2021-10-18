@@ -1,7 +1,7 @@
 mod round_robin;
 
 use crate::arch::*;
-use alloc::boxed::Box;
+use alloc::sync::Arc;
 use atomic::{Atomic, Ordering};
 use core::fmt::Debug;
 use core::ops::Deref;
@@ -32,13 +32,13 @@ pub trait AbstractSchedulerState: Default + Debug + Deref<Target = Atomic<RunSta
 pub trait AbstractScheduler: Sized + 'static {
     type State: AbstractSchedulerState;
 
-    fn register_new_task(&self, task: Box<Task>) -> &'static mut Task;
+    fn register_new_task(&self, task: Arc<Task>) -> Arc<Task>;
     fn remove_task(&self, id: TaskId);
-    fn get_task_by_id(&self, id: TaskId) -> Option<&'static Task>;
+    fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>>;
     fn get_current_task_id(&self) -> Option<TaskId>;
-    fn get_current_task(&self) -> Option<&'static Task>;
+    fn get_current_task(&self) -> Option<Arc<Task>>;
 
-    fn mark_task_as_ready(&self, t: &'static Task);
+    fn mark_task_as_ready(&self, t: Arc<Task>);
 
     fn schedule(&self) -> !;
     fn timer_tick(&self);

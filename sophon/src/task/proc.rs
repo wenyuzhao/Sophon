@@ -4,6 +4,7 @@ use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use crate::{kernel_tasks::KernelTask, task::Task};
 use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::iter::Step;
@@ -17,7 +18,7 @@ use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};
 use spin::Mutex;
 
-static PROCS: Mutex<LinkedList<Box<Proc>>> = Mutex::new(LinkedList::new());
+static PROCS: Mutex<LinkedList<Arc<Proc>>> = Mutex::new(LinkedList::new());
 
 pub struct Proc {
     pub id: ProcId,
@@ -28,6 +29,7 @@ pub struct Proc {
 }
 
 unsafe impl Send for Proc {}
+unsafe impl Sync for Proc {}
 
 impl Proc {
     pub fn initialize_user_space(&self) {
@@ -45,12 +47,12 @@ impl Proc {
         self.set_page_table(page_table);
     }
 
-    pub fn spawn(t: Box<dyn KernelTask>) -> &'static Proc {
+    pub fn spawn(t: Box<dyn KernelTask>) -> Arc<Proc> {
         // Assign an id
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let proc_id = ProcId(COUNTER.fetch_add(1, Ordering::SeqCst));
         // Allocate proc struct
-        let mut proc = box Proc {
+        let proc = Arc::new(Proc {
             id: proc_id,
             threads: Mutex::new(vec![]),
             page_table: {
@@ -60,16 +62,15 @@ impl Proc {
             },
             resources: Mutex::new(BTreeMap::new()),
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
-        };
-        let proc_mut = unsafe { &mut *(proc.as_mut() as *mut Proc) };
+        });
         // Create main thread
-        let task = Task::create(unsafe { &mut *(proc.as_mut() as *mut Proc) }, t);
+        let task = Task::create(proc.clone(), t);
         proc.threads.lock().push(task.id);
         // Add to list
-        PROCS.lock_uninterruptible().push_back(proc);
+        PROCS.lock_uninterruptible().push_back(proc.clone());
         // Spawn
         SCHEDULER.register_new_task(task);
-        proc_mut
+        proc
     }
 
     #[inline]
@@ -83,12 +84,12 @@ impl Proc {
     }
 
     #[inline]
-    pub fn current() -> &'static Proc {
-        Task::current().proc
+    pub fn current() -> Arc<Proc> {
+        Task::current().proc.clone()
     }
 
-    pub fn spawn_task(&self, f: *const extern "C" fn()) -> &'static Task {
-        let task = Task::create(unsafe { &*(self as *const _) }, box UserTask::new(f));
+    pub fn spawn_task(self: Arc<Self>, f: *const extern "C" fn()) -> Arc<Task> {
+        let task = Task::create(self.clone(), box UserTask::new(f));
         self.threads.lock_uninterruptible().push(task.id);
         SCHEDULER.register_new_task(task)
     }
