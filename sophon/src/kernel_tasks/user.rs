@@ -1,53 +1,64 @@
 use super::KernelTask;
 use crate::arch::*;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
-use crate::memory::kernel::KERNEL_MEMORY_RANGE;
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::Proc;
+use crate::task::Task;
 use alloc::vec::Vec;
 use core::iter::Step;
 use core::ptr;
 use elf_rs::*;
+use interrupt::UninterruptibleMutex;
 use memory::address::*;
 use memory::page::*;
-use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};
+use memory::page_table::{PageFlags, PageFlagsExt, PageTable};
 
 const USER_STACK_START: Address<V> = Address::new(0x111900000);
 const USER_STACK_PAGES: usize = 4; // Too many???
 const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::BYTES;
-const USER_STACK_END: Address<V> = Address::new(USER_STACK_START.as_usize() + USER_STACK_SIZE);
 
 pub struct UserTask {
-    elf_data: Vec<u8>,
+    elf_data: Option<Vec<u8>>,
+    entry: Option<*const extern "C" fn()>,
 }
 
 impl UserTask {
-    pub fn new(elf_data: Vec<u8>) -> Self {
-        Self { elf_data }
+    pub fn new(entry: *const extern "C" fn()) -> Self {
+        Self {
+            elf_data: None,
+            entry: Some(entry),
+        }
     }
 
-    fn setup_user_pagetable() -> &'static mut PageTable {
-        let page_table = PageTable::alloc(&PHYSICAL_MEMORY);
-        // Map kernel pages
-        let kernel_memory = KERNEL_MEMORY_RANGE;
-        let index = PageTable::<L4>::get_index(kernel_memory.start);
-        debug_assert_eq!(index, PageTable::<L4>::get_index(kernel_memory.end - 1));
-        page_table[index] = PageTable::get()[index].clone();
-        Proc::current().set_page_table(unsafe { &mut *(page_table as *mut _) });
-        page_table
+    pub fn new_with_elf(elf_data: Vec<u8>) -> Self {
+        Self {
+            elf_data: Some(elf_data),
+            entry: None,
+        }
     }
 
-    fn setup_user_stack(page_table: &mut PageTable) {
+    fn setup_user_stack(page_table: &mut PageTable) -> Address {
+        let tid = Task::current().id;
+        let i = Proc::current()
+            .threads
+            .lock_uninterruptible()
+            .iter()
+            .position(|t| *t == tid)
+            .unwrap();
+        println!("User stack #{}", i);
+        let user_stack_start = USER_STACK_START + i * USER_STACK_SIZE;
         for i in 0..USER_STACK_PAGES {
-            let page = Step::forward(Page::<Size4K>::new(USER_STACK_START), i);
+            let page = Step::forward(Page::<Size4K>::new(user_stack_start), i);
             let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
             let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
             page_table.map(page, frame, PageFlags::user_stack_flags(), &PHYSICAL_MEMORY);
         }
+        user_stack_start + USER_STACK_SIZE
     }
 
     fn load_elf(&self, page_table: &mut PageTable) -> extern "C" fn(isize, *const *const u8) {
-        let elf = Elf::from_bytes(&self.elf_data).unwrap();
+        let elf_data: &[u8] = self.elf_data.as_ref().unwrap();
+        let elf = Elf::from_bytes(elf_data).unwrap();
         if let Elf::Elf64(elf) = elf {
             log!("Parsed ELF file");
             let entry: extern "C" fn(isize, *const *const u8) =
@@ -116,11 +127,7 @@ impl UserTask {
                 let bytes = p.ph.filesz() as usize;
                 let offset = p.ph.offset() as usize;
                 unsafe {
-                    ptr::copy_nonoverlapping::<u8>(
-                        &self.elf_data[offset],
-                        start.as_mut_ptr(),
-                        bytes,
-                    );
+                    ptr::copy_nonoverlapping::<u8>(&elf_data[offset], start.as_mut_ptr(), bytes);
                 }
             }
             if let Some(bss) = elf.lookup_section(".bss") {
@@ -142,17 +149,30 @@ impl KernelTask for UserTask {
     fn run(&mut self) -> ! {
         log!("User task start (kernel)");
         log!("Execute user program");
-        let page_table = Self::setup_user_pagetable();
-        log!("User page-table created");
-        let entry = self.load_elf(page_table);
-        log!("ELF File loaded");
-        Self::setup_user_stack(page_table);
-        log!("User stack created");
-        log!(
-            "Start to enter usermode: {:?}",
-            crate::task::Task::current().id
-        );
-        // Enter usermode
-        unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, USER_STACK_END, page_table) }
+        let proc = Proc::current();
+        if Proc::current().threads.lock().len() == 1 {
+            log!("Initialze user space process");
+            proc.initialize_user_space();
+            let page_table = proc.get_page_table();
+            log!("Load ELF");
+            let entry = self.load_elf(page_table);
+            log!("Setup stack");
+            let stack_top = Self::setup_user_stack(page_table);
+            log!("Enter usermode");
+            unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, stack_top, page_table) }
+        } else {
+            let page_table = proc.get_page_table();
+            log!("Setup stack");
+            let stack_top = Self::setup_user_stack(page_table);
+            let entry = self.entry.unwrap();
+            log!("Enter usermode");
+            unsafe {
+                <TargetArch as Arch>::Context::enter_usermode(
+                    core::mem::transmute(entry),
+                    stack_top,
+                    page_table,
+                )
+            }
+        }
     }
 }

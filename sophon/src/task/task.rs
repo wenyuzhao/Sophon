@@ -99,7 +99,7 @@ impl Task {
         SCHEDULER.block_current_task_as_sending();
     }
 
-    pub(super) fn create(proc: &'static mut Proc, t: Box<dyn KernelTask>) -> Box<Self> {
+    pub(super) fn create(proc: &'static Proc, t: Box<dyn KernelTask>) -> Box<Self> {
         let t = Box::into_raw(box t);
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
         box Task {
@@ -124,6 +124,10 @@ impl Task {
     pub fn get_context<C: ArchContext>(&self) -> &C {
         let ptr = &self.context as *const _;
         unsafe { &mut *(ptr as *mut C) }
+    }
+
+    pub fn exit(&self) {
+        SCHEDULER.remove_task(Task::current().id);
     }
 }
 

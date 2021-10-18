@@ -3,6 +3,7 @@ use alloc::{
     string::{String, ToString},
     vec,
 };
+use interrupt::UninterruptibleMutex;
 use ipc::{
     scheme::{Args, Mode, Resource, Result as IoResult, SchemeServer, Uri},
     ProcId,
@@ -13,7 +14,7 @@ use crate::{
     kernel_tasks::user::UserTask,
     task::{
         scheduler::{AbstractScheduler, SCHEDULER},
-        Proc,
+        Proc, Task,
     },
 };
 
@@ -38,7 +39,9 @@ impl SchemeServer for ProcScheme {
     }
     fn open(&self, uri: &Uri, _flags: u32, _mode: Mode) -> IoResult<Resource> {
         let fd = self.allocate_resource_id();
-        self.uris.lock().insert(fd, uri.path.to_string());
+        self.uris
+            .lock_uninterruptible()
+            .insert(fd, uri.path.to_string());
         Ok(fd)
     }
     fn close(self, _fd: Resource) -> IoResult<()> {
@@ -48,7 +51,7 @@ impl SchemeServer for ProcScheme {
         unimplemented!()
     }
     fn write(&self, fd: Resource, buf: &[u8]) -> IoResult<()> {
-        let uris = self.uris.lock();
+        let uris = self.uris.lock_uninterruptible();
         match uris[&fd].as_str() {
             "/spawn" => {
                 let args = Args::from(buf);
@@ -64,12 +67,25 @@ impl SchemeServer for ProcScheme {
                     }
                     data.extend_from_slice(&buf[..len]);
                 }
-                let id = Proc::spawn(box UserTask::new(data)).id;
+                let id = Proc::spawn(box UserTask::new_with_elf(data)).id;
                 *proc_id = id;
                 Ok(())
             }
+            "/me/spawn-thread" => {
+                let f = Args::from(buf).get::<*const extern "C" fn()>();
+                Proc::current().spawn_task(f);
+                Ok(())
+            }
+            "/me/thread-exit" => {
+                println!("thread exit {:?}", Task::current().id);
+                Task::current().exit();
+                println!("thread exit done");
+                core::mem::drop(uris);
+                SCHEDULER.schedule();
+            }
             "/me/exit" => {
                 Proc::current().exit();
+                core::mem::drop(uris);
                 SCHEDULER.schedule();
             }
             v => unimplemented!("{:?}", v),

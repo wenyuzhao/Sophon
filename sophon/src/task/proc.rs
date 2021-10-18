@@ -1,4 +1,5 @@
-use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
+use crate::kernel_tasks::user::UserTask;
+use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use crate::{kernel_tasks::KernelTask, task::Task};
@@ -13,14 +14,14 @@ use ipc::scheme::{Resource, SchemeId};
 use ipc::{ProcId, TaskId};
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
-use memory::page_table::{PageFlags, PageFlagsExt, PageTable};
+use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};
 use spin::Mutex;
 
 static PROCS: Mutex<LinkedList<Box<Proc>>> = Mutex::new(LinkedList::new());
 
 pub struct Proc {
     pub id: ProcId,
-    threads: Vec<TaskId>,
+    pub threads: Mutex<Vec<TaskId>>,
     page_table: Atomic<*mut PageTable>,
     pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
     virtual_memory_highwater: Atomic<Address<V>>,
@@ -29,6 +30,21 @@ pub struct Proc {
 unsafe impl Send for Proc {}
 
 impl Proc {
+    pub fn initialize_user_space(&self) {
+        // User page table
+        let page_table = {
+            let page_table = PageTable::alloc(&PHYSICAL_MEMORY);
+            // Map kernel pages
+            let kernel_memory = KERNEL_MEMORY_RANGE;
+            let index = PageTable::<L4>::get_index(kernel_memory.start);
+            debug_assert_eq!(index, PageTable::<L4>::get_index(kernel_memory.end - 1));
+            page_table[index] = PageTable::get()[index].clone();
+            Proc::current().set_page_table(unsafe { &mut *(page_table as *mut _) });
+            page_table
+        };
+        self.set_page_table(page_table);
+    }
+
     pub fn spawn(t: Box<dyn KernelTask>) -> &'static Proc {
         // Assign an id
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -36,7 +52,7 @@ impl Proc {
         // Allocate proc struct
         let mut proc = box Proc {
             id: proc_id,
-            threads: vec![],
+            threads: Mutex::new(vec![]),
             page_table: {
                 // the initial page table is the kernel page table
                 let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
@@ -48,7 +64,7 @@ impl Proc {
         let proc_mut = unsafe { &mut *(proc.as_mut() as *mut Proc) };
         // Create main thread
         let task = Task::create(unsafe { &mut *(proc.as_mut() as *mut Proc) }, t);
-        proc.threads.push(task.id);
+        proc.threads.lock().push(task.id);
         // Add to list
         PROCS.lock_uninterruptible().push_back(proc);
         // Spawn
@@ -69,6 +85,12 @@ impl Proc {
     #[inline]
     pub fn current() -> &'static Proc {
         Task::current().proc
+    }
+
+    pub fn spawn_task(&self, f: *const extern "C" fn()) -> &'static Task {
+        let task = Task::create(unsafe { &*(self as *const _) }, box UserTask::new(f));
+        self.threads.lock_uninterruptible().push(task.id);
+        SCHEDULER.register_new_task(task)
     }
 
     pub fn sbrk(&self, num_pages: usize) -> Option<Range<Page<Size4K>>> {
@@ -106,6 +128,6 @@ impl Proc {
     }
 
     pub fn exit(&self) {
-        SCHEDULER.remove_task(Task::current().id);
+        unimplemented!()
     }
 }
