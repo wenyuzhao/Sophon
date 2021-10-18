@@ -2,7 +2,9 @@ mod round_robin;
 
 use crate::arch::*;
 use alloc::boxed::Box;
-use core::ops::{Deref, DerefMut};
+use atomic::{Atomic, Ordering};
+use core::fmt::Debug;
+use core::ops::Deref;
 
 use super::{task::Task, Message, TaskId};
 
@@ -17,6 +19,7 @@ use super::{task::Task, Message, TaskId};
  *
  */
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
+#[repr(u8)]
 pub enum RunState {
     Ready,
     Running,
@@ -24,10 +27,7 @@ pub enum RunState {
     Receiving,
 }
 
-pub trait AbstractSchedulerState:
-    Clone + Default + ::core::fmt::Debug + Deref<Target = RunState> + DerefMut
-{
-}
+pub trait AbstractSchedulerState: Default + Debug + Deref<Target = Atomic<RunState>> {}
 
 pub trait AbstractScheduler: Sized + 'static {
     type State: AbstractSchedulerState;
@@ -40,10 +40,16 @@ pub trait AbstractScheduler: Sized + 'static {
 
     fn mark_task_as_ready(&self, t: &'static Task);
 
+    fn schedule(&self) -> !;
+    fn timer_tick(&self);
+
     fn unblock_sending_task(&self, id: TaskId, status: isize) {
         let _guard = interrupt::uninterruptible();
         let task = self.get_task_by_id(id).unwrap();
-        assert!(**task.scheduler_state::<Self>().borrow() == RunState::Sending);
+        assert_eq!(
+            task.scheduler_state::<Self>().load(Ordering::SeqCst),
+            RunState::Sending
+        );
         // Set response
         task.context.set_response_status(status);
         // Add this task to ready queue
@@ -52,7 +58,10 @@ pub trait AbstractScheduler: Sized + 'static {
 
     fn unblock_receiving_task(&self, id: TaskId, status: isize, m: Message) {
         let task = self.get_task_by_id(id).unwrap();
-        assert!(**task.scheduler_state::<Self>().borrow() == RunState::Receiving);
+        assert_eq!(
+            task.scheduler_state::<Self>().load(Ordering::SeqCst),
+            RunState::Receiving
+        );
         // Set response
         task.context.set_response_message(m);
         task.context.set_response_status(status);
@@ -63,26 +72,26 @@ pub trait AbstractScheduler: Sized + 'static {
     fn block_current_task_as_sending(&self) -> ! {
         let _guard = interrupt::uninterruptible();
         let task = self.get_current_task().unwrap();
-        assert!(**task.scheduler_state::<Self>().borrow() == RunState::Running);
-        **task.scheduler_state::<Self>().borrow_mut() = RunState::Sending;
+        assert_eq!(
+            task.scheduler_state::<Self>().load(Ordering::SeqCst),
+            RunState::Running
+        );
+        task.scheduler_state::<Self>()
+            .store(RunState::Sending, Ordering::SeqCst);
         self.schedule();
     }
 
     fn block_current_task_as_receiving(&self) -> ! {
         let _guard = interrupt::uninterruptible();
         let task = self.get_current_task().unwrap();
-        assert!(
-            **task.scheduler_state::<Self>().borrow() == RunState::Running,
-            "{:?} {:?}",
-            task.id,
-            **task.scheduler_state::<Self>().borrow()
+        assert_eq!(
+            task.scheduler_state::<Self>().load(Ordering::SeqCst),
+            RunState::Running
         );
-        **task.scheduler_state::<Self>().borrow_mut() = RunState::Receiving;
+        task.scheduler_state::<Self>()
+            .store(RunState::Receiving, Ordering::SeqCst);
         self.schedule();
     }
-
-    fn schedule(&self) -> !;
-    fn timer_tick(&self);
 }
 
 pub type Scheduler = impl AbstractScheduler;

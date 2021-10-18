@@ -9,7 +9,6 @@ use crate::arch::TargetArch;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
-use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use interrupt::UninterruptibleMutex;
 use kernel_tasks::KernelTask;
@@ -26,7 +25,7 @@ pub enum TaskState {
 
 pub struct Task {
     pub id: TaskId,
-    scheduler_state: RefCell<<Scheduler as AbstractScheduler>::State>,
+    scheduler_state: <Scheduler as AbstractScheduler>::State,
     pub context: <TargetArch as Arch>::Context,
     pub block_to_receive_from: Mutex<Option<Option<TaskId>>>,
     block_to_send: Mutex<Option<Message>>,
@@ -36,11 +35,9 @@ pub struct Task {
 
 impl Task {
     #[inline]
-    pub fn scheduler_state<S: AbstractScheduler>(&self) -> &RefCell<S::State> {
-        unsafe {
-            &*(&self.scheduler_state as *const RefCell<<Scheduler as AbstractScheduler>::State>
-                as *const RefCell<S::State>)
-        }
+    pub fn scheduler_state<S: AbstractScheduler>(&self) -> &S::State {
+        let state: &<Scheduler as AbstractScheduler>::State = &self.scheduler_state;
+        unsafe { core::mem::transmute(state) }
     }
 
     #[inline]
@@ -87,7 +84,7 @@ impl Task {
                     SCHEDULER.unblock_receiving_task(receiver.id, 0, m);
                     // Succesfully send the message, return to user
                     sender.context.set_response_status(0);
-                    log!("Sender: {:?}", sender.scheduler_state.borrow());
+                    log!("Sender: {:?}", sender.scheduler_state);
                     ::core::mem::drop(block_to_receive_from_guard);
                     SCHEDULER.schedule()
                 }
@@ -108,7 +105,7 @@ impl Task {
         box Task {
             id,
             context: <TargetArch as Arch>::Context::new(entry as _, t as *mut ()),
-            scheduler_state: RefCell::new(Default::default()),
+            scheduler_state: Default::default(),
             block_to_receive_from: Mutex::new(None),
             block_to_send: Mutex::new(None),
             blocked_senders: Mutex::new(BTreeSet::new()),
