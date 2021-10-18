@@ -5,11 +5,11 @@ use crate::task::TaskId;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
-use core::cell::UnsafeCell;
 use core::ops::Deref;
 use core::sync::atomic::AtomicUsize;
 use crossbeam::queue::SegQueue;
-use spin::Mutex;
+use interrupt::UninterruptibleRwLock;
+use spin::{Mutex, RwLock};
 
 const UNIT_TIME_SLICE: usize = 1;
 
@@ -44,7 +44,7 @@ impl Default for State {
 }
 
 pub struct RoundRobinScheduler {
-    current_task: UnsafeCell<[Option<TaskId>; 4]>,
+    current_task: RwLock<[Option<TaskId>; 4]>,
     tasks: Mutex<BTreeMap<TaskId, Box<Task>>>,
     task_queue: SegQueue<TaskId>,
 }
@@ -52,6 +52,7 @@ pub struct RoundRobinScheduler {
 impl AbstractScheduler for RoundRobinScheduler {
     type State = State;
 
+    #[inline]
     fn register_new_task(&self, task: Box<Task>) -> &'static mut Task {
         let _guard = interrupt::uninterruptible();
         let id = task.id;
@@ -65,16 +66,18 @@ impl AbstractScheduler for RoundRobinScheduler {
         task_ref
     }
 
+    #[inline]
     fn remove_task(&self, id: TaskId) {
         let _task = self.get_task_by_id(id).unwrap();
         self.tasks.lock().remove(&id);
         debug_assert!(!interrupt::is_enabled());
-        let current_task_table = unsafe { &mut *self.current_task.get() };
+        let mut current_task_table = self.current_task.write_uninterruptible();
         if current_task_table[0] == Some(id) {
             current_task_table[0] = None;
         }
     }
 
+    #[inline]
     fn get_task_by_id(&self, id: TaskId) -> Option<&'static Task> {
         let _guard = interrupt::uninterruptible();
         let tasks = self.tasks.lock();
@@ -84,16 +87,18 @@ impl AbstractScheduler for RoundRobinScheduler {
         Some(task_ref)
     }
 
+    #[inline]
     fn get_current_task_id(&self) -> Option<TaskId> {
-        let current_task_table = unsafe { &*self.current_task.get() };
-        current_task_table[0]
+        self.current_task.read_uninterruptible()[0]
     }
 
+    #[inline]
     fn get_current_task(&self) -> Option<&'static Task> {
         let _guard = interrupt::uninterruptible();
         self.get_task_by_id(self.get_current_task_id()?)
     }
 
+    #[inline]
     fn mark_task_as_ready(&self, task: &'static Task) {
         assert!(task.scheduler_state::<Self>().load(Ordering::SeqCst) != RunState::Ready);
         task.scheduler_state::<Self>()
@@ -101,6 +106,7 @@ impl AbstractScheduler for RoundRobinScheduler {
         self.task_queue.push(task.id);
     }
 
+    #[inline]
     fn schedule(&self) -> ! {
         interrupt::disable();
 
@@ -152,6 +158,7 @@ impl AbstractScheduler for RoundRobinScheduler {
         }
     }
 
+    #[inline]
     fn timer_tick(&self) {
         // log!("Timer TICK");
         debug_assert!(!interrupt::is_enabled());
@@ -188,19 +195,19 @@ impl AbstractScheduler for RoundRobinScheduler {
 impl RoundRobinScheduler {
     pub const fn new() -> Self {
         Self {
-            current_task: UnsafeCell::new([None; 4]),
+            current_task: RwLock::new([None; 4]),
             tasks: Mutex::new(BTreeMap::new()),
             task_queue: SegQueue::new(),
         }
     }
 
+    #[inline]
     pub fn set_current_task_id(&self, id: TaskId) {
-        let current_task_table = unsafe { &mut *self.current_task.get() };
+        let mut current_task_table = self.current_task.write_uninterruptible();
         current_task_table[0] = Some(id);
     }
 
-    //
-
+    #[inline]
     pub fn enqueue_current_task_as_ready(&self) {
         debug_assert!(!interrupt::is_enabled());
         let task = self.get_current_task().unwrap();
@@ -213,6 +220,7 @@ impl RoundRobinScheduler {
         self.task_queue.push(task.id);
     }
 
+    #[inline]
     fn get_next_schedulable_task(&self) -> &'static Task {
         debug_assert!(!interrupt::is_enabled());
         if let Some(next_runnable_task) = self.task_queue.pop() {
