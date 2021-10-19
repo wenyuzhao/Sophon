@@ -8,7 +8,7 @@ mod initfs {
 #[derive(Clap)]
 pub struct BuildInitFS {
     /// Output file.
-    #[clap(default_value = "target/_boot/init.fs")]
+    #[clap(long, default_value = "target/_boot/init.fs")]
     pub out: String,
     #[clap(flatten)]
     pub cargo: CargoFlags,

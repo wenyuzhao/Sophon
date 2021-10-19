@@ -6,7 +6,7 @@ use crate::{
 #[derive(Clap)]
 pub struct Run {
     /// Boot option.
-    #[clap(default_value = "uefi")]
+    #[clap(long, default_value = "uefi")]
     boot: Boot,
     #[clap(flatten)]
     pub cargo: CargoFlags,

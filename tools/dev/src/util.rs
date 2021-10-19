@@ -44,12 +44,13 @@ impl FromStr for Arch {
 #[derive(Clap, Clone)]
 pub struct CargoFlags {
     /// Target architecture.
-    #[clap(default_value = "aarch64")]
+    #[clap(long, default_value = "aarch64")]
     pub arch: Arch,
     /// Features for the kernel crate.
+    #[clap(long)]
     pub features: Option<String>,
     /// Do release build.
-    #[clap(long = "release")]
+    #[clap(long)]
     pub release: bool,
 }
 
