@@ -1,22 +1,6 @@
-include ../../sophon/common.mk
-
-build:
-# Build user programs and init.fs
-	$(MAKE) -C $(workspace)/user init.fs
-# Build kernel
-	$(call build, sophon)
-# Build UEFI loader
-	cargo build $(args)
-	llvm-objdump --section-headers --source -d ../../target/aarch64-sophon-uefi/$(profile)/sophon-boot-uefi.efi > ../../target/aarch64-sophon-uefi/$(profile)/sophon-boot-uefi.s 2> /dev/null
-# Create "boot partition"
-	mkdir -p $(target)/_boot $(target)/_boot/EFI/BOOT
-# Copy kernel
-	cp $(target)/aarch64-unknown-none/$(profile)/sophon $(target)/_boot/
-# Copy efi bootloader. Use BOOTX64.EFI for x86_64.
-	cp $(target)/aarch64-sophon-uefi/$(profile)/sophon-boot-uefi.efi $(target)/_boot/EFI/BOOT/BOOTAA64.EFI
-
-run: build
-	cargo run -- $(qemu_args)
+export profile ?= debug
+export workspace = $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST))))/../..)
+export target = $(workspace)/target
 
 lldb:
 	rust-lldb -o "gdb-remote 1234" -- ../../target/aarch64-unknown-none/$(profile)/sophon

@@ -11,7 +11,7 @@ members = [
     "libs/log",
     "libs/memory",
 # Tools
-    "tools/initfs_builder",
+    "tools/dev",
 # Boot loaders
     "boot/uefi",
 # User programs

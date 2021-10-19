@@ -1,0 +1,8 @@
+[alias]
+x = "run --package dev --"
+
+[unstable]
+unstable-options = true
+
+[build]
+out-dir = "target/_out"

@@ -8,14 +8,6 @@ fn main() -> io::Result<()> {
         Path::new(&out_dir).join("init-fs.rs"),
     )?;
 
-    fs::write(
-        &Path::new(&out_dir).join("profile.rs"),
-        format!(
-            "pub const PROFILE: &'static str = {:?};",
-            env::var_os("PROFILE").unwrap()
-        ),
-    )?;
-
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../sophon/init-fs.rs");
 
