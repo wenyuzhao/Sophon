@@ -9,7 +9,9 @@ use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::iter::Step;
 use core::ops::Range;
+use core::ptr;
 use core::sync::atomic::AtomicUsize;
+use elf_rs::{Elf, ProgramType};
 use interrupt::UninterruptibleMutex;
 use ipc::scheme::{Resource, SchemeId};
 use ipc::{ProcId, TaskId};
@@ -26,28 +28,14 @@ pub struct Proc {
     page_table: Atomic<*mut PageTable>,
     pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
     virtual_memory_highwater: Atomic<Address<V>>,
+    user_elf: Option<Vec<u8>>,
 }
 
 unsafe impl Send for Proc {}
 unsafe impl Sync for Proc {}
 
 impl Proc {
-    pub fn initialize_user_space(&self) {
-        // User page table
-        let page_table = {
-            let page_table = PageTable::alloc(&PHYSICAL_MEMORY);
-            // Map kernel pages
-            let kernel_memory = KERNEL_MEMORY_RANGE;
-            let index = PageTable::<L4>::get_index(kernel_memory.start);
-            debug_assert_eq!(index, PageTable::<L4>::get_index(kernel_memory.end - 1));
-            page_table[index] = PageTable::get()[index].clone();
-            Proc::current().set_page_table(unsafe { &mut *(page_table as *mut _) });
-            page_table
-        };
-        self.set_page_table(page_table);
-    }
-
-    pub fn spawn(t: Box<dyn KernelTask>) -> Arc<Proc> {
+    fn create(t: Box<dyn KernelTask>, user_elf: Option<Vec<u8>>) -> Arc<Proc> {
         // Assign an id
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let proc_id = ProcId(COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -62,6 +50,7 @@ impl Proc {
             },
             resources: Mutex::new(BTreeMap::new()),
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
+            user_elf,
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);
@@ -71,6 +60,121 @@ impl Proc {
         // Spawn
         SCHEDULER.register_new_task(task);
         proc
+    }
+
+    fn load_elf(&self, page_table: &mut PageTable) -> extern "C" fn(isize, *const *const u8) {
+        let elf_data: &[u8] = self.user_elf.as_ref().unwrap();
+        let elf = Elf::from_bytes(elf_data).unwrap();
+        if let Elf::Elf64(elf) = elf {
+            log!("Parsed ELF file");
+            let entry: extern "C" fn(isize, *const *const u8) =
+                unsafe { ::core::mem::transmute(elf.header().entry_point()) };
+            log!("Entry: {:?}", entry as *mut ());
+            let mut load_start = None;
+            let mut load_end = None;
+            let mut update_load_range = |start: Address, end: Address| match (load_start, load_end)
+            {
+                (None, None) => {
+                    load_start = Some(start);
+                    load_end = Some(end);
+                }
+                (Some(s), Some(e)) => {
+                    if start < s {
+                        load_start = Some(start)
+                    }
+                    if end > e {
+                        load_end = Some(end)
+                    }
+                }
+                _ => unreachable!(),
+            };
+            for p in elf
+                .program_header_iter()
+                .filter(|p| p.ph.ph_type() == ProgramType::LOAD)
+            {
+                log!("{:?}", p.ph);
+                let start: Address = (p.ph.vaddr() as usize).into();
+                let end = start + (p.ph.filesz() as usize);
+                update_load_range(start, end);
+            }
+            if let Some(bss) = elf.lookup_section(".bss") {
+                log!("{:?}", bss);
+                let start = Address::<V>::from(bss.sh.addr() as usize);
+                let end = start + bss.sh.size() as usize;
+                update_load_range(start, end);
+            }
+            log!(
+                "vaddr: {:?} .. {:?}",
+                load_start.unwrap(),
+                load_end.unwrap()
+            );
+            let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
+            let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
+            let pages = (vaddr_end - vaddr_start) >> Page::<Size4K>::LOG_BYTES;
+            let start_page = Page::<Size4K>::new(vaddr_start);
+            for i in 0..pages {
+                let page = Step::forward(start_page, i);
+                let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
+                let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+                page_table.map(
+                    page,
+                    frame,
+                    PageFlags::user_code_flags_4k(),
+                    &PHYSICAL_MEMORY,
+                );
+            }
+            PageTable::set(page_table);
+            // Copy data
+            for p in elf
+                .program_header_iter()
+                .filter(|p| p.ph.ph_type() == ProgramType::LOAD)
+            {
+                let start: Address = (p.ph.vaddr() as usize).into();
+                let bytes = p.ph.filesz() as usize;
+                let offset = p.ph.offset() as usize;
+                unsafe {
+                    ptr::copy_nonoverlapping::<u8>(&elf_data[offset], start.as_mut_ptr(), bytes);
+                }
+            }
+            if let Some(bss) = elf.lookup_section(".bss") {
+                let start = Address::<V>::from(bss.sh.addr() as usize);
+                let size = bss.sh.size() as usize;
+                unsafe {
+                    ptr::write_bytes::<u8>(start.as_mut_ptr(), 0, size);
+                }
+            }
+            memory::cache::flush_cache(vaddr_start..vaddr_end);
+            entry
+        } else {
+            unimplemented!("elf32 is not supported")
+        }
+    }
+
+    pub fn initialize_user_space(&self) -> extern "C" fn(isize, *const *const u8) {
+        log!("Initialze user space process");
+        // User page table
+        let page_table = {
+            let page_table = PageTable::alloc(&PHYSICAL_MEMORY);
+            // Map kernel pages
+            let kernel_memory = KERNEL_MEMORY_RANGE;
+            let index = PageTable::<L4>::get_index(kernel_memory.start);
+            debug_assert_eq!(index, PageTable::<L4>::get_index(kernel_memory.end - 1));
+            page_table[index] = PageTable::get()[index].clone();
+            Proc::current().set_page_table(unsafe { &mut *(page_table as *mut _) });
+            page_table
+        };
+        log!("Load ELF");
+        let entry = self.load_elf(page_table);
+        self.set_page_table(page_table);
+        entry
+    }
+
+    pub fn spawn(t: Box<dyn KernelTask>) -> Arc<Proc> {
+        Self::create(t, None)
+    }
+
+    pub fn spawn_user(elf: Vec<u8>) -> Arc<Proc> {
+        Self::create(box UserTask::new(None), Some(elf))
     }
 
     #[inline]
@@ -89,7 +193,7 @@ impl Proc {
     }
 
     pub fn spawn_task(self: Arc<Self>, f: *const extern "C" fn()) -> Arc<Task> {
-        let task = Task::create(self.clone(), box UserTask::new(f));
+        let task = Task::create(self.clone(), box UserTask::new(Some(f)));
         self.threads.lock_uninterruptible().push(task.id);
         SCHEDULER.register_new_task(task)
     }

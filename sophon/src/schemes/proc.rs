@@ -10,12 +10,9 @@ use ipc::{
 };
 use spin::Mutex;
 
-use crate::{
-    kernel_tasks::user::UserTask,
-    task::{
-        scheduler::{AbstractScheduler, SCHEDULER},
-        Proc, Task,
-    },
+use crate::task::{
+    scheduler::{AbstractScheduler, SCHEDULER},
+    Proc, Task,
 };
 
 pub struct ProcScheme {
@@ -67,7 +64,7 @@ impl SchemeServer for ProcScheme {
                     }
                     data.extend_from_slice(&buf[..len]);
                 }
-                let id = Proc::spawn(box UserTask::new_with_elf(data)).id;
+                let id = Proc::spawn_user(data).id;
                 *proc_id = id;
                 Ok(())
             }
