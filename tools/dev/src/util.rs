@@ -135,10 +135,12 @@ pub fn run_package(
     features: Option<String>,
     release: bool,
     target: Option<&str>,
+    args: &[String],
 ) {
     let _p = xshell::pushd(path).unwrap();
     let mut cmd = cmd!("cargo run");
     cmd = append_cargo_args(cmd, name, features, release, target);
+    cmd = cmd.arg("--").args(args);
     cmd.run().unwrap();
 }
 

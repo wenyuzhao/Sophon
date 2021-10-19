@@ -10,6 +10,8 @@ pub struct Run {
     boot: Boot,
     #[clap(flatten)]
     pub cargo: CargoFlags,
+    #[clap(multiple = true)]
+    args: Vec<String>,
 }
 
 impl Run {
@@ -29,6 +31,7 @@ impl Run {
             self.cargo.features.clone(),
             self.cargo.release,
             Some(self.cargo.uefi_target()),
+            &self.args,
         );
     }
 }

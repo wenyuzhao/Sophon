@@ -13,11 +13,11 @@ mod dis;
 mod run;
 mod util;
 
-use clap::Clap;
+use clap::{AppSettings, Clap};
 use std::path::Path;
 
 #[derive(Clap)]
-#[clap(name = "Sophon Build Tool", version = "0.1", author = "Wenyu Zhao")]
+#[clap(name = "Sophon Build Tool", version = "0.1", author = "Wenyu Zhao", setting = AppSettings::TrailingVarArg)]
 struct Opts {
     #[clap(subcommand)]
     sub_command: SubCommand,
