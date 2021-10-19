@@ -1,23 +1,24 @@
 use crate::{
     build::Build,
-    util::{self, CargoFlags},
+    util::{self, Arch, Boot, CargoFlags},
 };
 
 #[derive(Clap)]
 pub struct Run {
+    /// Boot option.
     #[clap(default_value = "uefi")]
-    boot: String,
+    boot: Boot,
     #[clap(flatten)]
     pub cargo: CargoFlags,
 }
 
 impl Run {
     pub fn run(&self) {
-        assert_eq!(self.boot, "uefi");
-        assert_eq!(self.cargo.arch, "aarch64");
+        assert_eq!(self.boot, Boot::Uefi);
+        assert_eq!(self.cargo.arch, Arch::AArch64);
         // Build
         let build = Build {
-            boot: self.boot.clone(),
+            boot: self.boot,
             cargo: self.cargo.clone(),
         };
         build.run();

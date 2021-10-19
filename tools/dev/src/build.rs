@@ -1,20 +1,21 @@
 use crate::{
     build_initfs::BuildInitFS,
-    util::{self, CargoFlags},
+    util::{self, Arch, Boot, CargoFlags},
 };
 
 #[derive(Clap)]
 pub struct Build {
+    /// Boot option.
     #[clap(default_value = "uefi")]
-    pub boot: String,
+    pub boot: Boot,
     #[clap(flatten)]
     pub cargo: CargoFlags,
 }
 
 impl Build {
     pub fn run(&self) {
-        assert_eq!(self.boot, "uefi");
-        assert_eq!(self.cargo.arch, "aarch64");
+        assert_eq!(self.boot, Boot::Uefi);
+        assert_eq!(self.cargo.arch, Arch::AArch64);
         // Build kernel
         util::build_package(
             "sophon",

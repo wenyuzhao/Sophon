@@ -1,13 +1,54 @@
-use std::{fs, path::Path};
+use std::{fs, path::Path, str::FromStr};
 
 use xshell::Cmd;
 use yaml_rust::{Yaml, YamlLoader};
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Boot {
+    Uefi,
+}
+
+impl FromStr for Boot {
+    type Err = String;
+    fn from_str(x: &str) -> Result<Self, Self::Err> {
+        match x {
+            "uefi" => Ok(Boot::Uefi),
+            _ => Err(format!("Unsupported boot option: {}", x)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Arch {
+    AArch64,
+}
+
+impl Arch {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Arch::AArch64 => "aarch64",
+        }
+    }
+}
+
+impl FromStr for Arch {
+    type Err = String;
+    fn from_str(x: &str) -> Result<Self, Self::Err> {
+        match x {
+            "aarch64" => Ok(Arch::AArch64),
+            _ => Err(format!("Unsupported architecture: {}", x)),
+        }
+    }
+}
+
 #[derive(Clap, Clone)]
 pub struct CargoFlags {
+    /// Target architecture.
     #[clap(default_value = "aarch64")]
-    pub arch: String,
+    pub arch: Arch,
+    /// Features for the kernel crate.
     pub features: Option<String>,
+    /// Do release build.
     #[clap(long = "release")]
     pub release: bool,
 }
@@ -15,19 +56,19 @@ pub struct CargoFlags {
 impl CargoFlags {
     /// Return: (target_name, target_path)
     pub fn user_traget(&self) -> (String, String) {
-        assert_eq!(self.arch, "aarch64");
-        let target_name = format!("{}-sophon", self.arch);
+        assert_eq!(self.arch, Arch::AArch64);
+        let target_name = format!("{}-sophon", self.arch.to_str());
         let target_path = format!("../../sophon/{}.json", target_name);
         (target_name, target_path)
     }
 
     pub fn kernel_target(&self) -> &'static str {
-        assert_eq!(self.arch, "aarch64");
+        assert_eq!(self.arch, Arch::AArch64);
         "aarch64-unknown-none"
     }
 
     pub fn uefi_target(&self) -> &'static str {
-        assert_eq!(self.arch, "aarch64");
+        assert_eq!(self.arch, Arch::AArch64);
         "aarch64-uefi.json"
     }
 }

@@ -1,4 +1,4 @@
-use crate::util::{self, CargoFlags};
+use crate::util::{self, Arch, CargoFlags};
 use std::fs;
 
 mod initfs {
@@ -7,6 +7,7 @@ mod initfs {
 
 #[derive(Clap)]
 pub struct BuildInitFS {
+    /// Output file.
     #[clap(default_value = "target/_boot/init.fs")]
     pub out: String,
     #[clap(flatten)]
@@ -27,7 +28,7 @@ impl BuildInitFS {
     }
 
     fn build_initfs(&self) {
-        assert_eq!(self.cargo.arch, "aarch64");
+        assert_eq!(self.cargo.arch, Arch::AArch64);
         // Create ram fs
         let mut init_fs = initfs::InitFS::default();
         // Add files
@@ -50,7 +51,7 @@ impl BuildInitFS {
     }
 
     pub fn run(&self) {
-        assert_eq!(self.cargo.arch, "aarch64");
+        assert_eq!(self.cargo.arch, Arch::AArch64);
         // Generate init.fs
         self.build_initfs();
     }

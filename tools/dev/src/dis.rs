@@ -2,6 +2,7 @@ use crate::util;
 
 #[derive(Clap)]
 pub struct Disassemble {
+    /// Binary name to disassemble.
     file: String,
 }
 
