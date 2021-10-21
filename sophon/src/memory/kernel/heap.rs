@@ -1,9 +1,10 @@
 use super::{KERNEL_HEAP_RANGE, KERNEL_MEMORY_MAPPER, LOG_KERNEL_HEAP_SIZE};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use core::alloc::{GlobalAlloc, Layout};
+use core::intrinsics::likely;
 use core::iter::Step;
 use core::ops::Range;
-use core::usize;
+use core::{ptr, usize};
 use interrupt::UninterruptibleMutex;
 use memory::address::V;
 use memory::bitmap_page_allocator::BitMapPageAllocator;
@@ -19,7 +20,7 @@ pub static KERNEL_HEAP: KernelHeap = KernelHeap::new();
 
 /// The kernel heap memory manager.
 pub struct KernelHeap {
-    fa: Mutex<FreeListAllocator<V, Self, LOG_KERNEL_HEAP_SIZE>>,
+    fa: Mutex<FreeListAllocator<V, Self, { Size2M::LOG_BYTES + 1 }>>,
 }
 
 impl KernelHeap {
@@ -42,6 +43,22 @@ impl KernelHeap {
     /// Release virtual pages, without updating memory mapping.
     pub fn virtual_release<S: PageSize>(&self, pages: Range<Page<S>>) {
         VIRTUAL_PAGE_ALLOCATOR.lock().release(pages)
+    }
+
+    #[cold]
+    fn alloc_large(&self, layout: Layout) -> *mut u8 {
+        let pages = (layout.pad_to_align().size() + Size2M::MASK) >> Size2M::LOG_BYTES;
+        self.acquire_pages::<Size2M>(pages)
+            .map(|x| x.start.start().as_mut_ptr())
+            .unwrap_or(ptr::null_mut())
+    }
+
+    #[cold]
+    fn dealloc_large(&self, ptr: *mut u8, layout: Layout) {
+        let pages = (layout.pad_to_align().size() + Size2M::MASK) >> Size2M::LOG_BYTES;
+        let start = Page::containing(ptr.into());
+        let end = Page::forward(start, pages);
+        self.release_pages::<Size2M>(start..end);
     }
 }
 
@@ -74,18 +91,28 @@ impl PageResource<V> for KernelHeap {
 pub struct KernelHeapAllocator;
 
 unsafe impl GlobalAlloc for KernelHeapAllocator {
+    #[inline(always)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        KERNEL_HEAP
-            .fa
-            .lock_uninterruptible()
-            .alloc(&layout)
-            .as_mut_ptr()
+        if likely(layout.pad_to_align().size() < Size2M::BYTES) {
+            KERNEL_HEAP
+                .fa
+                .lock_uninterruptible()
+                .alloc(&layout)
+                .as_mut_ptr()
+        } else {
+            KERNEL_HEAP.alloc_large(layout)
+        }
     }
 
+    #[inline(always)]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        KERNEL_HEAP
-            .fa
-            .lock_uninterruptible()
-            .free(ptr.into(), &layout)
+        if likely(layout.pad_to_align().size() < Size2M::BYTES) {
+            KERNEL_HEAP
+                .fa
+                .lock_uninterruptible()
+                .free(ptr.into(), &layout)
+        } else {
+            KERNEL_HEAP.dealloc_large(ptr, layout)
+        }
     }
 }
