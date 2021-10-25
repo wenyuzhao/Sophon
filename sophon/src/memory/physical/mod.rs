@@ -43,3 +43,19 @@ impl PageAllocator<P> for PhysicalMemory {
         self.release(frame)
     }
 }
+
+pub struct SharedPhysicalPage<S: PageSize> {
+    frame: Frame<S>,
+}
+
+impl<S: PageSize> SharedPhysicalPage<S> {
+    pub fn new(frame: Frame<S>) -> Self {
+        Self { frame }
+    }
+}
+
+impl<S: PageSize> Drop for SharedPhysicalPage<S> {
+    fn drop(&mut self) {
+        PHYSICAL_MEMORY.release(self.frame);
+    }
+}

@@ -233,6 +233,12 @@ impl Proc {
     }
 
     pub fn exit(&self) {
-        unimplemented!()
+        // Release file handles
+        for (_resourse, _scheme_id) in self.resources.lock().iter() {
+            // TODO: close `resourse`
+        }
+        // Release memory
+        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+        crate::memory::utils::release_user_page_table(self.get_page_table());
     }
 }
