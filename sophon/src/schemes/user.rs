@@ -49,8 +49,17 @@ impl UserScheme {
         (kernel_pages, handler_pages)
     }
 
-    fn unmap_handler_pages(&self, _kernel_pages: Range<Page>, _handler_pages: Range<Page>) {
-        // FIXME: unimplemented
+    fn unmap_handler_pages(&self, kernel_pages: Range<Page>, handler_pages: Range<Page>) {
+        let handler = Task::by_id(self.handler).unwrap().proc.clone();
+        let handler_page_table = handler.get_page_table();
+        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+        for (i, page) in handler_pages.clone().enumerate() {
+            handler_page_table.unmap(
+                Page::<Size4K>::forward(kernel_pages.start, i),
+                &PHYSICAL_MEMORY,
+            );
+            handler_page_table.unmap(page, &PHYSICAL_MEMORY);
+        }
     }
 }
 
