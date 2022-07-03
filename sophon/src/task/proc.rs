@@ -11,7 +11,7 @@ use core::iter::Step;
 use core::ops::Range;
 use core::ptr;
 use core::sync::atomic::AtomicUsize;
-use elf_rs::{Elf, ProgramType};
+use elf_rs::{Elf, ElfFile, ProgramType};
 use interrupt::UninterruptibleMutex;
 use ipc::scheme::{Resource, SchemeId};
 use ipc::{ProcId, TaskId};
@@ -68,7 +68,7 @@ impl Proc {
         if let Elf::Elf64(elf) = elf {
             log!("Parsed ELF file");
             let entry: extern "C" fn(isize, *const *const u8) =
-                unsafe { ::core::mem::transmute(elf.header().entry_point()) };
+                unsafe { ::core::mem::transmute(elf.elf_header().entry_point()) };
             log!("Entry: {:?}", entry as *mut ());
             let mut load_start = None;
             let mut load_end = None;
@@ -90,17 +90,17 @@ impl Proc {
             };
             for p in elf
                 .program_header_iter()
-                .filter(|p| p.ph.ph_type() == ProgramType::LOAD)
+                .filter(|p| p.ph_type() == ProgramType::LOAD)
             {
-                log!("{:?}", p.ph);
-                let start: Address = (p.ph.vaddr() as usize).into();
-                let end = start + (p.ph.filesz() as usize);
+                log!("{:?}", p);
+                let start: Address = (p.vaddr() as usize).into();
+                let end = start + (p.filesz() as usize);
                 update_load_range(start, end);
             }
-            if let Some(bss) = elf.lookup_section(".bss") {
+            if let Some(bss) = elf.lookup_section(".bss".as_bytes()) {
                 log!("{:?}", bss);
-                let start = Address::<V>::from(bss.sh.addr() as usize);
-                let end = start + bss.sh.size() as usize;
+                let start = Address::<V>::from(bss.addr() as usize);
+                let end = start + bss.size() as usize;
                 update_load_range(start, end);
             }
             log!(
@@ -127,18 +127,18 @@ impl Proc {
             // Copy data
             for p in elf
                 .program_header_iter()
-                .filter(|p| p.ph.ph_type() == ProgramType::LOAD)
+                .filter(|p| p.ph_type() == ProgramType::LOAD)
             {
-                let start: Address = (p.ph.vaddr() as usize).into();
-                let bytes = p.ph.filesz() as usize;
-                let offset = p.ph.offset() as usize;
+                let start: Address = (p.vaddr() as usize).into();
+                let bytes = p.filesz() as usize;
+                let offset = p.offset() as usize;
                 unsafe {
                     ptr::copy_nonoverlapping::<u8>(&elf_data[offset], start.as_mut_ptr(), bytes);
                 }
             }
-            if let Some(bss) = elf.lookup_section(".bss") {
-                let start = Address::<V>::from(bss.sh.addr() as usize);
-                let size = bss.sh.size() as usize;
+            if let Some(bss) = elf.lookup_section(".bss".as_bytes()) {
+                let start = Address::<V>::from(bss.addr() as usize);
+                let size = bss.size() as usize;
                 unsafe {
                     ptr::write_bytes::<u8>(start.as_mut_ptr(), 0, size);
                 }

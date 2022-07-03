@@ -94,7 +94,7 @@ checksum = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
 name = "bitflags"
 version = "0.0.1"
 dependencies = [
- "spin 0.9.3",
+ "spin",
 ]
 
 [[package]]
@@ -160,6 +160,12 @@ checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
 dependencies = [
  "os_str_bytes",
 ]
+
+[[package]]
+name = "cobs"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67ba02a97a2bd10f4b59b25c7973101c79642302776489e030cd13cdab09ed15"
 
 [[package]]
 name = "cortex-a"
@@ -246,16 +252,16 @@ dependencies = [
  "clap",
  "postcard",
  "serde",
- "spin 0.9.3",
+ "spin",
  "xshell",
  "yaml-rust",
 ]
 
 [[package]]
 name = "elf_rs"
-version = "0.1.3"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21a04ca262fb05c2a49524b0c4bb45a992b27fd0fc55bfff619275185a783e38"
+checksum = "1822fbb5193550bcbd7833ac15365da49917ad7ae396a07cb71443b38e398602"
 dependencies = [
  "bitflags 1.3.2",
  "num-traits",
@@ -299,24 +305,18 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.11.2"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+checksum = "db0d4cf898abf0081f964436dc980e96670a0f36863e4b83aaacdb65c9d7ccc3"
 dependencies = [
  "ahash",
 ]
 
 [[package]]
-name = "hashbrown"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db0d4cf898abf0081f964436dc980e96670a0f36863e4b83aaacdb65c9d7ccc3"
-
-[[package]]
 name = "heap"
 version = "0.0.1"
 dependencies = [
- "spin 0.9.3",
+ "spin",
 ]
 
 [[package]]
@@ -329,7 +329,7 @@ dependencies = [
  "hash32",
  "rustc_version 0.4.0",
  "serde",
- "spin 0.9.3",
+ "spin",
  "stable_deref_trait",
 ]
 
@@ -355,7 +355,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
 dependencies = [
  "autocfg",
- "hashbrown 0.12.1",
+ "hashbrown",
 ]
 
 [[package]]
@@ -371,7 +371,7 @@ dependencies = [
 name = "interrupt"
 version = "0.0.1"
 dependencies = [
- "spin 0.9.3",
+ "spin",
 ]
 
 [[package]]
@@ -379,7 +379,7 @@ name = "ipc"
 version = "0.0.1"
 dependencies = [
  "log 0.0.1",
- "spin 0.9.3",
+ "spin",
 ]
 
 [[package]]
@@ -446,7 +446,7 @@ dependencies = [
  "cortex-a",
  "interrupt",
  "log 0.0.1",
- "spin 0.9.3",
+ "spin",
  "tock-registers",
 ]
 
@@ -488,20 +488,14 @@ checksum = "21326818e99cfe6ce1e524c2a805c189a99b5ae555a35d19f9a284b427d86afa"
 
 [[package]]
 name = "postcard"
-version = "0.7.3"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a25c0b0ae06fcffe600ad392aabfa535696c8973f2253d9ac83171924c58a858"
+checksum = "beb9d9bc911a7aa6af3596bf01d9810069ac2ebb8b348f36a344af20f441700b"
 dependencies = [
+ "cobs",
  "heapless",
- "postcard-cobs",
  "serde",
 ]
-
-[[package]]
-name = "postcard-cobs"
-version = "0.1.5-pre"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
 
 [[package]]
 name = "proc-macro-error"
@@ -667,14 +661,14 @@ dependencies = [
  "crossbeam",
  "elf_rs",
  "fdt",
- "hashbrown 0.11.2",
+ "hashbrown",
  "interrupt",
  "ipc",
  "log 0.0.1",
  "memory",
  "postcard",
  "serde",
- "spin 0.9.3",
+ "spin",
  "tock-registers",
  "yaml-rust",
 ]
@@ -689,17 +683,11 @@ dependencies = [
  "fdt",
  "log 0.0.1",
  "memory",
- "spin 0.7.1",
+ "spin",
  "tock-registers",
  "uefi",
  "uefi-services",
 ]
-
-[[package]]
-name = "spin"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13287b4da9d1207a4f4929ac390916d64eacfe236a487e9a9f5b3be392be5162"
 
 [[package]]
 name = "spin"

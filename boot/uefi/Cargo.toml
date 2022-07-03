@@ -9,12 +9,12 @@ name = "sophon-boot-uefi"
 path = "src/main.rs"
 
 [dependencies]
-spin = "0.7"
+spin = "0.9.3"
 cortex-a = "7.4.0"
 tock-registers = "0.7.0"
 uefi = { version = "0.16.0", features = ["exts", "alloc"] }
 uefi-services = "0.13.0"
-elf_rs = "0.1.1"
+elf_rs = "0.2.0"
 memory = { path = "../../libs/memory" }
 boot = { path = "../../libs/boot" }
 log = { path = "../../libs/log" }

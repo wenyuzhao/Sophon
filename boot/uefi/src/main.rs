@@ -184,7 +184,7 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
     log!("Parse Kernel ELF Done");
     if let Elf::Elf64(elf) = elf {
         let entry: extern "C" fn(&mut BootInfo) =
-            unsafe { ::core::mem::transmute(elf.header().entry_point()) };
+            unsafe { ::core::mem::transmute(elf.elf_header().entry_point()) };
         log!("Entry @ {:?}", entry as *mut ());
         let mut load_start = None;
         let mut load_end = None;
@@ -205,15 +205,15 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
         };
         for p in elf
             .program_header_iter()
-            .filter(|p| p.ph.ph_type() == ProgramType::LOAD)
+            .filter(|p| p.ph_type() == ProgramType::LOAD)
         {
-            let start: Address = (p.ph.vaddr() as usize).into();
-            let end = start + (p.ph.filesz() as usize);
+            let start: Address = (p.vaddr() as usize).into();
+            let end = start + (p.filesz() as usize);
             update_load_range(start, end);
         }
-        if let Some(bss) = elf.lookup_section(".bss") {
-            let start = Address::<V>::from(bss.sh.addr() as usize);
-            let end = start + bss.sh.size() as usize;
+        if let Some(bss) = elf.lookup_section(".bss".as_bytes()) {
+            let start = Address::<V>::from(bss.addr() as usize);
+            let end = start + bss.size() as usize;
             update_load_range(start, end);
         }
         let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
@@ -227,12 +227,12 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
         log!("Copy code start");
         for p in elf
             .program_header_iter()
-            .filter(|p| p.ph.ph_type() == ProgramType::LOAD)
+            .filter(|p| p.ph_type() == ProgramType::LOAD)
         {
-            let start: Address = (p.ph.vaddr() as usize).into();
+            let start: Address = (p.vaddr() as usize).into();
             let aligned_start = Page::<Size4K, V>::align(start);
-            let end = start + p.ph.filesz() as usize;
-            let src = &elf_data[p.ph.offset() as usize] as *const u8;
+            let end = start + p.filesz() as usize;
+            let src = &elf_data[p.offset() as usize] as *const u8;
             unsafe {
                 log!("Copy code {:?}", start..end);
                 let mut cursor = aligned_start;
