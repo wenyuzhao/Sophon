@@ -1,20 +1,18 @@
-use crate::util;
+use xshell::Shell;
 
-#[derive(Clap)]
+use crate::util::ShellExt;
+
+#[derive(Parser)]
 pub struct Disassemble {
     /// Binary name to disassemble.
     file: String,
 }
 
 impl Disassemble {
-    fn disassemble(&self, filename: &str) {
-        util::disassemble(
-            format!("./target/_out/{}", filename),
-            format!("./target/_out/{}.s", filename),
+    pub fn run(&self, shell: &Shell) {
+        shell.disassemble(
+            format!("./target/_out/{}", &self.file),
+            format!("./target/_out/{}.s", &self.file),
         )
-    }
-
-    pub fn run(&self) {
-        self.disassemble(&self.file);
     }
 }

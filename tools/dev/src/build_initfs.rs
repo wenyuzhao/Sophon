@@ -1,11 +1,12 @@
-use crate::util::{self, Arch, CargoFlags};
+use crate::util::{self, Arch, CargoFlags, ShellExt};
 use std::fs;
+use xshell::Shell;
 
 mod initfs {
     include!(concat!(env!("OUT_DIR"), "/init-fs.rs"));
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct BuildInitFS {
     /// Output file.
     #[clap(long, default_value = "target/_boot/init.fs")]
@@ -15,9 +16,9 @@ pub struct BuildInitFS {
 }
 
 impl BuildInitFS {
-    fn build_user(&self, name: &str) -> String {
+    fn build_user(&self, shell: &Shell, name: &str) -> String {
         let (_, target_path) = self.cargo.user_traget();
-        util::build_package(
+        shell.build_package(
             &name,
             format!("user/{}", name),
             self.cargo.features.clone(),
@@ -27,7 +28,7 @@ impl BuildInitFS {
         format!("./target/_out/{}", name)
     }
 
-    fn build_initfs(&self) {
+    fn build_initfs(&self, shell: &Shell) {
         assert_eq!(self.cargo.arch, Arch::AArch64);
         // Create ram fs
         let mut init_fs = initfs::InitFS::default();
@@ -39,20 +40,20 @@ impl BuildInitFS {
             .iter()
             .map(|(k, v)| (k.as_str().unwrap(), v.as_str().unwrap()))
         {
-            let out = self.build_user(name);
+            let out = self.build_user(shell, name);
             let file = fs::read(out).unwrap();
             init_fs.insert(path, initfs::File::new(file));
         }
         // Serialize
         let data = init_fs.serialize();
         // Output
-        util::mkdir("./target/_boot");
+        shell.create_dir("./target/_boot").unwrap();
         fs::write(&self.out, data).unwrap();
     }
 
-    pub fn run(&self) {
+    pub fn run(&self, shell: &Shell) {
         assert_eq!(self.cargo.arch, Arch::AArch64);
         // Generate init.fs
-        self.build_initfs();
+        self.build_initfs(shell);
     }
 }

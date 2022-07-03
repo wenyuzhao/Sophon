@@ -118,9 +118,7 @@ impl AbstractScheduler for RoundRobinScheduler {
                 == RunState::Running
         {
             // Continue with this task
-            unsafe {
-                current_task.unwrap().context.return_to_user();
-            }
+            unsafe { current_task.unwrap().context.return_to_user() }
         } else {
             // No current task or the current Task is blocked, switch to a new task.
 
@@ -149,9 +147,7 @@ impl AbstractScheduler for RoundRobinScheduler {
 
             ::core::sync::atomic::fence(Ordering::SeqCst);
             // log!("Schedule return_to_user");
-            unsafe {
-                next_task.context.return_to_user();
-            }
+            unsafe { next_task.context.return_to_user() }
         }
     }
 
@@ -236,6 +232,6 @@ impl RoundRobinScheduler {
 unsafe impl Send for RoundRobinScheduler {}
 unsafe impl Sync for RoundRobinScheduler {}
 
-pub const fn create() -> Scheduler {
+pub const fn create() -> RoundRobinScheduler {
     RoundRobinScheduler::new()
 }

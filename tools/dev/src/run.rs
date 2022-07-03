@@ -1,9 +1,11 @@
+use xshell::Shell;
+
 use crate::{
     build::Build,
-    util::{self, Arch, Boot, CargoFlags},
+    util::{Arch, Boot, CargoFlags, ShellExt},
 };
 
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct Run {
     /// Boot option.
     #[clap(long, default_value = "uefi")]
@@ -15,7 +17,7 @@ pub struct Run {
 }
 
 impl Run {
-    pub fn run(&self) {
+    pub fn run(&self, shell: &Shell) {
         assert_eq!(self.boot, Boot::Uefi);
         assert_eq!(self.cargo.arch, Arch::AArch64);
         // Build
@@ -23,9 +25,9 @@ impl Run {
             boot: self.boot,
             cargo: self.cargo.clone(),
         };
-        build.run();
+        build.run(shell);
         // Run
-        util::run_package(
+        shell.run_package(
             "sophon-boot-uefi",
             "boot/uefi",
             self.cargo.features.clone(),

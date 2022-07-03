@@ -1,6 +1,6 @@
-use core::intrinsics::transmute;
-
 use crate::{Message, TaskId};
+use core::arch::asm;
+use core::intrinsics::transmute;
 
 #[repr(usize)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

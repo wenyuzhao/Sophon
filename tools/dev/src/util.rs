@@ -1,6 +1,6 @@
 use std::{fs, path::Path, str::FromStr};
 
-use xshell::Cmd;
+use xshell::{Cmd, Shell};
 use yaml_rust::{Yaml, YamlLoader};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -41,7 +41,7 @@ impl FromStr for Arch {
     }
 }
 
-#[derive(Clap, Clone)]
+#[derive(Parser, Clone)]
 pub struct CargoFlags {
     /// Target architecture.
     #[clap(long, default_value = "aarch64")]
@@ -74,21 +74,21 @@ impl CargoFlags {
     }
 }
 
-pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) {
-    xshell::cp(from, to).unwrap();
-}
+// pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) {
+//     xshell::Shell::new().unwrap().copy_file(from, to).unwrap();
+// }
 
-pub fn mkdir(path: impl AsRef<Path>) {
-    xshell::mkdir_p(path).unwrap();
-}
+// pub fn mkdir(path: impl AsRef<Path>) {
+//     xshell::Shell::new().unwrap().create_dir(path).unwrap();
+// }
 
-fn append_cargo_args(
-    mut cmd: Cmd,
+fn append_cargo_args<'a>(
+    mut cmd: Cmd<'a>,
     package: &str,
     features: Option<String>,
     release: bool,
     target: Option<&str>,
-) -> Cmd {
+) -> Cmd<'a> {
     cmd = cmd.args(["--package", package]);
     if let Some(features) = features {
         cmd = cmd.args(["--features", &features]);
@@ -102,46 +102,69 @@ fn append_cargo_args(
     cmd
 }
 
-pub fn disassemble(bin: impl AsRef<Path>, out: impl AsRef<Path>) {
-    let dissam = cmd!("llvm-objdump")
-        .args([
-            "--section-headers",
-            "--source",
-            "-d",
-            bin.as_ref().to_str().unwrap(),
-        ])
-        .ignore_stderr()
-        .read()
-        .unwrap();
-    fs::write(out, dissam).unwrap();
+pub trait ShellExt {
+    fn disassemble(&self, bin: impl AsRef<Path>, out: impl AsRef<Path>);
+    fn build_package(
+        &self,
+        name: impl AsRef<str>,
+        path: impl AsRef<Path>,
+        features: Option<String>,
+        release: bool,
+        target: Option<&str>,
+    );
+    fn run_package(
+        &self,
+        name: &str,
+        path: impl AsRef<Path>,
+        features: Option<String>,
+        release: bool,
+        target: Option<&str>,
+        args: &[String],
+    );
 }
 
-pub fn build_package(
-    name: impl AsRef<str>,
-    path: impl AsRef<Path>,
-    features: Option<String>,
-    release: bool,
-    target: Option<&str>,
-) {
-    let _p = xshell::pushd(path).unwrap();
-    let mut cmd = cmd!("cargo build");
-    cmd = append_cargo_args(cmd, name.as_ref(), features, release, target);
-    cmd.run().unwrap();
-}
-
-pub fn run_package(
-    name: &str,
-    path: impl AsRef<Path>,
-    features: Option<String>,
-    release: bool,
-    target: Option<&str>,
-    args: &[String],
-) {
-    let _p = xshell::pushd(path).unwrap();
-    let mut cmd = cmd!("cargo run");
-    cmd = append_cargo_args(cmd, name, features, release, target);
-    cmd = cmd.arg("--").args(args);
-    cmd.run().unwrap();
+impl ShellExt for Shell {
+    fn disassemble(&self, bin: impl AsRef<Path>, out: impl AsRef<Path>) {
+        let dissam = cmd!(self, "llvm-objdump")
+            .args([
+                "--section-headers",
+                "--source",
+                "-d",
+                bin.as_ref().to_str().unwrap(),
+            ])
+            .ignore_stderr()
+            .read()
+            .unwrap();
+        fs::write(out, dissam).unwrap();
+    }
+    fn build_package(
+        &self,
+        name: impl AsRef<str>,
+        path: impl AsRef<Path>,
+        features: Option<String>,
+        release: bool,
+        target: Option<&str>,
+    ) {
+        let _p = self.push_dir(path);
+        let mut cmd = cmd!(self, "cargo build");
+        cmd = append_cargo_args(cmd, name.as_ref(), features, release, target);
+        cmd.run().unwrap();
+    }
+    fn run_package(
+        &self,
+        name: &str,
+        path: impl AsRef<Path>,
+        features: Option<String>,
+        release: bool,
+        target: Option<&str>,
+        args: &[String],
+    ) {
+        let _p = self.push_dir(path);
+        let mut cmd = cmd!(self, "cargo run");
+        cmd = append_cargo_args(cmd, name, features, release, target);
+        cmd = cmd.arg("--").args(args);
+        cmd.run().unwrap();
+    }
 }
 
 pub fn load_yaml(path: impl AsRef<Path>) -> Vec<Yaml> {

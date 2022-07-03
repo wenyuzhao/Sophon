@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(const_fn_trait_bound)]
 #![feature(const_mut_refs)]
 
 use core::{

@@ -4,6 +4,7 @@ use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use crate::{
     arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver, task::scheduler::SCHEDULER,
 };
+use core::arch::asm;
 use cortex_a::{asm::barrier, registers::*};
 use fdt::node::FdtNode;
 use memory::address::{Address, P};

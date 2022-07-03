@@ -1,6 +1,6 @@
 #![no_std]
-#![feature(asm)]
 
+use core::arch::asm;
 use core::ops::{Deref, DerefMut};
 
 #[inline]

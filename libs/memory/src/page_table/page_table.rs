@@ -81,6 +81,8 @@ impl PageTable<L4> {
     #[inline]
     #[cfg(target_arch = "aarch64")]
     pub fn set(p4: *mut Self) {
+        use core::arch::asm;
+
         unsafe {
             asm! {
                 "

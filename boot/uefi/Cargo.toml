@@ -10,10 +10,10 @@ path = "src/main.rs"
 
 [dependencies]
 spin = "0.7"
-cortex-a = "6.0.0"
+cortex-a = "7.4.0"
 tock-registers = "0.7.0"
-uefi = { version = "0.11.0", features = ["exts", "alloc"] }
-uefi-services = "0.8.0"
+uefi = { version = "0.16.0", features = ["exts", "alloc"] }
+uefi-services = "0.13.0"
 elf_rs = "0.1.1"
 memory = { path = "../../libs/memory" }
 boot = { path = "../../libs/boot" }

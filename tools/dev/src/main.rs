@@ -13,17 +13,18 @@ mod dis;
 mod run;
 mod util;
 
-use clap::{AppSettings, Clap};
+use clap::{AppSettings, Parser};
 use std::path::Path;
+use xshell::Shell;
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(name = "Sophon Build Tool", version = "0.1", author = "Wenyu Zhao", setting = AppSettings::TrailingVarArg)]
 struct Opts {
     #[clap(subcommand)]
     sub_command: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 enum SubCommand {
     /// Build the kernel
     #[clap(name = "build")]
@@ -43,7 +44,8 @@ enum SubCommand {
 }
 
 fn main() {
-    let _p = xshell::pushd(
+    let shell = Shell::new().unwrap();
+    let _p = shell.push_dir(
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
@@ -52,10 +54,10 @@ fn main() {
     );
     let opts: Opts = Opts::parse();
     match opts.sub_command {
-        SubCommand::Build(t) => t.run(),
-        SubCommand::Run(t) => t.run(),
-        SubCommand::BuildInitFS(t) => t.run(),
-        SubCommand::Clean(t) => t.run(),
-        SubCommand::Disassemble(t) => t.run(),
+        SubCommand::Build(t) => t.run(&shell),
+        SubCommand::Run(t) => t.run(&shell),
+        SubCommand::BuildInitFS(t) => t.run(&shell),
+        SubCommand::Clean(t) => t.run(&shell),
+        SubCommand::Disassemble(t) => t.run(&shell),
     }
 }

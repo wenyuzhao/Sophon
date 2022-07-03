@@ -1,4 +1,3 @@
-#![feature(asm)]
 #![no_std]
 
 extern crate alloc;

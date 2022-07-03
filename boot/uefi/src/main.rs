@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(asm)]
 #![feature(format_args_nl)]
 #![feature(core_intrinsics)]
 #![feature(step_trait)]
@@ -12,6 +11,7 @@ extern crate log;
 use alloc::vec;
 use alloc::vec::Vec;
 use boot::BootInfo;
+use core::arch::asm;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
 use cortex_a::registers::*;
@@ -23,8 +23,8 @@ use memory::page_table::*;
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::*;
-use uefi::Guid;
 use uefi::{prelude::*, table::boot::*};
+use uefi::{CStr16, Guid};
 
 use crate::uefi_logger::UEFILogger;
 
@@ -41,7 +41,6 @@ unsafe fn establish_el1_page_table() {
     let (_, descriptors) = boot_system_table()
         .boot_services()
         .memory_map(&mut buffer)
-        .unwrap()
         .unwrap();
     let mut top = Address::<P>::ZERO;
     for desc in descriptors {
@@ -69,15 +68,14 @@ unsafe fn establish_el1_page_table() {
     }
 }
 
-fn boot_system_table() -> &'static SystemTable<Boot> {
-    unsafe { BOOT_SYSTEM_TABLE.as_ref().unwrap() }
+fn boot_system_table() -> &'static mut SystemTable<Boot> {
+    unsafe { BOOT_SYSTEM_TABLE.as_mut().unwrap() }
 }
 
 fn new_page4k() -> Frame {
     let page = boot_system_table()
         .boot_services()
         .allocate_pages(AllocateType::AnyPages, MemoryType::LOADER_CODE, 1)
-        .unwrap()
         .unwrap();
     let page = Frame::new(Address::from(page as usize));
     unsafe { page.zero() };
@@ -265,7 +263,6 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
     let (_, descriptors) = bt
         .boot_services()
         .memory_map(unsafe { buffer.start().as_mut::<[u8; 4096]>() })
-        .unwrap()
         .unwrap();
     let count = Frame::<Size4K>::BYTES / mem::size_of::<Range<Frame>>();
     let available_physical_memory_ranges: &'static mut [Range<Frame>] =
@@ -330,24 +327,25 @@ fn read_file(handle: Handle, path: &str) -> Vec<u8> {
         &mut *boot_system_table()
             .boot_services()
             .get_image_file_system(handle)
-            .unwrap()
             .expect("Cannot open `SimpleFileSystem` protocol")
+            .interface
             .get()
     };
-    let mut directory = sfs.open_volume().unwrap().unwrap();
+    let mut directory = sfs.open_volume().unwrap();
+    let mut data = [0u16; 512];
+    let filename = CStr16::from_str_with_buf(path, &mut data).unwrap();
+
     let file = directory
-        .open(path, FileMode::Read, FileAttribute::empty())
-        .unwrap()
+        .open(filename, FileMode::Read, FileAttribute::empty())
         .unwrap()
         .into_type()
-        .unwrap()
         .unwrap();
     if let FileType::Regular(mut file) = file {
         let mut buffer = vec![];
         let mut buf = vec![0; 4096];
         let mut total_size = 0usize;
         loop {
-            let size = file.read(&mut buf).unwrap().unwrap();
+            let size = file.read(&mut buf).unwrap();
             if size == 0 {
                 break;
             } else {
@@ -367,19 +365,28 @@ fn read_dtb(handle: Handle) -> &'static mut [u8] {
     let loaded_image = unsafe {
         &*boot_system_table()
             .boot_services()
-            .handle_protocol::<LoadedImage>(handle)
-            .unwrap()
+            .open_protocol::<LoadedImage>(
+                OpenProtocolParams {
+                    handle: handle,
+                    agent: handle,
+                    controller: None,
+                },
+                OpenProtocolAttributes::Exclusive,
+            )
             .expect("Failed to retrieve `LoadedImage` protocol from handle")
+            .interface
             .get()
     };
-    let mut buf = vec![0; 4096];
-    let mut args = loaded_image.load_options(&mut buf).unwrap().split(" ");
-    if let Some(dtb_path) = args
-        .find(|x| x.starts_with("dtb="))
-        .map(|x| x.strip_prefix("dtb=").unwrap())
-    {
-        log!("Load device tree from {}", dtb_path);
-        return read_file(handle, dtb_path).leak();
+    let options = loaded_image.load_options_as_bytes();
+    if let Some(options) = options {
+        let mut args = core::str::from_utf8(options).unwrap().split(" ");
+        if let Some(dtb_path) = args
+            .find(|x| x.starts_with("dtb="))
+            .map(|x| x.strip_prefix("dtb=").unwrap())
+        {
+            log!("Load device tree from {}", dtb_path);
+            return read_file(handle, dtb_path).leak();
+        }
     }
     // Try to load dtb from efi configuration table
     const GUID: Guid = Guid::from_values(
@@ -387,7 +394,7 @@ fn read_dtb(handle: Handle) -> &'static mut [u8] {
         0xf19c,
         0x41a5,
         0x830b,
-        [0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0],
+        u64::from_be_bytes([0, 0, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0]),
     );
     #[repr(C)]
     struct FDTHeader {
@@ -474,7 +481,7 @@ extern "C" fn launch_kernel_at_el1(
             boot_system_table()
                 .unsafe_clone()
                 .exit_boot_services(IMAGE.unwrap(), buffer)
-                .unwrap_success();
+                .unwrap();
         }
         asm! {
             "
@@ -503,8 +510,8 @@ static mut BOOT_INFO: BootInfo = BootInfo {
 };
 
 #[no_mangle]
-pub unsafe extern "C" fn efi_main(image: Handle, st: SystemTable<Boot>) -> Status {
-    uefi_services::init(&st).expect_success("Failed to initialize utilities");
+pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> Status {
+    uefi_services::init(&mut st).expect("Failed to initialize utilities");
     BOOT_SYSTEM_TABLE = Some(st.unsafe_clone());
     IMAGE = Some(image);
     UEFILogger::init();

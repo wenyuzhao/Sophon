@@ -1,9 +1,9 @@
+use super::KernelTask;
+use core::arch::asm;
 use ipc::{
     scheme::{Args, Mode, Resource},
     ProcId,
 };
-
-use super::KernelTask;
 
 pub struct System;
 

@@ -5,6 +5,7 @@ use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::task::{Message, Proc};
 use alloc::vec;
 use alloc::vec::Vec;
+use core::arch::asm;
 use core::ops::Range;
 use core::ptr;
 use cortex_a::registers::*;

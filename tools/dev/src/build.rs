@@ -1,9 +1,11 @@
+use xshell::Shell;
+
 use crate::{
     build_initfs::BuildInitFS,
-    util::{self, Arch, Boot, CargoFlags},
+    util::{Arch, Boot, CargoFlags, ShellExt},
 };
 
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct Build {
     /// Boot option.
     #[clap(long, default_value = "uefi")]
@@ -13,11 +15,11 @@ pub struct Build {
 }
 
 impl Build {
-    pub fn run(&self) {
+    pub fn run(&self, shell: &Shell) {
         assert_eq!(self.boot, Boot::Uefi);
         assert_eq!(self.cargo.arch, Arch::AArch64);
         // Build kernel
-        util::build_package(
+        shell.build_package(
             "sophon",
             "sophon",
             self.cargo.features.clone(),
@@ -29,9 +31,9 @@ impl Build {
             cargo: self.cargo.clone(),
             out: "./target/_boot/init.fs".to_string(),
         };
-        build_initfs.run();
+        build_initfs.run(shell);
         // Build bootloader
-        util::build_package(
+        shell.build_package(
             "sophon-boot-uefi",
             "boot/uefi",
             None,
@@ -39,15 +41,19 @@ impl Build {
             Some(self.cargo.uefi_target()),
         );
         // Build image
-        util::mkdir("./target/_boot");
-        util::mkdir("./target/_boot/EFI/BOOT");
+        shell.create_dir("./target/_boot").unwrap();
+        shell.create_dir("./target/_boot/EFI/BOOT").unwrap();
         //  - copy kernel
-        util::copy_file("./target/_out/sophon", "./target/_boot/");
+        shell
+            .copy_file("./target/_out/sophon", "./target/_boot/")
+            .unwrap();
         //  - copy efi bootloader.
         // FIXME: Use BOOTX64.EFI for x86_64.
-        util::copy_file(
-            "./target/_out/sophon-boot-uefi.efi",
-            "./target/_boot/EFI/BOOT/BOOTAA64.EFI",
-        );
+        shell
+            .copy_file(
+                "./target/_out/sophon-boot-uefi.efi",
+                "./target/_boot/EFI/BOOT/BOOTAA64.EFI",
+            )
+            .unwrap();
     }
 }

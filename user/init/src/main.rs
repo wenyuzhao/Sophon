@@ -1,4 +1,3 @@
-#![feature(asm)]
 #![feature(format_args_nl)]
 #![feature(default_alloc_error_handler)]
 #![no_std]
@@ -7,6 +6,7 @@
 #[macro_use]
 extern crate log;
 
+use core::arch::asm;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use heap::NoAlloc;
 use ipc::log::UserLogger;

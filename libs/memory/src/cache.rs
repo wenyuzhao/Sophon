@@ -1,4 +1,4 @@
-use core::ops::Range;
+use core::{arch::asm, ops::Range};
 
 use cortex_a::asm::barrier::{dsb, isb, SY};
 

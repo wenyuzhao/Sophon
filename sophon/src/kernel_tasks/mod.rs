@@ -1,6 +1,8 @@
 pub mod system;
 pub mod user;
 
+use core::arch::asm;
+
 pub trait KernelTask {
     fn run(&mut self) -> !;
 }
