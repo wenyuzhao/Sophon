@@ -1,3 +1,5 @@
+cargo-features = ["workspace-inheritance"]
+
 [package]
 name = "dev"
 version = "0.0.1"
@@ -7,10 +9,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-xshell = "0.2.2"
-clap = { version = "3.2.8", features = ["derive"] }
-spin = "0.9.3"
-serde = { version = "1.0", default-features = false }
-postcard = { version = "1.0.0", features = ["alloc"] }
-yaml-rust = "0.4"
-anyhow = "1.0"
+xshell = { workspace = true }
+clap = { workspace = true }
+spin = { workspace = true }
+serde = { workspace = true }
+postcard = { workspace = true }
+yaml-rust = { workspace = true }
+anyhow = { workspace = true }

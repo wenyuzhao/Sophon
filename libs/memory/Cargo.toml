@@ -1,3 +1,5 @@
+cargo-features = ["workspace-inheritance"]
+
 [package]
 name = "memory"
 version = "0.0.1"
@@ -7,14 +9,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-spin = "0.9.3"
+spin = { workspace = true }
+tock-registers = { workspace = true }
 bitflags = { path = "../bitflags" }
 interrupt = { path = "../interrupt" }
 log = { path = "../log" }
-tock-registers = "0.7.0"
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
-cortex-a = "7.4.0"
+cortex-a = { workspace = true }
 
 [features]
 default = []

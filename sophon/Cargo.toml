@@ -1,3 +1,5 @@
+cargo-features = ["workspace-inheritance"]
+
 [package]
 name = "sophon"
 version = "0.0.1"
@@ -7,27 +9,27 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-spin = "0.9.3"
-cortex-a = "7.4.0"
-tock-registers = "0.7.0"
-elf_rs = "0.2.0"
-fdt = "0.1.3"
-serde = { version = "1.0", default-features = false }
-postcard = { version = "1.0.0", features = ["alloc"] }
+spin = { workspace = true }
+cortex-a = { workspace = true }
+tock-registers = { workspace = true }
+elf_rs = { workspace = true }
+fdt = { workspace = true }
+serde = { workspace = true }
+postcard = { workspace = true }
+atomic = { workspace = true }
+crossbeam = { workspace = true }
+hashbrown = { workspace = true }
 ipc = { path = "../libs/ipc" }
 memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
 log = { path = "../libs/log" }
 boot = { path = "../libs/boot" }
-atomic = "0.5"
-crossbeam = { version = "0.8.1", default-features = false, features = ["alloc"] }
-hashbrown = "0.12"
 
 [build-dependencies]
-spin = "0.9.3"
-serde = { version = "1.0", default-features = false }
-postcard = { version = "1.0.0", features = ["alloc"] }
-yaml-rust = "0.4.5"
+spin = { workspace = true }
+serde = { workspace = true }
+postcard = { workspace = true }
+yaml-rust = { workspace = true }
 
 [features]
 default = []

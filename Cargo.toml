@@ -26,3 +26,21 @@ panic = "abort"
 panic = "abort"
 lto = true
 codegen-units = 1
+
+[workspace.dependencies]
+spin = "0.9.3"
+elf_rs = "0.2.0"
+fdt = "0.1.3"
+serde = { version = "1.0", default-features = false }
+postcard = { version = "1.0.0", features = ["alloc"] }
+atomic = "0.5"
+crossbeam = { version = "0.8.1", default-features = false, features = ["alloc"] }
+hashbrown = "0.12"
+cortex-a = "7.4.0"
+tock-registers = "0.7.0"
+yaml-rust = "0.4.5"
+xshell = "0.2.2"
+anyhow = "1.0"
+clap = { version = "3.2.8", features = ["derive"] }
+uefi = { version = "0.16.0", features = ["exts", "alloc"] }
+uefi-services = "0.13.0"
