@@ -19,6 +19,10 @@ members = [
     "user/scheme_test",
 ]
 
+[workspace.package]
+version = "0.0.1"
+edition = "2018"
+
 [profile.dev]
 panic = "abort"
 
