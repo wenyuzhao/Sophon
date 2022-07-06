@@ -94,12 +94,8 @@ pub trait AbstractScheduler: Sized + 'static {
     }
 }
 
-// existential type Scheduler: AbstractScheduler;
 pub type Scheduler = impl AbstractScheduler;
 
-pub fn create2(_x: Scheduler) {}
-pub fn create3() {
-    create2(round_robin::create())
-}
+static SCHEDULER_IMPL: round_robin::RoundRobinScheduler = round_robin::create();
 
-pub static SCHEDULER: round_robin::RoundRobinScheduler = round_robin::create();
+pub static SCHEDULER: &'static Scheduler = &SCHEDULER_IMPL;
