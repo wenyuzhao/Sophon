@@ -8,6 +8,7 @@ members = [
     "libs/heap",
     "libs/interrupt",
     "libs/ipc",
+    "libs/kernel_module",
     "libs/log",
     "libs/memory",
 # Tools
@@ -17,6 +18,7 @@ members = [
 # User programs
     "user/init",
     "user/scheme_test",
+    "user/test_km",
 ]
 
 [workspace.package]

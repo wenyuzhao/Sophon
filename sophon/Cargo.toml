@@ -24,6 +24,7 @@ memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
 log = { path = "../libs/log" }
 boot = { path = "../libs/boot" }
+kernel_module = { path = "../libs/kernel_module" }
 
 [build-dependencies]
 spin = { workspace = true }

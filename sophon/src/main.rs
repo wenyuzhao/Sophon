@@ -26,6 +26,7 @@ pub mod boot_driver;
 pub mod initfs;
 pub mod kernel_tasks;
 pub mod memory;
+pub mod modules;
 pub mod schemes;
 pub mod task;
 

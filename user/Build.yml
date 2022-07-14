@@ -1,3 +1,4 @@
 init.fs:
   init: /init
   scheme_test: /scheme_test
+  test_km: /test_km
