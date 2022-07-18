@@ -339,6 +339,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 
 [[package]]
+name = "hello"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "kernel_module",
+ "log 0.0.1",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -367,6 +376,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "initfs"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "kernel_module",
+ "log 0.0.1",
+]
+
+[[package]]
 name = "interrupt"
 version = "0.0.1"
 dependencies = [
@@ -385,7 +403,19 @@ dependencies = [
 name = "kernel_module"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
+ "kernel_module_macros",
  "log 0.0.1",
+ "memory",
+ "spin",
+]
+
+[[package]]
+name = "kernel_module_macros"
+version = "0.0.1"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -726,16 +756,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bab24d30b911b2376f3a13cc2cd443142f0c81dda04c118693e35b3835757755"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "test_km"
-version = "0.0.1"
-dependencies = [
- "heap",
- "ipc",
- "kernel_module",
- "log 0.0.1",
 ]
 
 [[package]]

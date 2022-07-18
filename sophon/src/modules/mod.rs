@@ -1,10 +1,10 @@
-use core::{iter::Step, ptr};
-
 use alloc::{borrow::ToOwned, collections::BTreeMap, string::String, vec::Vec};
+use core::alloc::GlobalAlloc;
+use core::iter::Step;
 use kernel_module::KernelServiceWrapper;
 use memory::{
-    address::{Address, V},
-    page::{Page, PageResource, PageSize, Size2M, Size4K},
+    address::Address,
+    page::{Page, PageResource, Size4K},
 };
 use spin::{Lazy, Mutex};
 
@@ -56,6 +56,19 @@ pub struct KernelService;
 impl kernel_module::KernelService for KernelService {
     fn log(&self, s: &str) {
         log!("{}", s);
+    }
+
+    fn alloc(&self, layout: core::alloc::Layout) -> Option<Address> {
+        let ptr = unsafe { crate::ALLOCATOR.alloc(layout) };
+        if ptr.is_null() {
+            None
+        } else {
+            Some(ptr.into())
+        }
+    }
+
+    fn dealloc(&self, ptr: Address, layout: core::alloc::Layout) {
+        unsafe { crate::ALLOCATOR.dealloc(ptr.as_mut_ptr(), layout) }
     }
 }
 

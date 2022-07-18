@@ -3,7 +3,8 @@ members = [
 # Kernel
     "sophon",
 # Kernel Modules,
-    "modules/test_km",
+    "modules/hello",
+    "modules/initfs",
 # Libraries
     "libs/bitflags",
     "libs/boot",
@@ -47,8 +48,10 @@ cortex-a = "7.4.0"
 tock-registers = "0.7.0"
 yaml-rust = "0.4.5"
 xshell = "0.2.2"
-anyhow = "1.0"
 clap = { version = "3.2.8", features = ["derive"] }
 uefi = { version = "0.16.0", features = ["exts", "alloc"] }
 uefi-services = "0.13.0"
 xmas-elf = "0.8.0"
+anyhow = { version = "1.0", default-features = false }
+quote = "1.0.20"
+syn = { version = "1.0.98", features = ["full"] }

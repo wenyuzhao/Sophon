@@ -9,7 +9,6 @@ use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::iter::Step;
 use core::ops::Range;
-use core::ptr;
 use core::sync::atomic::AtomicUsize;
 use interrupt::UninterruptibleMutex;
 use ipc::scheme::{Resource, SchemeId};

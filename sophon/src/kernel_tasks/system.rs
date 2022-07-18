@@ -36,7 +36,7 @@ impl System {
 impl KernelTask for System {
     fn run(&mut self) -> ! {
         Self::spawn_user_process("init:/init");
-        Self::load_kernel_module("init:/libtest_km.so");
+        Self::load_kernel_module("init:/libhello.so");
         loop {
             unsafe {
                 asm!("wfe");
