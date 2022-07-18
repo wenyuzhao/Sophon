@@ -1,7 +1,6 @@
-use core::ptr;
+use core::{iter::Step, ptr};
 
 use alloc::{borrow::ToOwned, collections::BTreeMap, string::String, vec::Vec};
-use elf_rs::{Elf, ElfFile, ProgramType};
 use kernel_module::KernelServiceWrapper;
 use memory::{
     address::{Address, V},
@@ -12,8 +11,10 @@ use spin::{Lazy, Mutex};
 use crate::memory::kernel::KERNEL_HEAP;
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrapper) -> usize {
-    let entry = elf_loader::ELFLoader::load(elf_data, &mut |num_pages| {
-        KERNEL_HEAP.acquire_pages::<Size4K>(num_pages).unwrap()
+    let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
+        KERNEL_HEAP
+            .acquire_pages::<Size4K>(Page::steps_between(&pages.start, &pages.end).unwrap())
+            .unwrap()
     })
     .unwrap();
     log!("KM Entry: {:?}", entry);

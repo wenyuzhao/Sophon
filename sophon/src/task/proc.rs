@@ -11,7 +11,6 @@ use core::iter::Step;
 use core::ops::Range;
 use core::ptr;
 use core::sync::atomic::AtomicUsize;
-use elf_rs::{Elf, ElfFile, ProgramType};
 use interrupt::UninterruptibleMutex;
 use ipc::scheme::{Resource, SchemeId};
 use ipc::{ProcId, TaskId};
@@ -65,9 +64,10 @@ impl Proc {
     fn load_elf(&self, page_table: &mut PageTable) -> extern "C" fn(isize, *const *const u8) {
         let elf_data: &[u8] = self.user_elf.as_ref().unwrap();
         let base = Address::<V>::from(0x200000);
-        let entry = elf_loader::ELFLoader::load(elf_data, &mut |num_pages| {
+        let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
             let start_page = Page::new(base);
-            for i in 0..num_pages {
+            let num_pages = Page::steps_between(&pages.start, &pages.end).unwrap();
+            for (i, _) in pages.enumerate() {
                 let page = Page::<Size4K>::forward(start_page, i);
                 let frame = PHYSICAL_MEMORY.acquire::<Size4K>().unwrap();
                 let _kernel_page_table = KERNEL_MEMORY_MAPPER.with_kernel_address_space();

@@ -13,9 +13,8 @@ use alloc::vec::Vec;
 use boot::BootInfo;
 use core::arch::asm;
 use core::iter::Step;
-use core::{intrinsics::transmute, mem, ops::Range, ptr, slice};
+use core::{intrinsics::transmute, mem, ops::Range, slice};
 use cortex_a::registers::*;
-use elf_rs::*;
 use fdt::Fdt;
 use memory::address::*;
 use memory::page::*;
@@ -179,82 +178,28 @@ fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
 }
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
-    log!("Parse Kernel ELF");
-    let elf = Elf::from_bytes(elf_data).unwrap();
-    log!("Parse Kernel ELF Done");
-    if let Elf::Elf64(elf) = elf {
-        let entry: extern "C" fn(&mut BootInfo) =
-            unsafe { ::core::mem::transmute(elf.elf_header().entry_point()) };
-        log!("Entry @ {:?}", entry as *mut ());
-        let mut load_start = None;
-        let mut load_end = None;
-        let mut update_load_range = |start: Address, end: Address| match (load_start, load_end) {
-            (None, None) => {
-                load_start = Some(start);
-                load_end = Some(end);
-            }
-            (Some(s), Some(e)) => {
-                if start < s {
-                    load_start = Some(start)
-                }
-                if end > e {
-                    load_end = Some(end)
-                }
-            }
-            _ => unreachable!(),
-        };
-        for p in elf
-            .program_header_iter()
-            .filter(|p| p.ph_type() == ProgramType::LOAD)
-        {
-            let start: Address = (p.vaddr() as usize).into();
-            let end = start + (p.filesz() as usize);
-            update_load_range(start, end);
-        }
-        if let Some(bss) = elf.lookup_section(".bss".as_bytes()) {
-            let start = Address::<V>::from(bss.addr() as usize);
-            let end = start + bss.size() as usize;
-            update_load_range(start, end);
-        }
-        let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
-        let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
-        let pages = ((vaddr_end - vaddr_start) + ((1 << 12) - 1)) >> 12;
-        log!("Map code {:?}", vaddr_start..vaddr_end);
-        let p4 = TTBR0_EL1.get() as *mut PageTable<L4>;
-        map_kernel_pages_4k(unsafe { &mut *p4 }, vaddr_start.as_usize() as _, pages);
-        log!("Map code end");
-        // Copy data
-        log!("Copy code start");
-        for p in elf
-            .program_header_iter()
-            .filter(|p| p.ph_type() == ProgramType::LOAD)
-        {
-            let start: Address = (p.vaddr() as usize).into();
-            let aligned_start = Page::<Size4K, V>::align(start);
-            let end = start + p.filesz() as usize;
-            let src = &elf_data[p.offset() as usize] as *const u8;
-            unsafe {
-                log!("Copy code {:?}", start..end);
-                let mut cursor = aligned_start;
-                while cursor < end {
-                    let f = translate(&mut *p4, Page::new(cursor));
-                    let dst_start = Address::max(cursor, start);
-                    let dst_end = Address::min(cursor + Size4K::BYTES, end);
-                    let bytes = dst_end - dst_start;
-                    let offset = dst_start - start;
-                    let dst = f.start() + (dst_start - cursor);
-                    ptr::copy_nonoverlapping::<u8>(src.add(offset), dst.as_mut_ptr(), bytes);
-                    memory::cache::flush_cache::<P>(dst..dst + bytes);
-                    cursor += Size4K::BYTES;
-                }
-            }
-        }
-        log!("Copy code end");
-
-        unsafe { transmute(entry) }
-    } else {
-        unimplemented!("elf32 is not supported")
-    }
+    log!("Load kernel ELF");
+    let entry = elf_loader::ELFLoader::load_with_address_translation(
+        elf_data,
+        &mut |pages| {
+            // log!("Map {:?}", pages);
+            let vaddr_start = pages.start.start();
+            let num_pages = Page::steps_between(&pages.start, &pages.end).unwrap();
+            let p4 = TTBR0_EL1.get() as *mut PageTable<L4>;
+            map_kernel_pages_4k(unsafe { &mut *p4 }, vaddr_start.as_usize() as _, num_pages);
+            pages
+        },
+        &|x| {
+            let page = Page::containing(x);
+            let offset = x - page.start();
+            let p4 = TTBR0_EL1.get() as *mut PageTable<L4>;
+            let p = unsafe { translate(&mut *p4, page).start() + offset };
+            Address::new(p.as_usize())
+        },
+    )
+    .unwrap();
+    log!("Load kernel ELF done. entry @ {:?}", entry);
+    unsafe { core::mem::transmute(entry) }
 }
 
 fn gen_available_physical_memory() -> &'static [Range<Frame>] {

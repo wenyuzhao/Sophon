@@ -8,7 +8,7 @@ extern crate log;
 
 use core::ops::Range;
 
-use memory::address::Address;
+use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use xmas_elf::{
     dynamic,
@@ -17,20 +17,99 @@ use xmas_elf::{
     ElfFile,
 };
 
-pub struct ELFLoader<'a, 'b> {
+pub struct ELFLoader<'a, 'b, 'c> {
     data: &'a [u8],
     elf: ElfFile<'a>,
-    base: Address,
-    map_pages: &'b mut dyn FnMut(usize) -> Range<Page>,
+    vaddr_offset: isize,
+    map_pages: &'b mut dyn FnMut(Range<Page>) -> Range<Page>,
+    translate: Option<&'c dyn Fn(Address) -> Address>,
 }
 
-impl<'a, 'b> ELFLoader<'a, 'b> {
-    fn new(data: &'a [u8], map_pages: &'b mut dyn FnMut(usize) -> Range<Page>) -> Self {
+impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
+    fn new(
+        data: &'a [u8],
+        map_pages: &'b mut dyn FnMut(Range<Page>) -> Range<Page>,
+        translate: Option<&'c dyn Fn(Address) -> Address>,
+    ) -> Self {
         ELFLoader {
             data: data,
             elf: ElfFile::new(data).unwrap(),
-            base: Address::ZERO,
+            vaddr_offset: 0,
             map_pages,
+            translate,
+        }
+    }
+
+    fn addr(&self, a: Address) -> Address {
+        self.translate.as_ref().map(|f| (*f)(a)).unwrap_or(a)
+    }
+
+    fn copy(&self, src: &[u8], dst: Address) {
+        if src.is_empty() {
+            return;
+        }
+        if let Some(translate) = self.translate.as_ref() {
+            let mut cursor = dst;
+            let limit = dst + src.len();
+            while cursor < limit {
+                let start = translate(cursor);
+                let bytes =
+                    Address::min(Page::<Size4K>::align(cursor) + Size4K::BYTES, limit) - cursor;
+                unsafe {
+                    core::ptr::copy_nonoverlapping::<u8>(
+                        &src[cursor - dst],
+                        start.as_mut_ptr(),
+                        bytes,
+                    );
+                }
+                cursor += bytes;
+            }
+        } else {
+            unsafe {
+                core::ptr::copy_nonoverlapping::<u8>(&src[0], dst.as_mut_ptr(), src.len());
+            }
+        }
+    }
+
+    fn zero(&self, dst: Address, bytes: usize) {
+        if bytes == 0 {
+            return;
+        }
+        if let Some(translate) = self.translate.as_ref() {
+            let mut cursor = dst;
+            let limit = dst + bytes;
+            while cursor < limit {
+                let start = translate(cursor);
+                let bytes =
+                    Address::min(Page::<Size4K>::align(cursor) + Size4K::BYTES, limit) - cursor;
+                unsafe {
+                    core::ptr::write_bytes::<u8>(start.as_mut_ptr(), 0, bytes);
+                }
+                cursor += bytes;
+            }
+        } else {
+            unsafe {
+                core::ptr::write_bytes::<u8>(dst.as_mut_ptr(), 0, bytes);
+            }
+        }
+    }
+
+    fn flush(&self, dst: Address, bytes: usize) {
+        if bytes == 0 {
+            return;
+        }
+        if let Some(translate) = self.translate.as_ref() {
+            let mut cursor = dst;
+            let limit = dst + bytes;
+            while cursor < limit {
+                let start = translate(cursor);
+                let bytes =
+                    Address::min(Page::<Size4K>::align(cursor) + Size4K::BYTES, limit) - cursor;
+                memory::cache::flush_cache(start..start + bytes);
+                cursor += bytes;
+            }
+        } else {
+            memory::cache::flush_cache(dst..dst + bytes);
         }
     }
 
@@ -59,35 +138,36 @@ impl<'a, 'b> ELFLoader<'a, 'b> {
             let end = start + (p.mem_size() as usize);
             update_load_range(start, end);
         }
-        let vaddr_start = Page::<Size4K>::align(load_start.unwrap()).as_usize();
-        let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES).as_usize();
+        let vaddr_start = Page::<Size4K>::align(load_start.unwrap());
+        let vaddr_end = load_end.unwrap().align_up(Size4K::BYTES);
         // log!("vaddr: {:?} .. {:?}", vaddr_start, vaddr_end);
-        // Map pages
-        let pages = (vaddr_end - vaddr_start) >> Page::<Size4K>::LOG_BYTES;
-        let pages = (self.map_pages)(pages);
-        self.base = pages.start.start();
+        let pages =
+            (self.map_pages)(Page::<Size4K>::new(vaddr_start)..Page::<Size4K>::new(vaddr_end));
+        self.vaddr_offset =
+            pages.start.start().as_usize() as isize - vaddr_start.as_usize() as isize;
         Ok(())
     }
 
     fn load_segment(&self, ph: ProgramHeader) -> Result<(), &'static str> {
         // Copy data
-        let start: Address = self.base + ph.virtual_addr() as usize;
+        let start: Address = Address::from(ph.virtual_addr() as usize) + self.vaddr_offset;
         let bytes = ph.file_size() as usize;
         let offset = ph.offset() as usize;
-        // log!("copy_nonoverlapping: dst={:?}", start..(start + bytes));
-        unsafe {
-            core::ptr::copy_nonoverlapping::<u8>(&self.data[offset], start.as_mut_ptr(), bytes);
-        }
+        log!("copy_nonoverlapping: dst={:?}", start..(start + bytes));
+        self.copy(&self.data[offset..offset + bytes], start);
+        log!("copy_nonoverlapping: dst={:?} done", start..(start + bytes));
         // Zero data
         if ph.mem_size() > ph.file_size() {
             let zero_start = start + ph.file_size() as usize;
             let zero_end = start + ph.mem_size() as usize;
-            unsafe {
-                core::ptr::write_bytes::<u8>(zero_start.as_mut_ptr(), 0, zero_end - zero_start);
-            }
+            log!("zero: dst={:?}", zero_start..zero_end);
+            self.zero(zero_start, zero_end - zero_start);
+            log!("zerodonw: dst={:?}", zero_start..zero_end);
         }
         // Flush cache
-        memory::cache::flush_cache(start..start + bytes);
+        log!("flush");
+        self.flush(start, bytes);
+        log!("flush done");
         Ok(())
     }
 
@@ -136,8 +216,8 @@ impl<'a, 'b> ELFLoader<'a, 'b> {
         for rela in relas {
             match rela.get_type() {
                 8 /* R_AMD64_RELATIVE */ | 1027 /* R_AARCH64_RELATIVE */ => {
-                    let slot = self.base + rela.get_offset() as usize;
-                    let value = self.base + rela.get_addend() as usize;
+                    let slot = self.addr(Address::from(rela.get_offset() as usize)+ self.vaddr_offset);
+                    let value = Address::<V>::from(rela.get_addend() as usize) + self.vaddr_offset;
                     unsafe { slot.store(value) }
                 }
                 _ => {}
@@ -148,11 +228,13 @@ impl<'a, 'b> ELFLoader<'a, 'b> {
 
     fn do_load(&mut self) -> Result<Address, &'static str> {
         self.map_memory()?;
+        log!("Map end");
         for ph in self
             .elf
             .program_iter()
             .filter(|ph| ph.get_type() == Ok(Type::Load))
         {
+            log!("Load {:?}", ph);
             self.load_segment(ph)?;
         }
         for ph in self
@@ -160,15 +242,25 @@ impl<'a, 'b> ELFLoader<'a, 'b> {
             .program_iter()
             .filter(|ph| ph.get_type() == Ok(Type::Dynamic))
         {
+            log!("Relo {:?}", ph);
             self.apply_relocation(ph)?;
         }
-        Ok(self.base + self.elf.header.pt2.entry_point() as usize)
+        log!("Load end");
+        Ok(Address::from(self.elf.header.pt2.entry_point() as usize) + self.vaddr_offset)
     }
 
     pub fn load(
         data: &'a [u8],
-        map_pages: &'b mut dyn FnMut(usize) -> Range<Page>,
+        map_pages: &'b mut dyn FnMut(Range<Page>) -> Range<Page>,
     ) -> Result<Address, &'static str> {
-        Self::new(data, map_pages).do_load()
+        ELFLoader::new(data, map_pages, None).do_load()
+    }
+
+    pub fn load_with_address_translation(
+        data: &'a [u8],
+        map_pages: &'b mut dyn FnMut(Range<Page>) -> Range<Page>,
+        translate: &'c dyn Fn(Address) -> Address,
+    ) -> Result<Address, &'static str> {
+        ELFLoader::new(data, map_pages, Some(translate)).do_load()
     }
 }

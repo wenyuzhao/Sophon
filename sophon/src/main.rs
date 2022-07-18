@@ -14,7 +14,6 @@
 #![no_main]
 
 extern crate alloc;
-extern crate elf_rs;
 #[macro_use]
 extern crate log;
 
