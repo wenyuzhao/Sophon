@@ -2,6 +2,7 @@ init.fs:
   modules:
     hello: /libhello.so
     initfs: /libinitfs.so
+    vfs: /libvfs.so
   user:
     init: /init
     scheme_test: /scheme_test

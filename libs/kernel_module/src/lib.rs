@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(const_type_name)]
+#![feature(associated_type_defaults)]
 
 use core::alloc::GlobalAlloc;
 use core::{alloc::Layout, fmt, ops::Deref};
@@ -12,6 +13,7 @@ pub trait KernelService: Send + Sync + 'static {
     fn log(&self, s: &str);
     fn alloc(&self, layout: Layout) -> Option<Address>;
     fn dealloc(&self, address: Address, layout: Layout);
+    fn register_module_call(&self, handler: extern "C" fn(kind: usize, args: [usize; 3]) -> isize);
 }
 
 #[repr(C)]
@@ -56,8 +58,15 @@ pub fn init(service: KernelServiceWrapper) {
 
 pub trait KernelModule {
     const NAME: &'static str = core::any::type_name::<Self>();
+    const ENABLE_MODULE_CALL: bool = false;
+
+    type ModuleCallKind = usize;
 
     fn init(&self) -> anyhow::Result<()>;
+
+    fn module_call(&'static self, _kind: Self::ModuleCallKind, _args: [usize; 3]) -> isize {
+        -1
+    }
 }
 
 pub struct KernelModuleAllocator;
@@ -80,12 +89,21 @@ macro_rules! declare_kernel_module {
 
         #[no_mangle]
         pub extern "C" fn _start(service: $crate::KernelServiceWrapper) -> isize {
-            $crate::init(service);
             use $crate::KernelModule;
+            $crate::init(service);
+            fn enable_module_call<T: $crate::KernelModule>(_: &T) -> bool {
+                T::ENABLE_MODULE_CALL
+            }
+            if enable_module_call(&$name) {
+                extern "C" fn handle_kernel_call(kind: usize, args: [usize; 3]) -> isize {
+                    $name.module_call(unsafe { core::mem::transmute(kind) }, args)
+                }
+                $crate::SERVICE.register_module_call(handle_kernel_call)
+            }
             if $name.init().is_err() {
                 return -1;
             }
-            return 0;
+            0
         }
 
         #[panic_handler]

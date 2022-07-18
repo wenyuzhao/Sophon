@@ -5,10 +5,11 @@ use core::intrinsics::transmute;
 #[repr(usize)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Syscall {
-    Log = 0,
+    Log,
     Send,
     Receive,
     SchemeRequest,
+    ModuleCall,
 }
 
 #[inline]
@@ -59,5 +60,29 @@ pub fn receive(from: Option<TaskId>) -> Message {
         );
         assert!(ret == 0, "{:?}", ret);
         msg
+    }
+}
+
+pub fn open(path: &str) -> isize {
+    unsafe {
+        let name = &"vfs" as *const &str;
+        let kind = 0;
+        let path = &path as *const &str;
+        syscall(
+            Syscall::ModuleCall,
+            &[transmute(name), kind, transmute(path)],
+        )
+    }
+}
+
+pub fn read(fd: usize, mut buf: &mut [u8]) -> isize {
+    unsafe {
+        let name = &"vfs" as *const &str;
+        let kind = 1;
+        let buf = &mut buf as *mut &mut [u8];
+        syscall(
+            Syscall::ModuleCall,
+            &[transmute(name), kind, fd, transmute(buf)],
+        )
     }
 }

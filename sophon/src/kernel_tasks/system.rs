@@ -15,7 +15,7 @@ impl System {
         resource.write(Args::new((file, &mut proc_id))).unwrap();
         proc_id
     }
-    fn load_kernel_module(file: &str) {
+    fn load_kernel_module(name: &str, file: &str) {
         log!("Loading kernel module: {}", file);
         let mut data = vec![];
         let resource = Resource::open(file, 0, Mode::ReadOnly).unwrap();
@@ -29,14 +29,15 @@ impl System {
             data.extend_from_slice(&buf[..len]);
         }
         log!("Resource loaded");
-        crate::modules::register(file, data)
+        crate::modules::register(name, data)
     }
 }
 
 impl KernelTask for System {
     fn run(&mut self) -> ! {
+        Self::load_kernel_module("hello", "init:/libhello.so");
+        Self::load_kernel_module("vfs", "init:/libvfs.so");
         Self::spawn_user_process("init:/init");
-        Self::load_kernel_module("init:/libhello.so");
         loop {
             unsafe {
                 asm!("wfe");

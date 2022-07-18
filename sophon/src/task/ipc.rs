@@ -12,6 +12,7 @@ pub fn init() {
                 Syscall::Send => send(a, b, c, d, e),
                 Syscall::Receive => receive(a, b, c, d, e),
                 Syscall::SchemeRequest => scheme_request(a, b, c, d, e),
+                Syscall::ModuleCall => module_request(a, b, c, d, e),
             }
         }),
     );
@@ -53,4 +54,10 @@ fn receive(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
 
 fn scheme_request(a: usize, b: usize, c: usize, d: usize, e: usize) -> isize {
     handle_scheme_request(&[a, b, c, d, e]).unwrap_or_else(|e| e)
+}
+
+fn module_request(a: usize, b: usize, c: usize, d: usize, e: usize) -> isize {
+    let string_pointer = a as *const &str;
+    let s: &str = unsafe { &*string_pointer };
+    crate::modules::module_call(s, b, [c, d, e])
 }
