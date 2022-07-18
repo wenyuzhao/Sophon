@@ -1,0 +1,6 @@
+init.fs:
+  modules:
+    test_km: /libtest_km.so
+  user:
+    init: /init
+    scheme_test: /scheme_test

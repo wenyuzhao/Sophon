@@ -63,6 +63,11 @@ impl CargoFlags {
         (target_name, target_path)
     }
 
+    /// Return: (target_name, target_path)
+    pub fn kernel_module_traget(&self) -> (String, String) {
+        self.user_traget()
+    }
+
     pub fn kernel_target(&self) -> &'static str {
         assert_eq!(self.arch, Arch::AArch64);
         "aarch64-unknown-none"
@@ -128,8 +133,9 @@ impl ShellExt for Shell {
         let dissam = cmd!(self, "llvm-objdump")
             .args([
                 "--section-headers",
+                "--all-headers",
                 "--source",
-                "-d",
+                "-D",
                 bin.as_ref().to_str().unwrap(),
             ])
             .ignore_stderr()

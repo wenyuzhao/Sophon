@@ -2,6 +2,8 @@
 members = [
 # Kernel
     "sophon",
+# Kernel Modules,
+    "modules/test_km",
 # Libraries
     "libs/bitflags",
     "libs/boot",
@@ -11,6 +13,7 @@ members = [
     "libs/kernel_module",
     "libs/log",
     "libs/memory",
+    "libs/elf_loader",
 # Tools
     "tools/dev",
 # Boot loaders
@@ -18,7 +21,6 @@ members = [
 # User programs
     "user/init",
     "user/scheme_test",
-    "user/test_km",
 ]
 
 [workspace.package]
@@ -50,3 +52,4 @@ anyhow = "1.0"
 clap = { version = "3.2.8", features = ["derive"] }
 uefi = { version = "0.16.0", features = ["exts", "alloc"] }
 uefi-services = "0.13.0"
+xmas-elf = "0.8.0"

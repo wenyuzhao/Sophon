@@ -6,9 +6,7 @@
 #[macro_use]
 extern crate log;
 
-use kernel_module::{KernelService, KernelServiceWrapper};
-
-// static SERVICE: &'static dyn KernelService = &KernelService;
+use kernel_module::KernelServiceWrapper;
 
 #[no_mangle]
 pub extern "C" fn _start(service: KernelServiceWrapper) -> isize {

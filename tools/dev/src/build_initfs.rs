@@ -16,6 +16,18 @@ pub struct BuildInitFS {
 }
 
 impl BuildInitFS {
+    fn build_kernel_module(&self, shell: &Shell, name: &str) -> String {
+        let (_, target_path) = self.cargo.kernel_module_traget();
+        shell.build_package(
+            &name,
+            format!("modules/{}", name),
+            self.cargo.features.clone(),
+            self.cargo.release,
+            Some(&target_path),
+        );
+        format!("./target/_out/{}", format!("lib{}.so", name))
+    }
+
     fn build_user(&self, shell: &Shell, name: &str) -> String {
         let (_, target_path) = self.cargo.user_traget();
         shell.build_package(
@@ -33,13 +45,17 @@ impl BuildInitFS {
         // Create ram fs
         let mut init_fs = initfs::InitFS::default();
         // Add files
-        let docs = util::load_yaml("./user/Build.yml");
+        let docs = util::load_yaml("./Build.yml");
         let config = &docs[0];
-        let init_fs_files = config["init.fs"].as_hash().unwrap();
-        for (name, path) in init_fs_files
-            .iter()
-            .map(|(k, v)| (k.as_str().unwrap(), v.as_str().unwrap()))
-        {
+        // Copy kernel modules
+        let init_fs_doc = config["init.fs"].as_hash().unwrap();
+        if let Some(modules) = init_fs_doc.get("modules").map(|x| x.as_hash().unwrap()) {
+            let out = self.build_kernel_module(shell, name);
+            let file = fs::read(out).unwrap();
+            init_fs.insert(path, initfs::File::new(file));
+        }
+        // Copy user programs
+        if let Some(modules) = init_fs_doc.get("user").map(|x| x.as_hash().unwrap()) {
             let out = self.build_user(shell, name);
             let file = fs::read(out).unwrap();
             init_fs.insert(path, initfs::File::new(file));
