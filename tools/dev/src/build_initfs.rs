@@ -48,17 +48,26 @@ impl BuildInitFS {
         let docs = util::load_yaml("./Build.yml");
         let config = &docs[0];
         // Copy kernel modules
-        let init_fs_doc = config["init.fs"].as_hash().unwrap();
-        if let Some(modules) = init_fs_doc.get("modules").map(|x| x.as_hash().unwrap()) {
-            let out = self.build_kernel_module(shell, name);
-            let file = fs::read(out).unwrap();
-            init_fs.insert(path, initfs::File::new(file));
+        if let Some(modules) = config["init.fs"]["modules"].as_hash() {
+            for (name, path) in modules
+                .iter()
+                .map(|(k, v)| (k.as_str().unwrap(), v.as_str().unwrap()))
+            {
+                let out = self.build_kernel_module(shell, name);
+                let file = fs::read(out).unwrap();
+                init_fs.insert(path, initfs::File::new(file));
+            }
         }
         // Copy user programs
-        if let Some(modules) = init_fs_doc.get("user").map(|x| x.as_hash().unwrap()) {
-            let out = self.build_user(shell, name);
-            let file = fs::read(out).unwrap();
-            init_fs.insert(path, initfs::File::new(file));
+        if let Some(programs) = config["init.fs"]["user"].as_hash() {
+            for (name, path) in programs
+                .iter()
+                .map(|(k, v)| (k.as_str().unwrap(), v.as_str().unwrap()))
+            {
+                let out = self.build_user(shell, name);
+                let file = fs::read(out).unwrap();
+                init_fs.insert(path, initfs::File::new(file));
+            }
         }
         // Serialize
         let data = init_fs.serialize();
