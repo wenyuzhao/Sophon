@@ -1,6 +1,4 @@
 {
-    "rust-analyzer.cargo.target": "aarch64-unknown-linux-gnu",
-    "rust-analyzer.checkOnSave.target": "aarch64-unknown-linux-gnu",
     "rust-analyzer.checkOnSave.allTargets": false,
     "rust-analyzer.procMacro.enable": false,
     "editor.formatOnSave": true,

@@ -1,7 +1,14 @@
 #![no_std]
 
+#[allow(unused)]
 use core::arch::asm;
 use core::ops::{Deref, DerefMut};
+
+#[inline]
+#[cfg(target_arch = "x86_64")]
+pub fn enable() {
+    unimplemented!()
+}
 
 #[inline]
 #[cfg(target_arch = "aarch64")]
@@ -10,9 +17,21 @@ pub fn enable() {
 }
 
 #[inline]
+#[cfg(target_arch = "x86_64")]
+pub fn disable() {
+    unimplemented!()
+}
+
+#[inline]
 #[cfg(target_arch = "aarch64")]
 pub fn disable() {
     unsafe { asm!("msr daifset, #2") };
+}
+
+#[inline]
+#[cfg(target_arch = "x86_64")]
+pub fn is_enabled() -> bool {
+    unimplemented!()
 }
 
 #[inline]

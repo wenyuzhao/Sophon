@@ -1,4 +1,5 @@
 use crate::{Message, TaskId};
+#[allow(unused)]
 use core::arch::asm;
 use core::intrinsics::transmute;
 
@@ -12,6 +13,13 @@ pub enum Syscall {
 }
 
 #[inline]
+#[cfg(target_arch = "x86_64")]
+pub(crate) fn syscall(_ipc: Syscall, _args: &[usize]) -> isize {
+    unimplemented!()
+}
+
+#[inline]
+#[cfg(target_arch = "aarch64")]
 pub(crate) fn syscall(ipc: Syscall, args: &[usize]) -> isize {
     debug_assert!(args.len() <= 6);
     let a: usize = args.get(0).cloned().unwrap_or(0);
@@ -31,9 +39,7 @@ pub(crate) fn syscall(ipc: Syscall, args: &[usize]) -> isize {
 
 #[inline]
 pub fn log(message: &str) {
-    unsafe {
-        asm!("svc #0", in("x0") Syscall::Log as usize, in("x1") &message as *const &str);
-    }
+    syscall(Syscall::Log, &[&message as *const &str as usize]);
 }
 
 #[inline]
