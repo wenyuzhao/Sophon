@@ -25,7 +25,7 @@ pub enum VFSRequest<'a> {
 }
 
 impl<'a> ModuleCall for VFSRequest<'a> {
-    fn from([kind, a, b, c]: [usize; 4]) -> Self {
+    fn from([kind, a, b, _c]: [usize; 4]) -> Self {
         match kind {
             0 => VFSRequest::Open(unsafe { (*(a as *const &str)).to_string() }),
             1 => VFSRequest::Read(Fd(a as _), unsafe { *(b as *mut &mut [u8]) }),

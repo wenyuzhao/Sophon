@@ -15,4 +15,4 @@ spin = { workspace = true }
 serde = { workspace = true }
 postcard = { workspace = true }
 yaml-rust = { workspace = true }
-anyhow = "1.0"
+anyhow = { workspace = true }

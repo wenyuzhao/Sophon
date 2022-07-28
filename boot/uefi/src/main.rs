@@ -11,6 +11,7 @@ extern crate log;
 use alloc::vec;
 use alloc::vec::Vec;
 use boot::BootInfo;
+#[allow(unused)]
 use core::arch::asm;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, slice};
@@ -19,6 +20,7 @@ use fdt::Fdt;
 use memory::address::*;
 use memory::page::*;
 use memory::page_table::*;
+#[allow(unused)]
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::*;
@@ -368,7 +370,16 @@ fn read_dtb(handle: Handle) -> &'static mut [u8] {
     panic!("Device tree not specified");
 }
 
-extern "C" fn launch_kernel_at_el1(
+#[cfg(target_arch = "x86_64")]
+extern "C" fn launch_kernel(
+    _start: extern "C" fn(&mut BootInfo) -> isize,
+    _boot_info: &mut BootInfo,
+) -> ! {
+    unimplemented!()
+}
+
+#[cfg(target_arch = "aarch64")]
+extern "C" fn launch_kernel(
     start: extern "C" fn(&mut BootInfo) -> isize,
     boot_info: &mut BootInfo,
 ) -> ! {
@@ -482,7 +493,7 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
 
     BOOT_INFO = gen_boot_info(dtb, init_fs);
 
-    launch_kernel_at_el1(start, &mut BOOT_INFO);
+    launch_kernel(start, &mut BOOT_INFO);
 }
 
 #[no_mangle]

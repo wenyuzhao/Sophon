@@ -73,9 +73,21 @@ impl PageTable<L4> {
     }
 
     #[inline]
+    #[cfg(target_arch = "x86_64")]
+    pub fn get() -> &'static mut Self {
+        unimplemented!()
+    }
+
+    #[inline]
     #[cfg(target_arch = "aarch64")]
     pub fn get() -> &'static mut Self {
         unsafe { &mut *(TTBR0_EL1.get() as usize as *mut Self) }
+    }
+
+    #[inline]
+    #[cfg(target_arch = "x86_64")]
+    pub fn set(_p4: *mut Self) {
+        unimplemented!()
     }
 
     #[inline]
