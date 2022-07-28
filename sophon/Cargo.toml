@@ -12,7 +12,6 @@ edition = { workspace = true }
 spin = { workspace = true }
 cortex-a = { workspace = true }
 tock-registers = { workspace = true }
-elf_rs = { workspace = true }
 fdt = { workspace = true }
 serde = { workspace = true }
 postcard = { workspace = true }
@@ -24,6 +23,7 @@ memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
 log = { path = "../libs/log" }
 boot = { path = "../libs/boot" }
+elf_loader = { path = "../libs/elf_loader" }
 
 [build-dependencies]
 spin = { workspace = true }

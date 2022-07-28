@@ -128,8 +128,9 @@ impl ShellExt for Shell {
         let dissam = cmd!(self, "llvm-objdump")
             .args([
                 "--section-headers",
+                "--all-headers",
                 "--source",
-                "-d",
+                "-D",
                 bin.as_ref().to_str().unwrap(),
             ])
             .ignore_stderr()
