@@ -1,10 +1,14 @@
 #![no_std]
 #![feature(const_type_name)]
 #![feature(associated_type_defaults)]
+#![feature(type_alias_impl_trait)]
+#![feature(generic_associated_types)]
 
 mod heap;
 mod log;
 mod service;
+
+use core::any::Any;
 
 pub use heap::KernelModuleAllocator;
 pub use kernel_module_macros::kernel_module;
@@ -22,17 +26,45 @@ pub fn init(service: KernelServiceWrapper) {
     }
 }
 
-pub trait KernelModule {
+pub struct Nil;
+
+impl From<(usize, [usize; 3])> for Nil {
+    fn from(_: (usize, [usize; 3])) -> Self {
+        Nil
+    }
+}
+
+pub trait KernelModule: 'static {
     const NAME: &'static str = core::any::type_name::<Self>();
     const ENABLE_MODULE_CALL: bool = false;
 
-    type ModuleCallKind = usize;
-
     fn init(&self) -> anyhow::Result<()>;
 
-    fn module_call(&'static self, _kind: Self::ModuleCallKind, _args: [usize; 3]) -> isize {
+    type ModuleCall<'a>: From<(usize, [usize; 3])> = Nil;
+
+    fn module_call<'a>(&'static self, _: Self::ModuleCall<'a>) -> isize {
         -1
     }
+}
+
+static mut INSTANCE: Option<&'static dyn Any> = None;
+
+fn instance<T: KernelModule>() -> &'static T {
+    unsafe { INSTANCE.unwrap().downcast_ref::<T>().unwrap() }
+}
+
+pub fn init_module<T: KernelModule>(m: &'static T) -> anyhow::Result<()> {
+    unsafe {
+        INSTANCE = Some(m);
+    }
+    if T::ENABLE_MODULE_CALL {
+        extern "C" fn handle_kernel_call<T: KernelModule>(kind: usize, args: [usize; 3]) -> isize {
+            instance::<T>().module_call(From::from((kind, args)))
+        }
+        SERVICE.register_module_call(handle_kernel_call::<T>)
+    }
+
+    m.init()
 }
 
 #[macro_export]
@@ -43,18 +75,8 @@ macro_rules! declare_kernel_module {
 
         #[no_mangle]
         pub extern "C" fn _start(service: $crate::KernelServiceWrapper) -> isize {
-            use $crate::KernelModule;
             $crate::init(service);
-            fn enable_module_call<T: $crate::KernelModule>(_: &T) -> bool {
-                T::ENABLE_MODULE_CALL
-            }
-            if enable_module_call(&$name) {
-                extern "C" fn handle_kernel_call(kind: usize, args: [usize; 3]) -> isize {
-                    $name.module_call(unsafe { core::mem::transmute(kind) }, args)
-                }
-                $crate::SERVICE.register_module_call(handle_kernel_call)
-            }
-            if $name.init().is_err() {
+            if $crate::init_module(&$name).is_err() {
                 return -1;
             }
             0
