@@ -2,47 +2,13 @@
 #![feature(const_type_name)]
 #![feature(associated_type_defaults)]
 
-use core::alloc::GlobalAlloc;
-use core::{alloc::Layout, fmt, ops::Deref};
-use log::Logger;
-use memory::address::Address;
+mod heap;
+mod log;
+mod service;
 
+pub use heap::KernelModuleAllocator;
 pub use kernel_module_macros::kernel_module;
-
-pub trait KernelService: Send + Sync + 'static {
-    fn log(&self, s: &str);
-    fn alloc(&self, layout: Layout) -> Option<Address>;
-    fn dealloc(&self, address: Address, layout: Layout);
-    fn register_module_call(&self, handler: extern "C" fn(kind: usize, args: [usize; 3]) -> isize);
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct KernelServiceWrapper([usize; 2]);
-
-impl KernelServiceWrapper {
-    pub fn get_service(self) -> &'static dyn KernelService {
-        unsafe { core::mem::transmute(self) }
-    }
-    pub fn from_service(service: &'static dyn KernelService) -> Self {
-        unsafe { core::mem::transmute(service) }
-    }
-}
-
-impl Deref for KernelServiceWrapper {
-    type Target = dyn KernelService;
-
-    fn deref(&self) -> &'static Self::Target {
-        self.get_service()
-    }
-}
-
-impl Logger for &dyn KernelService {
-    fn log(&self, message: &str) -> Result<(), fmt::Error> {
-        KernelService::log(*self, message);
-        Ok(())
-    }
-}
+pub use service::*;
 
 static mut SERVICE_OPT: Option<&'static dyn KernelService> = None;
 
@@ -52,7 +18,7 @@ pub static SERVICE: spin::Lazy<&'static dyn KernelService> =
 pub fn init(service: KernelServiceWrapper) {
     unsafe {
         SERVICE_OPT = Some(service.get_service());
-        log::init(&*SERVICE);
+        log::init();
     }
 }
 
@@ -66,18 +32,6 @@ pub trait KernelModule {
 
     fn module_call(&'static self, _kind: Self::ModuleCallKind, _args: [usize; 3]) -> isize {
         -1
-    }
-}
-
-pub struct KernelModuleAllocator;
-
-unsafe impl GlobalAlloc for KernelModuleAllocator {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        SERVICE.alloc(layout).unwrap().as_mut_ptr()
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        SERVICE.dealloc(ptr.into(), layout)
     }
 }
 
