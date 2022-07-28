@@ -24,7 +24,7 @@ impl Build {
             "sophon",
             self.cargo.features.clone(),
             self.cargo.release,
-            Some(self.cargo.kernel_target()),
+            Some(&self.cargo.kernel_target()),
         );
         // Build init.fs
         let build_initfs = BuildInitFS {
