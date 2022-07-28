@@ -2,6 +2,7 @@ use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, 
 use core::alloc::GlobalAlloc;
 use core::iter::Step;
 use kernel_module::KernelServiceWrapper;
+use kernel_module::ModuleCallHandler;
 use memory::{
     address::Address,
     page::{Page, PageResource, Size4K},
@@ -26,7 +27,7 @@ struct KernelModule {
     service: Box<KernelService>,
     init: extern "C" fn(kernel_module::KernelServiceWrapper) -> usize,
     deinit: Option<extern "C" fn()>,
-    call: Option<extern "C" fn(usize, [usize; 3]) -> isize>,
+    call: Option<&'static dyn ModuleCallHandler>,
     elf: Vec<u8>,
 }
 
@@ -81,7 +82,7 @@ impl kernel_module::KernelService for KernelService {
         unsafe { crate::ALLOCATOR.dealloc(ptr.as_mut_ptr(), layout) }
     }
 
-    fn register_module_call(&self, handler: extern "C" fn(kind: usize, args: [usize; 3]) -> isize) {
+    fn register_module_call_handler(&self, handler: &'static dyn ModuleCallHandler) {
         log!("register module call");
         MODULES
             .lock()
@@ -93,8 +94,8 @@ impl kernel_module::KernelService for KernelService {
     }
 }
 
-pub fn module_call(module: &'static str, kind: usize, args: [usize; 3]) -> isize {
-    log!("module call {} #{}", module, kind);
+pub fn module_call(module: &'static str, args: [usize; 4]) -> isize {
+    log!("module call #{} {:x?}", module, args);
     let id = *MODULE_NAMES.lock().get(module).unwrap();
     MODULES
         .lock()
@@ -103,7 +104,7 @@ pub fn module_call(module: &'static str, kind: usize, args: [usize; 3]) -> isize
             module
                 .call
                 .as_ref()
-                .map(|call| call(kind, args))
+                .map(|call| call.handle(args))
                 .unwrap_or(-1)
         })
         .unwrap_or(-1)

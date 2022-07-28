@@ -59,5 +59,5 @@ fn scheme_request(a: usize, b: usize, c: usize, d: usize, e: usize) -> isize {
 fn module_request(a: usize, b: usize, c: usize, d: usize, e: usize) -> isize {
     let string_pointer = a as *const &str;
     let s: &str = unsafe { &*string_pointer };
-    crate::modules::module_call(s, b, [c, d, e])
+    crate::modules::module_call(s, [b, c, d, e])
 }

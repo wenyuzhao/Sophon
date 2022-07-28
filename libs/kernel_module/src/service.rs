@@ -6,7 +6,7 @@ pub trait KernelService: Send + Sync + 'static {
     fn log(&self, s: &str);
     fn alloc(&self, layout: Layout) -> Option<Address>;
     fn dealloc(&self, address: Address, layout: Layout);
-    fn register_module_call(&self, handler: extern "C" fn(kind: usize, args: [usize; 3]) -> isize);
+    fn register_module_call_handler(&self, handler: &'static dyn super::ModuleCallHandler);
 }
 
 #[repr(C)]

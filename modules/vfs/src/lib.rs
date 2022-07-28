@@ -8,7 +8,7 @@ extern crate log;
 extern crate alloc;
 
 use alloc::string::{String, ToString};
-use kernel_module::{kernel_module, KernelModule};
+use kernel_module::{kernel_module, KernelModule, ModuleCall};
 
 #[kernel_module]
 pub static VFS_MODULE: VFS = VFS;
@@ -24,38 +24,34 @@ pub enum VFSRequest<'a> {
     Read(Fd, &'a mut [u8]),
 }
 
-impl<'a> From<(usize, [usize; 3])> for VFSRequest<'a> {
-    fn from((kind, args): (usize, [usize; 3])) -> Self {
+impl<'a> ModuleCall for VFSRequest<'a> {
+    fn from([kind, a, b, c]: [usize; 4]) -> Self {
         match kind {
-            0 => VFSRequest::Open(unsafe { (*(args[0] as *const &str)).to_string() }),
-            1 => VFSRequest::Read(Fd(args[0] as _), unsafe {
-                &mut *(args[1] as *mut &mut [u8])
-            }),
+            0 => VFSRequest::Open(unsafe { (*(a as *const &str)).to_string() }),
+            1 => VFSRequest::Read(Fd(a as _), unsafe { *(b as *mut &mut [u8]) }),
             _ => unreachable!(),
         }
     }
-}
 
-impl KernelModule for VFS {
-    const ENABLE_MODULE_CALL: bool = true;
-
-    fn init(&self) -> anyhow::Result<()> {
-        log!("Hello, VFS!");
-        Ok(())
-    }
-
-    type ModuleCall<'a> = VFSRequest<'a>;
-
-    fn module_call(&self, call: VFSRequest) -> isize {
-        match call {
-            VFSRequest::Open(_) => 1,
+    fn handle(self) -> anyhow::Result<isize> {
+        match self {
+            VFSRequest::Open(_) => Ok(1),
             VFSRequest::Read(_fd, buf) => {
                 let s = "hello from vfs".as_bytes();
                 unsafe {
                     core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), s.len());
                 }
-                s.len() as isize
+                Ok(s.len() as isize)
             }
         }
+    }
+}
+
+impl KernelModule for VFS {
+    type ModuleCall<'a> = VFSRequest<'a>;
+
+    fn init(&self) -> anyhow::Result<()> {
+        log!("Hello, VFS!");
+        Ok(())
     }
 }
