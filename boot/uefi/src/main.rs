@@ -179,15 +179,17 @@ fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
     log!("Load kernel ELF");
+    let kernel_base = Address::<V>::from(0xff0000000000usize);
     let entry = elf_loader::ELFLoader::load_with_address_translation(
         elf_data,
         &mut |pages| {
-            // log!("Map {:?}", pages);
-            let vaddr_start = pages.start.start();
+            let vaddr_start = kernel_base + pages.start.start();
             let num_pages = Page::steps_between(&pages.start, &pages.end).unwrap();
             let p4 = TTBR0_EL1.get() as *mut PageTable<L4>;
             map_kernel_pages_4k(unsafe { &mut *p4 }, vaddr_start.as_usize() as _, num_pages);
-            pages
+            let start_page = Page::new(vaddr_start);
+            let end_page = Page::forward(start_page, num_pages);
+            start_page..end_page
         },
         &|x| {
             let page = Page::containing(x);

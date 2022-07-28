@@ -17,25 +17,23 @@ pub struct BuildInitFS {
 
 impl BuildInitFS {
     fn build_kernel_module(&self, shell: &Shell, name: &str) -> String {
-        let (_, target_path) = self.cargo.kernel_module_traget();
         shell.build_package(
             &name,
             format!("modules/{}", name),
             self.cargo.features.clone(),
             self.cargo.release,
-            Some(&target_path),
+            Some(&self.cargo.kernel_module_traget()),
         );
         format!("./target/_out/{}", format!("lib{}.so", name))
     }
 
     fn build_user(&self, shell: &Shell, name: &str) -> String {
-        let (_, target_path) = self.cargo.user_traget();
         shell.build_package(
             &name,
             format!("user/{}", name),
             self.cargo.features.clone(),
             self.cargo.release,
-            Some(&target_path),
+            Some(&self.cargo.user_traget()),
         );
         format!("./target/_out/{}", name)
     }
