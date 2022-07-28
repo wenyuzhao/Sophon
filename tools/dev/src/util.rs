@@ -1,4 +1,8 @@
-use std::{fs, path::Path, str::FromStr};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use xshell::{Cmd, Shell};
 use yaml_rust::{Yaml, YamlLoader};
@@ -55,17 +59,21 @@ pub struct CargoFlags {
 }
 
 impl CargoFlags {
-    /// Return: (target_name, target_path)
-    pub fn user_traget(&self) -> (String, String) {
+    pub fn user_traget(&self) -> String {
         assert_eq!(self.arch, Arch::AArch64);
-        let target_name = format!("{}-sophon", self.arch.to_str());
-        let target_path = format!("../../sophon/{}.json", target_name);
-        (target_name, target_path)
+        let target_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("sophon")
+            .join(format!("{}-sophon.json", self.arch.to_str()));
+        target_path.to_str().unwrap().to_owned()
     }
 
-    pub fn kernel_target(&self) -> &'static str {
-        assert_eq!(self.arch, Arch::AArch64);
-        "aarch64-unknown-none"
+    /// Return: (target_name, target_path)
+    pub fn kernel_target(&self) -> String {
+        self.user_traget()
     }
 
     pub fn uefi_target(&self) -> &'static str {
@@ -128,8 +136,9 @@ impl ShellExt for Shell {
         let dissam = cmd!(self, "llvm-objdump")
             .args([
                 "--section-headers",
+                "--all-headers",
                 "--source",
-                "-d",
+                "-D",
                 bin.as_ref().to_str().unwrap(),
             ])
             .ignore_stderr()

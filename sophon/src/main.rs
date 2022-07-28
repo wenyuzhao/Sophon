@@ -14,7 +14,6 @@
 #![no_main]
 
 extern crate alloc;
-extern crate elf_rs;
 #[macro_use]
 extern crate log;
 
@@ -46,19 +45,6 @@ use fdt::Fdt;
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
 
-extern "C" {
-    static mut __bss_start: u8;
-    static mut __bss_end: u8;
-}
-
-#[inline(never)]
-unsafe fn zero_bss() {
-    let start = &mut __bss_start as *mut u8;
-    let end = &mut __bss_end as *mut u8;
-    let bytes = end.offset_from(start);
-    core::ptr::write_bytes(start, 0, bytes as _)
-}
-
 fn display_banner() {
     println!(r"");
     println!(r" ____ ____ ___  _  _ ____ _  _    ____ ____ ");
@@ -69,7 +55,6 @@ fn display_banner() {
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
-    unsafe { zero_bss() }
     if let Some(uart) = boot_info.uart {
         utils::boot_log::init(uart);
     }
