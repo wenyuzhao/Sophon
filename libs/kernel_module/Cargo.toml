@@ -1,7 +1,7 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "init"
+name = "kernel_module"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -9,9 +9,14 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-syscall = { path = "../../libs/syscall" }
-heap = { path = "../../libs/heap" }
-log = { path = "../../libs/log" }
+log = { path = "../log" }
+memory = { path = "../memory" }
+kernel_module_macros = { path = "./macros" }
+syscall = { path = "../syscall" }
+proc = { path = "../proc" }
+anyhow = { workspace = true }
+spin = { workspace = true }
 
 [features]
 default = []
+disable = []

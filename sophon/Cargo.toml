@@ -18,12 +18,15 @@ postcard = { workspace = true }
 atomic = { workspace = true }
 crossbeam = { workspace = true }
 hashbrown = { workspace = true }
-ipc = { path = "../libs/ipc" }
+syscall = { path = "../libs/syscall" }
 memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
 log = { path = "../libs/log" }
 boot = { path = "../libs/boot" }
+kernel_module = { path = "../libs/kernel_module" }
 elf_loader = { path = "../libs/elf_loader" }
+fs = { path = "../libs/fs" }
+proc = { path = "../libs/proc" }
 
 [build-dependencies]
 spin = { workspace = true }

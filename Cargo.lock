@@ -250,6 +250,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
+ "fs",
  "postcard",
  "serde",
  "spin",
@@ -281,6 +282,14 @@ name = "fdt"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b643857cf70949306b81d7e92cb9d47add673868edac9863c4a49c42feaf3f1e"
+
+[[package]]
+name = "fs"
+version = "0.0.1"
+dependencies = [
+ "postcard",
+ "serde",
+]
 
 [[package]]
 name = "getrandom"
@@ -339,6 +348,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 
 [[package]]
+name = "hello"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "kernel_module",
+ "log 0.0.1",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -362,8 +380,8 @@ name = "init"
 version = "0.0.1"
 dependencies = [
  "heap",
- "ipc",
  "log 0.0.1",
+ "syscall",
 ]
 
 [[package]]
@@ -374,11 +392,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "ipc"
+name = "kernel_module"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
+ "kernel_module_macros",
  "log 0.0.1",
+ "memory",
+ "proc",
  "spin",
+ "syscall",
+]
+
+[[package]]
+name = "kernel_module_macros"
+version = "0.0.1"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -488,6 +519,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "proc"
+version = "0.0.1"
+dependencies = [
+ "log 0.0.1",
+ "spin",
+]
+
+[[package]]
 name = "proc-macro-error"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -586,15 +625,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "scheme_test"
-version = "0.0.1"
-dependencies = [
- "heap",
- "ipc",
- "log 0.0.1",
-]
-
-[[package]]
 name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -651,14 +681,17 @@ dependencies = [
  "crossbeam",
  "elf_loader",
  "fdt",
+ "fs",
  "hashbrown",
  "interrupt",
- "ipc",
+ "kernel_module",
  "log 0.0.1",
  "memory",
  "postcard",
+ "proc",
  "serde",
  "spin",
+ "syscall",
  "tock-registers",
  "yaml-rust",
 ]
@@ -709,6 +742,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "syscall"
+version = "0.0.1"
+dependencies = [
+ "log 0.0.1",
+ "spin",
 ]
 
 [[package]]
@@ -792,6 +833,18 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "vfs"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "fs",
+ "kernel_module",
+ "log 0.0.1",
+ "proc",
+ "spin",
+]
 
 [[package]]
 name = "void"

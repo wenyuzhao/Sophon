@@ -71,7 +71,10 @@ impl CargoFlags {
         target_path.to_str().unwrap().to_owned()
     }
 
-    /// Return: (target_name, target_path)
+    pub fn kernel_module_traget(&self) -> String {
+        self.user_traget()
+    }
+
     pub fn kernel_target(&self) -> String {
         self.user_traget()
     }
@@ -92,12 +95,10 @@ impl CargoFlags {
 
 fn append_cargo_args<'a>(
     mut cmd: Cmd<'a>,
-    package: &str,
     features: Option<String>,
     release: bool,
     target: Option<&str>,
 ) -> Cmd<'a> {
-    cmd = cmd.args(["--package", package]);
     if let Some(features) = features {
         cmd = cmd.args(["--features", &features]);
     }
@@ -114,7 +115,6 @@ pub trait ShellExt {
     fn disassemble(&self, bin: impl AsRef<Path>, out: impl AsRef<Path>);
     fn build_package(
         &self,
-        name: impl AsRef<str>,
         path: impl AsRef<Path>,
         features: Option<String>,
         release: bool,
@@ -122,7 +122,6 @@ pub trait ShellExt {
     );
     fn run_package(
         &self,
-        name: &str,
         path: impl AsRef<Path>,
         features: Option<String>,
         release: bool,
@@ -148,7 +147,6 @@ impl ShellExt for Shell {
     }
     fn build_package(
         &self,
-        name: impl AsRef<str>,
         path: impl AsRef<Path>,
         features: Option<String>,
         release: bool,
@@ -156,12 +154,11 @@ impl ShellExt for Shell {
     ) {
         let _p = self.push_dir(path);
         let mut cmd = cmd!(self, "cargo build");
-        cmd = append_cargo_args(cmd, name.as_ref(), features, release, target);
+        cmd = append_cargo_args(cmd, features, release, target);
         cmd.run().unwrap();
     }
     fn run_package(
         &self,
-        name: &str,
         path: impl AsRef<Path>,
         features: Option<String>,
         release: bool,
@@ -170,7 +167,7 @@ impl ShellExt for Shell {
     ) {
         let _p = self.push_dir(path);
         let mut cmd = cmd!(self, "cargo run");
-        cmd = append_cargo_args(cmd, name, features, release, target);
+        cmd = append_cargo_args(cmd, features, release, target);
         cmd = cmd.arg("--").args(args);
         cmd.run().unwrap();
     }

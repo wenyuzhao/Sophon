@@ -1,0 +1,16 @@
+init.fs:
+  /:
+    bin/:
+      init:
+        + cargo-build: user/init
+        + copy: target/_out/init
+    etc/:
+      modules/:
+        libhello.so:
+          + cargo-build: modules/hello
+          + copy: target/_out/libhello.so
+        libvfs.so:
+          + cargo-build: modules/vfs
+          + copy: target/_out/libvfs.so
+      hello.txt:
+        + copy-str: "Hello world from file!"

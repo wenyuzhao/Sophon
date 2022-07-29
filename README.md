@@ -1,6 +1,6 @@
 # **Sophon** - A Raspberry Pi Kernel in Rust
 
-An experimental micro-kernel written in Rust.
+An experimental _modular_-kernel written in Rust.
 
 The name "Sophon" comes from the novel [_The Three-Body Problem_](https://en.wikipedia.org/wiki/The_Three-Body_Problem_(novel)).
 
@@ -10,8 +10,8 @@ The name "Sophon" comes from the novel [_The Three-Body Problem_](https://en.wik
 
 
 1. Install [rustup](https://rustup.rs/).
-2. LLVM tools (`llvm-objcopy` and `llvm-objdump`)
-3. `qemu-system-aarch64` (optionally `gdb-multiarch` or `lldb` for debugging).
+2. `qemu-system-aarch64` (optionally `gdb-multiarch` or `lldb` for debugging).
+3. For debugging: LLVM tools (`lldb`, `llvm-objcopy` and `llvm-objdump`)
 4. VSCode setup: install the [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=matklad.rust-analyzer) extension.
 
 
@@ -41,13 +41,9 @@ $ cargo x run
 
 # Design
 
-The current plan is:
+_The current plan is:_
 
-Make the kernel as simple as possible. So we will likely to make a MINIX-like
-micro kernel. Then we can throw most tasks, including drivers, fs to the user
-space.
-
-BTW, it is almost impossible to take care of performance for now...
+Make the kernel as simple and small as possible. Instead of following the micro-kernel approach that puts each kernel component as a isolated user process, Sophon tries to treat the components as kernel modules. This is expected to have higher performance than micro-kernels due to the absence of context switches and message passing overheads.
 
 # TODO
 
@@ -56,6 +52,7 @@ BTW, it is almost impossible to take care of performance for now...
 - [x] Make the kernel boot on AArch64 QEMU (UEFI)
 - [x] Make the kernel boot on a real Raspberry Pi 4B (UEFI)
 - [x] Setup EL1 virtual memory
+- [x] Load kernel as relocatable ELF
 - [x] Start kernel at Exception Level 1
 - [ ] UEFI Network boot
 - [ ] U-boot support
@@ -66,29 +63,27 @@ BTW, it is almost impossible to take care of performance for now...
 - [x] Basic interrupt handler support
 - [x] Kernel heap allocation
 - [x] Timer interrupts
-- [x] Scheduling/Context switch
+- [x] Scheduling / Context switch
 - [x] Syscalls support
 - [x] `Log` syscall (output to *UART*, for user process debugging)
-- [x] Scheme based Inter-Process Communication
-- [ ] Memory map related syscalls (`mmap`, `munmap`)
-- [ ] `ProcessExit` syscall
-- [ ] ~~`Fork` syscall (and handle copy-on-write pages after `fork()`)~~
-  - Probably we only some `execve`-like syscalls.
-- [x] Simple init-fs
+- [x] Kernel Modules
+- [x] Module-defined syscalls (_Module calls_)
+- [x] VFS module and Root-FS
+- [ ] Memory management module; `mmap` and `munmap` syscalls
+- [ ] File system modules like fat32
+- [ ] Process management module
 - [ ] Process and multi-threading
-- [ ] Multi-core support
+- [ ] Driver interface based on modules
+- [ ] SMP support
 
 ### User Space
 
 - [ ] Properly trap and handle Stack-overflow exception
 - [x] Launch init process in privileged mode
 - [x] Launch init process in user mode
+- [ ] TTY
 - [ ] Update/release ref-counted pages after process exit
 - [ ] Port gcc/libc/rustc
-- [ ] Design & implement a driver interface
-- [ ] Basic FAT32 FS support
-- [ ] Basic graphics support
-- [ ] *Other necessary components?*
 
 ### Architectures
 
@@ -99,7 +94,7 @@ BTW, it is almost impossible to take care of performance for now...
 
 ### Others
 
-- [ ] Unit/integration tests
+- [ ] Unit / integration tests
 - [ ] Continuous integration
 
 # References
@@ -112,3 +107,4 @@ BTW, it is almost impossible to take care of performance for now...
 6. [Learning OS dev using Linux kernel & Raspberry Pi](https://github.com/s-matyukevich/raspberry-pi-os)
 7. [ARM Quad-A7 Documentation (for timer configuration)](https://github.com/raspberrypi/documentation/blob/master/hardware/raspberrypi/bcm2836/QA7_rev3.4.pdf)
 8. [Circle - A C++ bare metal programming env for RPi](https://github.com/rsta2/circle)
+9. [PanicOS - A simple x86 operating system with graphical user space](https://github.com/JasonBrave/PanicOS)

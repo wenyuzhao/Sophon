@@ -1,7 +1,7 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "init"
+name = "fs"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -9,9 +9,8 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-syscall = { path = "../../libs/syscall" }
-heap = { path = "../../libs/heap" }
-log = { path = "../../libs/log" }
+serde = { workspace = true }
+postcard = { workspace = true }
 
 [features]
 default = []

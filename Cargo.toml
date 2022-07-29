@@ -2,13 +2,20 @@
 members = [
 # Kernel
     "sophon",
+# Kernel Modules,
+    "modules/hello",
+    "modules/vfs",
 # Libraries
     "libs/bitflags",
     "libs/boot",
     "libs/elf_loader",
+    "libs/fs",
     "libs/heap",
     "libs/interrupt",
-    "libs/ipc",
+    "libs/proc",
+    "libs/syscall",
+    "libs/kernel_module",
+    "libs/kernel_module/macros",
     "libs/log",
     "libs/memory",
 # Tools
@@ -17,7 +24,6 @@ members = [
     "boot/uefi",
 # User programs
     "user/init",
-    "user/scheme_test",
 ]
 
 [workspace.package]

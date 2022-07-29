@@ -21,7 +21,6 @@ impl Build {
         // Build kernel
         shell.build_package(
             "sophon",
-            "sophon",
             self.cargo.features.clone(),
             self.cargo.release,
             Some(&self.cargo.kernel_target()),
@@ -34,7 +33,6 @@ impl Build {
         build_initfs.run(shell);
         // Build bootloader
         shell.build_package(
-            "sophon-boot-uefi",
             "boot/uefi",
             None,
             self.cargo.release,

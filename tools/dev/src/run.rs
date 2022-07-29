@@ -28,7 +28,6 @@ impl Run {
         build.run(shell);
         // Run
         shell.run_package(
-            "sophon-boot-uefi",
             "boot/uefi",
             self.cargo.features.clone(),
             self.cargo.release,

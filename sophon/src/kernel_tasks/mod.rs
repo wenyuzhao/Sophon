@@ -1,4 +1,3 @@
-pub mod system;
 pub mod user;
 
 use core::arch::asm;

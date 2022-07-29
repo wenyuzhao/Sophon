@@ -1,4 +1,3 @@
-use crate::task::Message;
 use alloc::boxed::Box;
 use fdt::Fdt;
 use memory::address::*;
@@ -46,7 +45,6 @@ pub trait ArchInterruptController {
 pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
-    fn set_response_message(&self, m: Message);
     fn set_response_status(&self, s: isize);
 
     unsafe extern "C" fn return_to_user(&self) -> !;

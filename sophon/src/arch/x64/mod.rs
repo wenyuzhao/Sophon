@@ -1,6 +1,5 @@
 use super::{Arch, ArchContext, ArchInterruptController, TargetArch};
 use fdt::Fdt;
-use ipc::Message;
 use memory::{address::Address, page_table::PageTable};
 
 #[repr(C)]
@@ -12,10 +11,6 @@ impl ArchContext for X64Context {
     }
 
     fn new(_entry: *const extern "C" fn(a: *mut ()) -> !, _ctx_ptr: *mut ()) -> Self {
-        unimplemented!()
-    }
-
-    fn set_response_message(&self, _m: Message) {
         unimplemented!()
     }
 

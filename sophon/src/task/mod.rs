@@ -1,8 +1,8 @@
-pub mod ipc;
 pub mod proc;
 pub mod scheduler;
+pub mod syscall;
 pub mod task;
 
-pub use ::ipc::{Message, ProcId, TaskId};
-pub use proc::*;
+pub use self::proc::*;
+pub use ::proc::{ProcId, TaskId};
 pub use task::*;
