@@ -43,7 +43,7 @@ $ cargo x run
 
 _The current plan is:_
 
-Make the kernel as simple and small as possible. Instead of following the micro-kernel approach that puts each kernel component as a isolated user process, Sophon tries to treat the components as kernel modules. This is expected to have higher performance than micro-kernels due to the absence of context switch and message passing overheads.
+Make the kernel as simple and small as possible. Instead of following the micro-kernel approach that puts each kernel component as a isolated user process, Sophon tries to treat the components as kernel modules. This is expected to have higher performance than micro-kernels due to the absence of context switches and message passing overheads.
 
 # TODO
 
@@ -63,7 +63,7 @@ Make the kernel as simple and small as possible. Instead of following the micro-
 - [x] Basic interrupt handler support
 - [x] Kernel heap allocation
 - [x] Timer interrupts
-- [x] Scheduling/Context switch
+- [x] Scheduling / Context switch
 - [x] Syscalls support
 - [x] `Log` syscall (output to *UART*, for user process debugging)
 - [x] Kernel Modules
