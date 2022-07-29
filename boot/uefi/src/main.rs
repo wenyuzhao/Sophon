@@ -480,6 +480,12 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
 
     log!("Loading kernel...");
 
+    // let mut config_entries = st.config_table().iter();
+    // let rsdp_addr = config_entries
+    //     .find(|entry| matches!(entry.guid, cfg::ACPI2_GUID))
+    //     .map(|entry| entry.address);
+    // log!("RSDP @ {:?}", rsdp_addr);
+
     establish_el1_page_table();
 
     let kernel_elf = read_file(image, "sophon");

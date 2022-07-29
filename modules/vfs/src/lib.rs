@@ -47,7 +47,7 @@ struct ProcData {
 
 impl Default for ProcData {
     fn default() -> Self {
-        let mut data = Self {
+        let data = Self {
             nodes: [
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None,
