@@ -83,8 +83,8 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     let v = vec![1, 3, 5, 7, 9];
     log!("[kernel: test-alloc] {:?} @ {:?}", v, v.as_ptr());
 
-    task::ipc::init();
-    log!("[kernel: ipc initialized]");
+    task::syscall::init();
+    log!("[kernel: syscall initialized]");
 
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
     log!("[kernel: initfs loaded]");

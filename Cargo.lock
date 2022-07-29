@@ -380,8 +380,8 @@ name = "init"
 version = "0.0.1"
 dependencies = [
  "heap",
- "ipc",
  "log 0.0.1",
+ "syscall",
 ]
 
 [[package]]
@@ -392,23 +392,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "ipc"
-version = "0.0.1"
-dependencies = [
- "log 0.0.1",
- "spin",
-]
-
-[[package]]
 name = "kernel_module"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "ipc",
  "kernel_module_macros",
  "log 0.0.1",
  "memory",
+ "proc",
  "spin",
+ "syscall",
 ]
 
 [[package]]
@@ -523,6 +516,14 @@ dependencies = [
  "cobs",
  "heapless",
  "serde",
+]
+
+[[package]]
+name = "proc"
+version = "0.0.1"
+dependencies = [
+ "log 0.0.1",
+ "spin",
 ]
 
 [[package]]
@@ -683,13 +684,14 @@ dependencies = [
  "fs",
  "hashbrown",
  "interrupt",
- "ipc",
  "kernel_module",
  "log 0.0.1",
  "memory",
  "postcard",
+ "proc",
  "serde",
  "spin",
+ "syscall",
  "tock-registers",
  "yaml-rust",
 ]
@@ -740,6 +742,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "syscall"
+version = "0.0.1"
+dependencies = [
+ "log 0.0.1",
+ "spin",
 ]
 
 [[package]]
@@ -830,9 +840,9 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "fs",
- "ipc",
  "kernel_module",
  "log 0.0.1",
+ "proc",
  "spin",
 ]
 

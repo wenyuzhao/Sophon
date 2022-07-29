@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 log = { path = "../../libs/log" }
 kernel_module = { path = "../../libs/kernel_module" }
 fs = { path = "../../libs/fs" }
-ipc = { path = "../../libs/ipc" }
+proc = { path = "../../libs/proc" }
 anyhow = { workspace = true }
 spin = { workspace = true }
 

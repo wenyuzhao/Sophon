@@ -1,3 +1,4 @@
+use super::{ProcId, TaskId};
 use crate::kernel_tasks::user::UserTask;
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
@@ -10,7 +11,6 @@ use core::iter::Step;
 use core::ops::Range;
 use core::sync::atomic::AtomicUsize;
 use interrupt::UninterruptibleMutex;
-use ipc::{ProcId, TaskId};
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};

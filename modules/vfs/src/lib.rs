@@ -20,8 +20,8 @@ use alloc::{
     collections::BTreeMap,
     string::{String, ToString},
 };
-use ipc::ProcId;
 use kernel_module::{kernel_module, KernelModule, ModuleCall, SERVICE};
+use proc::ProcId;
 use rootfs::ROOT_FS;
 use spin::Mutex;
 

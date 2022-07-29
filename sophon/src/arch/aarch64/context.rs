@@ -2,7 +2,7 @@ use super::exception::ExceptionFrame;
 use crate::arch::*;
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
-use crate::task::{Message, Proc};
+use crate::task::Proc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::arch::asm;
@@ -89,7 +89,6 @@ pub struct AArch64Context {
     // q: [u128; 32], // Neon registers
     kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
-    response_message: Mutex<Option<Message>>,
     response_status: Mutex<Option<isize>>,
 }
 
@@ -111,7 +110,6 @@ impl ArchContext for AArch64Context {
             entry_pc: ptr::null_mut(),
             kernel_stack: None,
             kernel_stack_top: ptr::null_mut(),
-            response_message: Mutex::new(None),
             response_status: Mutex::new(None),
         }
     }
@@ -128,10 +126,6 @@ impl ArchContext for AArch64Context {
         ctx.kernel_stack = Some(kernel_stack);
         ctx.set_response_status(unsafe { ::core::mem::transmute(ctx_ptr) });
         ctx
-    }
-
-    fn set_response_message(&self, m: Message) {
-        *self.response_message.lock_uninterruptible() = Some(m);
     }
 
     fn set_response_status(&self, s: isize) {
@@ -158,10 +152,6 @@ impl ArchContext for AArch64Context {
             (*frame).spsr_el1 = 0b0101;
             frame
         });
-        if let Some(msg) = self.response_message.lock().take() {
-            let slot = Address::<V>::from((*exception_frame).x2 as *mut Message);
-            ::core::ptr::write(slot.as_mut_ptr(), msg);
-        }
         if let Some(status) = self.response_status.lock().take() {
             let slot = Address::<V>::from(&(*exception_frame).x0 as *const usize);
             slot.store(status);

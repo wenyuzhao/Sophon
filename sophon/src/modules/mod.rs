@@ -9,6 +9,7 @@ use memory::{
     address::Address,
     page::{Page, PageResource, Size4K},
 };
+use proc::ProcId;
 use spin::{Lazy, Mutex};
 
 use crate::memory::kernel::KERNEL_HEAP;
@@ -94,7 +95,7 @@ impl kernel_module::KernelService for KernelService {
             .unwrap();
     }
 
-    fn current_process(&self) -> Option<ipc::ProcId> {
+    fn current_process(&self) -> Option<ProcId> {
         Some(Proc::current().id)
     }
 }

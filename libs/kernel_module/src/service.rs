@@ -1,7 +1,7 @@
 use core::alloc::Layout;
 use core::ops::Deref;
-use ipc::ProcId;
 use memory::address::Address;
+use proc::ProcId;
 
 pub trait KernelService: Send + Sync + 'static {
     // Logging
