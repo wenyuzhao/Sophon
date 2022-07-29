@@ -49,6 +49,8 @@ fn display_banner() {
     println!(r" [__  |  | |__] |__| |  | |\ |    |  | [__  ");
     println!(r" ___] |__| |    |  | |__| | \|    |__| ___] ");
     println!(r"");
+    println!(r" Hello Sophon! ");
+    println!(r"");
 }
 
 #[no_mangle]
@@ -56,7 +58,6 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
         utils::boot_log::init(uart);
     }
-    display_banner();
     log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
         *(boot_info as *const _ as *const usize)
     });
@@ -66,49 +67,52 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
         boot_info.available_physical_memory.as_ptr_range()
     );
 
+    display_banner();
+
     // Initialize physical memory and kernel heap
     PHYSICAL_MEMORY.init(boot_info.available_physical_memory);
-    log!("PHYSICAL_MEMORY done");
+    log!("[kernel] physical memory initialized");
     KERNEL_HEAP.init();
-    log!("KERNEL_HEAP done");
+    log!("[kernel] kernel heap initialized");
 
     // Initialize arch and boot drivers
     let fdt = Fdt::new(boot_info.device_tree).unwrap();
-    log!("fdt loaded");
+    log!("[kernel] fdt loaded");
     TargetArch::init(&fdt);
-    log!("TargetArch done");
-
-    log!("Hello Sophon!");
-
-    let v = vec![1, 3, 5, 7, 9];
-    log!("[kernel: test-alloc] {:?} @ {:?}", v, v.as_ptr());
+    log!("[kernel] arch-specific initialization done");
 
     task::syscall::init();
-    log!("[kernel: syscall initialized]");
+    log!("[kernel] syscall initialized");
 
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
-    log!("[kernel: initfs loaded]");
+    log!("[kernel] init-fs loaded");
 
     let load_module_from_initfs = |name: &str, path: &str| {
+        log!("[kernel]  - load module '{}'", name);
         let file = initfs.get(path).unwrap().as_file().unwrap();
         crate::modules::register(name, file.to_vec());
-        log!(" - Kernel module '{}' loaded", name);
     };
+    log!("[kernel] load kernel modules...");
     load_module_from_initfs("hello", "/etc/modules/libhello.so");
     load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
     crate::modules::init_vfs(initfs);
-    log!("[kernel: kernel modules loaded]");
+    log!("[kernel] kernel modules loaded]");
 
-    let proc = Proc::spawn(box Idle);
-    log!("[kernel: created idle process: {:?}]", proc.id);
+    log!("[kernel] start idle process");
+    let _proc = Proc::spawn(box Idle);
 
+    log!("[kernel] start init process");
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
-    let proc = Proc::spawn_user(init.to_vec());
-    log!("[kernel: created init process: {:?}]", proc.id);
+    let _proc = Proc::spawn_user(init.to_vec());
 
+    log!("[kernel] start tty process");
+    let tty = initfs.get("/bin/tty").unwrap().as_file().unwrap().to_vec();
+    let _proc = Proc::spawn_user(tty.to_vec());
+
+    log!("[kernel] start timer");
     TargetArch::interrupt().start_timer();
-    log!("[kernel: timer started]");
 
+    log!("[kernel] start scheduler");
     SCHEDULER.schedule();
 }
 

@@ -31,7 +31,7 @@ impl UserTask {
             .iter()
             .position(|t| *t == tid)
             .unwrap();
-        println!("User stack #{}", i);
+        // println!("User stack #{}", i);
         let user_stack_start = USER_STACK_START + i * USER_STACK_SIZE;
         for i in 0..USER_STACK_PAGES {
             let page = Step::forward(Page::<Size4K>::new(user_stack_start), i);
@@ -45,22 +45,22 @@ impl UserTask {
 
 impl KernelTask for UserTask {
     fn run(&mut self) -> ! {
-        log!("User task start (kernel)");
-        log!("Execute user program");
+        // log!("User task start (kernel)");
+        // log!("Execute user program");
         let proc = Proc::current();
         if Proc::current().threads.lock().len() == 1 {
             let entry = proc.initialize_user_space();
             let page_table = proc.get_page_table();
-            log!("Setup stack");
+            // log!("Setup stack");
             let stack_top = Self::setup_user_stack(page_table);
-            log!("Enter usermode");
+            // log!("Enter usermode");
             unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, stack_top, page_table) }
         } else {
             let page_table = proc.get_page_table();
-            log!("Setup stack");
+            // log!("Setup stack");
             let stack_top = Self::setup_user_stack(page_table);
             let entry = self.entry.unwrap();
-            log!("Enter usermode");
+            // log!("Enter usermode");
             unsafe {
                 <TargetArch as Arch>::Context::enter_usermode(
                     core::mem::transmute(entry),

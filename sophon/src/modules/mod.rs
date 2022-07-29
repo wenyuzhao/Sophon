@@ -22,7 +22,7 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrappe
             .unwrap()
     })
     .unwrap();
-    log!("KM Entry: {:?}", entry);
+    // log!("KM Entry: {:?}", entry);
     unsafe { core::mem::transmute(entry) }
 }
 
@@ -85,7 +85,7 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn register_module_call_handler(&self, handler: &'static dyn ModuleCallHandler) {
-        log!("register module call");
+        // log!("register module call");
         MODULES
             .lock()
             .get_mut(&self.0)
@@ -101,7 +101,7 @@ impl kernel_module::KernelService for KernelService {
 }
 
 pub fn module_call(module: &'static str, args: [usize; 4]) -> isize {
-    log!("module call #{} {:x?}", module, args);
+    // log!("module call #{} {:x?}", module, args);
     let id = *MODULE_NAMES.lock().get(module).unwrap();
     MODULES
         .lock()

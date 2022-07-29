@@ -24,6 +24,7 @@ members = [
     "boot/uefi",
 # User programs
     "user/init",
+    "user/tty",
 ]
 
 [workspace.package]

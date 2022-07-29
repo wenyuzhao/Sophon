@@ -47,7 +47,7 @@ static ALLOCATOR: NoAlloc = NoAlloc;
 #[no_mangle]
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     UserLogger::init();
-    log!("Init process start (user mode)");
+    log!("Init process start");
     let file = syscall::open("/etc/hello.txt");
     assert!(file != -1);
     let mut buf = [0u8; 32];

@@ -77,12 +77,12 @@ impl Proc {
             start_page..Page::<Size4K>::forward(start_page, num_pages)
         })
         .unwrap();
-        log!("Entry: {:?}", entry);
+        // log!("Entry: {:?}", entry);
         unsafe { core::mem::transmute(entry) }
     }
 
     pub fn initialize_user_space(&self) -> extern "C" fn(isize, *const *const u8) {
-        log!("Initialze user space process");
+        // log!("Initialze user space process");
         // User page table
         let page_table = {
             let page_table = PageTable::alloc(&PHYSICAL_MEMORY);
@@ -94,7 +94,7 @@ impl Proc {
             Proc::current().set_page_table(unsafe { &mut *(page_table as *mut _) });
             page_table
         };
-        log!("Load ELF");
+        // log!("Load ELF");
         let entry = self.load_elf(page_table);
         self.set_page_table(page_table);
         entry

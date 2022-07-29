@@ -774,6 +774,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ee8fba06c1f4d0b396ef61a54530bb6b28f0dc61c38bc8bc5a5a48161e6282e"
 
 [[package]]
+name = "tty"
+version = "0.0.1"
+dependencies = [
+ "heap",
+ "log 0.0.1",
+ "syscall",
+]
+
+[[package]]
 name = "ucs2"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

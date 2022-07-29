@@ -40,10 +40,26 @@ pub enum VFSRequest<'a> {
     Read(Fd, &'a mut [u8]),
 }
 
-#[derive(Default)]
 struct ProcData {
     nodes: [Option<FileDescriptor>; 16],
     files: usize,
+}
+
+impl Default for ProcData {
+    fn default() -> Self {
+        let mut data = Self {
+            nodes: [
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None,
+            ],
+            files: 0,
+        };
+        // data.nodes[0] = Some(FileDescriptor {
+        //     node: ROOT_FS.clone(),
+        //     offset: 0,
+        // });
+        data
+    }
 }
 
 static OPEN_FILES: Mutex<BTreeMap<ProcId, ProcData>> = Mutex::new(BTreeMap::new());
