@@ -1,10 +1,8 @@
 use crate::util::{self, Arch, CargoFlags, ShellExt};
-use std::fs;
+use ::fs::ramfs::{self, RamFS};
+use std::{error::Error, fs};
 use xshell::Shell;
-
-mod initfs {
-    include!(concat!(env!("OUT_DIR"), "/init-fs.rs"));
-}
+use yaml_rust::Yaml;
 
 #[derive(Parser)]
 pub struct BuildInitFS {
@@ -16,57 +14,70 @@ pub struct BuildInitFS {
 }
 
 impl BuildInitFS {
-    fn build_kernel_module(&self, shell: &Shell, name: &str) -> String {
-        shell.build_package(
-            &name,
-            format!("modules/{}", name),
-            self.cargo.features.clone(),
-            self.cargo.release,
-            Some(&self.cargo.kernel_module_traget()),
-        );
-        format!("./target/_out/{}", format!("lib{}.so", name))
+    fn gen_file(
+        &self,
+        shell: &Shell,
+        path: &str,
+        entry: &Yaml,
+        fs: &mut RamFS,
+    ) -> Result<(), Box<dyn Error>> {
+        if let Some(cargo_module) = entry["+ cargo-build"].as_str() {
+            shell.build_package(
+                cargo_module,
+                self.cargo.features.clone(),
+                self.cargo.release,
+                Some(&self.cargo.kernel_module_traget()),
+            );
+        }
+        if let Some(from) = entry["+ copy"].as_str() {
+            let file = fs::read(from).unwrap();
+            fs.insert(path, ramfs::File::new(file));
+        }
+        if let Some(data) = entry["+ copy-str"].as_str() {
+            fs.insert(path, ramfs::File::new(data.as_bytes().to_vec()));
+        }
+        Ok(())
     }
 
-    fn build_user(&self, shell: &Shell, name: &str) -> String {
-        shell.build_package(
-            &name,
-            format!("user/{}", name),
-            self.cargo.features.clone(),
-            self.cargo.release,
-            Some(&self.cargo.user_traget()),
-        );
-        format!("./target/_out/{}", name)
+    fn gen_dir(
+        &self,
+        shell: &Shell,
+        path: &str,
+        entries: &Yaml,
+        fs: &mut RamFS,
+    ) -> Result<(), Box<dyn Error>> {
+        for (name, entry) in entries
+            .as_hash()
+            .unwrap()
+            .iter()
+            .map(|(k, v)| (k.as_str().unwrap(), v))
+        {
+            if name.ends_with("/") {
+                self.gen_dir(
+                    shell,
+                    &format!("{}/{}", path, name.split_at(name.len() - 1).0),
+                    entry,
+                    fs,
+                )?;
+            } else {
+                self.gen_file(shell, &format!("{}/{}", path, name), entry, fs)?;
+            }
+        }
+        Ok(())
     }
 
     fn build_initfs(&self, shell: &Shell) {
         assert_eq!(self.cargo.arch, Arch::AArch64);
         // Create ram fs
-        let mut init_fs = initfs::InitFS::default();
+        let mut init_fs = ramfs::RamFS::new();
         // Add files
         let docs = util::load_yaml("./Build.yml");
-        let config = &docs[0];
-        // Copy kernel modules
-        if let Some(modules) = config["init.fs"]["modules"].as_hash() {
-            for (name, path) in modules
-                .iter()
-                .map(|(k, v)| (k.as_str().unwrap(), v.as_str().unwrap()))
-            {
-                let out = self.build_kernel_module(shell, name);
-                let file = fs::read(out).unwrap();
-                init_fs.insert(path, initfs::File::new(file));
-            }
-        }
-        // Copy user programs
-        if let Some(programs) = config["init.fs"]["user"].as_hash() {
-            for (name, path) in programs
-                .iter()
-                .map(|(k, v)| (k.as_str().unwrap(), v.as_str().unwrap()))
-            {
-                let out = self.build_user(shell, name);
-                let file = fs::read(out).unwrap();
-                init_fs.insert(path, initfs::File::new(file));
-            }
-        }
+        let initfs = docs
+            .iter()
+            .find(|doc| !doc["init.fs"]["/"].is_badvalue())
+            .unwrap();
+        self.gen_dir(shell, "", &initfs["init.fs"]["/"], &mut init_fs)
+            .unwrap();
         // Serialize
         let data = init_fs.serialize();
         // Output

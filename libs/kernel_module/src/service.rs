@@ -1,12 +1,18 @@
 use core::alloc::Layout;
 use core::ops::Deref;
+use ipc::ProcId;
 use memory::address::Address;
 
 pub trait KernelService: Send + Sync + 'static {
+    // Logging
     fn log(&self, s: &str);
+    // Module calls
+    fn register_module_call_handler(&self, handler: &'static dyn super::ModuleCallHandler);
+    // Heap
     fn alloc(&self, layout: Layout) -> Option<Address>;
     fn dealloc(&self, address: Address, layout: Layout);
-    fn register_module_call_handler(&self, handler: &'static dyn super::ModuleCallHandler);
+    // Process
+    fn current_process(&self) -> Option<ProcId>;
 }
 
 #[repr(C)]

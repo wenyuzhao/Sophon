@@ -12,6 +12,7 @@ edition = { workspace = true }
 log = { path = "../log" }
 memory = { path = "../memory" }
 kernel_module_macros = { path = "./macros" }
+ipc = { path = "../ipc" }
 anyhow = { workspace = true }
 spin = { workspace = true }
 

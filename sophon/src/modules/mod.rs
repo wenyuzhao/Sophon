@@ -1,6 +1,8 @@
 use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 use core::alloc::GlobalAlloc;
 use core::iter::Step;
+use core::mem;
+use fs::ramfs::RamFS;
 use kernel_module::KernelServiceWrapper;
 use kernel_module::ModuleCallHandler;
 use memory::{
@@ -10,6 +12,7 @@ use memory::{
 use spin::{Lazy, Mutex};
 
 use crate::memory::kernel::KERNEL_HEAP;
+use crate::task::Proc;
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrapper) -> usize {
     let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
@@ -23,12 +26,11 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrappe
 }
 
 struct KernelModule {
-    name: String,
-    service: Box<KernelService>,
-    init: extern "C" fn(kernel_module::KernelServiceWrapper) -> usize,
-    deinit: Option<extern "C" fn()>,
+    _name: String,
+    _service: Box<KernelService>,
+    _deinit: Option<extern "C" fn()>,
     call: Option<&'static dyn ModuleCallHandler>,
-    elf: Vec<u8>,
+    _elf: Vec<u8>,
 }
 
 static MODULES: Lazy<Mutex<BTreeMap<usize, KernelModule>>> = Lazy::new(Default::default);
@@ -48,12 +50,11 @@ pub fn register(name: &str, elf: Vec<u8>) {
         modules.insert(
             id,
             KernelModule {
-                name: name.to_owned(),
-                init,
-                service,
-                deinit: None,
+                _name: name.to_owned(),
+                _service: service,
+                _deinit: None,
                 call: None,
-                elf,
+                _elf: elf,
             },
         );
         names.insert(name.to_owned(), id);
@@ -66,7 +67,7 @@ pub struct KernelService(usize);
 
 impl kernel_module::KernelService for KernelService {
     fn log(&self, s: &str) {
-        log!("{}", s);
+        print!("{}", s);
     }
 
     fn alloc(&self, layout: core::alloc::Layout) -> Option<Address> {
@@ -92,6 +93,10 @@ impl kernel_module::KernelService for KernelService {
             })
             .unwrap();
     }
+
+    fn current_process(&self) -> Option<ipc::ProcId> {
+        Some(Proc::current().id)
+    }
 }
 
 pub fn module_call(module: &'static str, args: [usize; 4]) -> isize {
@@ -108,4 +113,8 @@ pub fn module_call(module: &'static str, args: [usize; 4]) -> isize {
                 .unwrap_or(-1)
         })
         .unwrap_or(-1)
+}
+
+pub fn init_vfs(ramfs: &'static RamFS) {
+    module_call("vfs", [usize::MAX, unsafe { mem::transmute(ramfs) }, 0, 0]);
 }

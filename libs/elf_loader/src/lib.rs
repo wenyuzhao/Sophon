@@ -153,21 +153,18 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
         let start: Address = Address::from(ph.virtual_addr() as usize) + self.vaddr_offset;
         let bytes = ph.file_size() as usize;
         let offset = ph.offset() as usize;
-        log!("copy_nonoverlapping: dst={:?}", start..(start + bytes));
+        // log!("copy: dst={:?}", start..(start + bytes));
         self.copy(&self.data[offset..offset + bytes], start);
-        log!("copy_nonoverlapping: dst={:?} done", start..(start + bytes));
         // Zero data
         if ph.mem_size() > ph.file_size() {
             let zero_start = start + ph.file_size() as usize;
             let zero_end = start + ph.mem_size() as usize;
-            log!("zero: dst={:?}", zero_start..zero_end);
+            // log!("zero: dst={:?}", zero_start..zero_end);
             self.zero(zero_start, zero_end - zero_start);
-            log!("zerodonw: dst={:?}", zero_start..zero_end);
         }
         // Flush cache
-        log!("flush");
+        // log!("flush");
         self.flush(start, bytes);
-        log!("flush done");
         Ok(())
     }
 
@@ -228,13 +225,12 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
 
     fn do_load(&mut self) -> Result<Address, &'static str> {
         self.map_memory()?;
-        log!("Map end");
         for ph in self
             .elf
             .program_iter()
             .filter(|ph| ph.get_type() == Ok(Type::Load))
         {
-            log!("Load {:?}", ph);
+            // log!("Load {:?}", ph);
             self.load_segment(ph)?;
         }
         for ph in self
@@ -242,10 +238,9 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
             .program_iter()
             .filter(|ph| ph.get_type() == Ok(Type::Dynamic))
         {
-            log!("Relo {:?}", ph);
+            // log!("Relo {:?}", ph);
             self.apply_relocation(ph)?;
         }
-        log!("Load end");
         Ok(Address::from(self.elf.header.pt2.entry_point() as usize) + self.vaddr_offset)
     }
 

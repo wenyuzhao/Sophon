@@ -25,6 +25,7 @@ log = { path = "../libs/log" }
 boot = { path = "../libs/boot" }
 kernel_module = { path = "../libs/kernel_module" }
 elf_loader = { path = "../libs/elf_loader" }
+fs = { path = "../libs/fs" }
 
 [build-dependencies]
 spin = { workspace = true }

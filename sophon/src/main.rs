@@ -32,16 +32,16 @@ pub mod task;
 use core::panic::PanicInfo;
 
 use crate::arch::{Arch, TargetArch};
-use crate::initfs::InitFS;
-use crate::kernel_tasks::system::System;
 use crate::kernel_tasks::Idle;
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use crate::task::Proc;
+use alloc::boxed::Box;
 use alloc::vec;
 use boot::BootInfo;
 use fdt::Fdt;
+use fs::ramfs::RamFS;
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
@@ -89,17 +89,25 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     task::ipc::init();
     log!("[kernel: ipc initialized]");
 
-    schemes::register_kernel_schemes();
-    log!("[kernel: schemes initialized]");
+    let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
+    log!("[kernel: initfs loaded]");
 
-    InitFS::deserialize(boot_info.init_fs);
-    log!("[kernel: initfs initialized]");
+    let load_module_from_initfs = |name: &str, path: &str| {
+        let file = initfs.get(path).unwrap().as_file().unwrap();
+        crate::modules::register(name, file.to_vec());
+        log!(" - Kernel module '{}' loaded", name);
+    };
+    load_module_from_initfs("hello", "/etc/modules/libhello.so");
+    load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
+    crate::modules::init_vfs(initfs);
+    log!("[kernel: kernel modules loaded]");
 
     let proc = Proc::spawn(box Idle);
     log!("[kernel: created idle process: {:?}]", proc.id);
 
-    let proc = Proc::spawn(box System);
-    log!("[kernel: created system process: {:?}]", proc.id);
+    let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
+    let proc = Proc::spawn_user(init.to_vec());
+    log!("[kernel: created init process: {:?}]", proc.id);
 
     TargetArch::interrupt().start_timer();
     log!("[kernel: timer started]");

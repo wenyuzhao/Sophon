@@ -250,6 +250,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
+ "fs",
  "postcard",
  "serde",
  "spin",
@@ -281,6 +282,14 @@ name = "fdt"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b643857cf70949306b81d7e92cb9d47add673868edac9863c4a49c42feaf3f1e"
+
+[[package]]
+name = "fs"
+version = "0.0.1"
+dependencies = [
+ "postcard",
+ "serde",
+]
 
 [[package]]
 name = "getrandom"
@@ -404,6 +413,7 @@ name = "kernel_module"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "ipc",
  "kernel_module_macros",
  "log 0.0.1",
  "memory",
@@ -688,6 +698,7 @@ dependencies = [
  "crossbeam",
  "elf_loader",
  "fdt",
+ "fs",
  "hashbrown",
  "interrupt",
  "ipc",
@@ -836,8 +847,11 @@ name = "vfs"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "fs",
+ "ipc",
  "kernel_module",
  "log 0.0.1",
+ "spin",
 ]
 
 [[package]]

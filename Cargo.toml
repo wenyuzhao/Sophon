@@ -10,10 +10,12 @@ members = [
     "libs/bitflags",
     "libs/boot",
     "libs/elf_loader",
+    "libs/fs",
     "libs/heap",
     "libs/interrupt",
     "libs/ipc",
     "libs/kernel_module",
+    "libs/kernel_module/macros",
     "libs/log",
     "libs/memory",
 # Tools
