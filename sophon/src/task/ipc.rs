@@ -1,5 +1,5 @@
 use super::{Message, Task, TaskId};
-use crate::{arch::*, schemes::handle_scheme_request};
+use crate::arch::*;
 use ipc::syscall::Syscall;
 
 pub fn init() {
@@ -11,7 +11,6 @@ pub fn init() {
                 Syscall::Log => log(a, b, c, d, e),
                 Syscall::Send => send(a, b, c, d, e),
                 Syscall::Receive => receive(a, b, c, d, e),
-                Syscall::SchemeRequest => scheme_request(a, b, c, d, e),
                 Syscall::ModuleCall => module_request(a, b, c, d, e),
             }
         }),
@@ -50,10 +49,6 @@ fn receive(x1: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
         from_id
     );
     Task::receive_message(from_id)
-}
-
-fn scheme_request(a: usize, b: usize, c: usize, d: usize, e: usize) -> isize {
-    handle_scheme_request(&[a, b, c, d, e]).unwrap_or_else(|e| e)
 }
 
 fn module_request(a: usize, b: usize, c: usize, d: usize, e: usize) -> isize {

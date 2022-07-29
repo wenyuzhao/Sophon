@@ -9,7 +9,6 @@ pub enum Syscall {
     Log,
     Send,
     Receive,
-    SchemeRequest,
     ModuleCall,
 }
 

@@ -21,12 +21,9 @@ extern crate log;
 pub mod utils;
 pub mod arch;
 pub mod boot_driver;
-#[path = "../init-fs.rs"]
-pub mod initfs;
 pub mod kernel_tasks;
 pub mod memory;
 pub mod modules;
-pub mod schemes;
 pub mod task;
 
 use core::panic::PanicInfo;

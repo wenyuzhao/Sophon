@@ -5,9 +5,7 @@ extern crate alloc;
 
 #[macro_use]
 pub mod log;
-pub mod scheme;
 pub mod syscall;
-mod uri;
 
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub struct ProcId(pub usize);

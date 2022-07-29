@@ -4,7 +4,6 @@ members = [
     "sophon",
 # Kernel Modules,
     "modules/hello",
-    "modules/initfs",
     "modules/vfs",
 # Libraries
     "libs/bitflags",
@@ -24,7 +23,6 @@ members = [
     "boot/uefi",
 # User programs
     "user/init",
-    "user/scheme_test",
 ]
 
 [workspace.package]

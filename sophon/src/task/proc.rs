@@ -3,7 +3,6 @@ use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use crate::{kernel_tasks::KernelTask, task::Task};
-use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
@@ -11,7 +10,6 @@ use core::iter::Step;
 use core::ops::Range;
 use core::sync::atomic::AtomicUsize;
 use interrupt::UninterruptibleMutex;
-use ipc::scheme::{Resource, SchemeId};
 use ipc::{ProcId, TaskId};
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
@@ -24,7 +22,6 @@ pub struct Proc {
     pub id: ProcId,
     pub threads: Mutex<Vec<TaskId>>,
     page_table: Atomic<*mut PageTable>,
-    pub resources: Mutex<BTreeMap<Resource, SchemeId>>,
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
 }
@@ -46,7 +43,6 @@ impl Proc {
                 let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
                 Atomic::new(PageTable::get())
             },
-            resources: Mutex::new(BTreeMap::new()),
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
         });
@@ -168,10 +164,7 @@ impl Proc {
     }
 
     pub fn exit(&self) {
-        // Release file handles
-        for (_resourse, _scheme_id) in self.resources.lock().iter() {
-            // TODO: close `resourse`
-        }
+        // TODO: Release file handles
         // Release memory
         let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
         crate::memory::utils::release_user_page_table(self.get_page_table());

@@ -10,7 +10,6 @@ extern crate log;
 // use core::sync::atomic::{AtomicUsize, Ordering};
 use heap::NoAlloc;
 use ipc::log::UserLogger;
-// use ipc::scheme::{Args, Mode, Resource};
 
 #[global_allocator]
 static ALLOCATOR: NoAlloc = NoAlloc;
