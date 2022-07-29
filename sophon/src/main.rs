@@ -35,7 +35,6 @@ use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use crate::task::Proc;
 use alloc::boxed::Box;
-use alloc::vec;
 use boot::BootInfo;
 use fdt::Fdt;
 use fs::ramfs::RamFS;
@@ -70,22 +69,22 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     display_banner();
 
     // Initialize physical memory and kernel heap
+    log!("[kernel] initialize physical memory");
     PHYSICAL_MEMORY.init(boot_info.available_physical_memory);
-    log!("[kernel] physical memory initialized");
+    log!("[kernel] initialize kernel heap");
     KERNEL_HEAP.init();
-    log!("[kernel] kernel heap initialized");
 
     // Initialize arch and boot drivers
+    log!("[kernel] load fdt");
     let fdt = Fdt::new(boot_info.device_tree).unwrap();
-    log!("[kernel] fdt loaded");
+    log!("[kernel] arch-specific initialization");
     TargetArch::init(&fdt);
-    log!("[kernel] arch-specific initialization done");
 
+    log!("[kernel] initialize syscall");
     task::syscall::init();
-    log!("[kernel] syscall initialized");
 
+    log!("[kernel] load init-fs");
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
-    log!("[kernel] init-fs loaded");
 
     let load_module_from_initfs = |name: &str, path: &str| {
         log!("[kernel]  - load module '{}'", name);
