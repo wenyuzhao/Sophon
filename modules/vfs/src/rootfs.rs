@@ -9,7 +9,7 @@ use spin::{Lazy, RwLock};
 
 use crate::fs::{FileSystem, Node, Stat};
 
-pub static ROOT_FS: Lazy<Box<RootFS>> = Lazy::new(|| Box::new(RootFS::new()));
+pub static ROOT_FS: Lazy<RootFS> = Lazy::new(|| RootFS::new());
 
 pub struct RootFS {
     ramfs: RwLock<Box<RamFS>>,
