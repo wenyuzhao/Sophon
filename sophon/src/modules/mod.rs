@@ -5,6 +5,9 @@ use core::mem;
 use fs::ramfs::RamFS;
 use kernel_module::KernelServiceWrapper;
 use kernel_module::ModuleCallHandler;
+use memory::page::Frame;
+use memory::page_table::PageFlags;
+use memory::page_table::PageFlagsExt;
 use memory::{
     address::Address,
     page::{Page, PageResource, Size4K},
@@ -12,7 +15,9 @@ use memory::{
 use proc::ProcId;
 use spin::{Lazy, Mutex};
 
+use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
+use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::task::Proc;
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrapper) -> usize {
@@ -97,6 +102,16 @@ impl kernel_module::KernelService for KernelService {
 
     fn current_process(&self) -> Option<ProcId> {
         Some(Proc::current().id)
+    }
+
+    fn get_device_tree(&self) -> Option<fdt::Fdt<'static>> {
+        TargetArch::device_tree()
+    }
+
+    fn map_device_page(&self, frame: Frame) -> Page {
+        let page = KERNEL_HEAP.virtual_allocate::<Size4K>(1).start;
+        KERNEL_MEMORY_MAPPER.map(page, frame, PageFlags::device());
+        page
     }
 }
 

@@ -35,11 +35,15 @@ pub struct X64;
 impl Arch for X64 {
     type Context = X64Context;
 
-    fn init(_device_tree: &Fdt) {
+    fn init(_device_tree: Fdt<'static>) {
         unimplemented!()
     }
 
     fn interrupt() -> &'static dyn ArchInterruptController {
+        unimplemented!()
+    }
+
+    fn device_tree() -> Option<fdt::Fdt<'static>> {
         unimplemented!()
     }
 }

@@ -16,6 +16,7 @@ syscall = { path = "../syscall" }
 proc = { path = "../proc" }
 anyhow = { workspace = true }
 spin = { workspace = true }
+fdt = { workspace = true }
 
 [features]
 default = []

@@ -58,8 +58,9 @@ pub trait ArchContext: Sized + 'static {
 pub trait Arch {
     type Context: ArchContext;
 
-    fn init(device_tree: &Fdt);
+    fn init(device_tree: Fdt<'static>);
     fn interrupt() -> &'static dyn ArchInterruptController;
+    fn device_tree() -> Option<fdt::Fdt<'static>>;
 }
 
 pub type TargetArch = impl Arch;

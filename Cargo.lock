@@ -396,6 +396,7 @@ name = "kernel_module"
 version = "0.0.2"
 dependencies = [
  "anyhow",
+ "fdt",
  "kernel_module_macros",
  "log 0.0.2",
  "memory",
@@ -506,6 +507,18 @@ name = "os_str_bytes"
 version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21326818e99cfe6ce1e524c2a805c189a99b5ae555a35d19f9a284b427d86afa"
+
+[[package]]
+name = "pl011"
+version = "0.0.2"
+dependencies = [
+ "anyhow",
+ "fdt",
+ "kernel_module",
+ "log 0.0.2",
+ "memory",
+ "spin",
+]
 
 [[package]]
 name = "postcard"

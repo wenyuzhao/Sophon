@@ -56,7 +56,7 @@ fn display_banner() {
 }
 
 #[no_mangle]
-pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
+pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
         utils::boot_log::init(uart);
     }
@@ -81,7 +81,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     log!("[kernel] load fdt");
     let fdt = Fdt::new(boot_info.device_tree).unwrap();
     log!("[kernel] arch-specific initialization");
-    TargetArch::init(&fdt);
+    TargetArch::init(fdt);
 
     log!("[kernel] initialize syscall");
     task::syscall::init();
@@ -97,6 +97,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     log!("[kernel] load kernel modules...");
     load_module_from_initfs("hello", "/etc/modules/libhello.so");
     load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
+    load_module_from_initfs("pl011", "/etc/modules/libpl011.so");
     crate::modules::init_vfs(initfs);
     log!("[kernel] kernel modules loaded");
 

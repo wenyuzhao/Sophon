@@ -1,6 +1,7 @@
 use core::alloc::Layout;
 use core::ops::Deref;
 use memory::address::Address;
+use memory::page::{Frame, Page};
 use proc::ProcId;
 
 pub trait KernelService: Send + Sync + 'static {
@@ -13,6 +14,9 @@ pub trait KernelService: Send + Sync + 'static {
     fn dealloc(&self, address: Address, layout: Layout);
     // Process
     fn current_process(&self) -> Option<ProcId>;
+    // Devices
+    fn get_device_tree(&self) -> Option<fdt::Fdt<'static>>;
+    fn map_device_page(&self, frame: Frame) -> Page;
 }
 
 #[repr(C)]

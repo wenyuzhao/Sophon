@@ -15,5 +15,8 @@ init.fs:
         libvfs.so:
           + cargo-build: modules/vfs
           + copy: target/_out/libvfs.so
+        libpl011.so:
+          + cargo-build: modules/pl011
+          + copy: target/_out/libpl011.so
       hello.txt:
         + copy-str: "Hello world from file!"

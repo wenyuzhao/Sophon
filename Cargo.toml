@@ -5,6 +5,7 @@ members = [
 # Kernel Modules,
     "modules/hello",
     "modules/vfs",
+    "modules/pl011",
 # Libraries
     "libs/bitflags",
     "libs/boot",

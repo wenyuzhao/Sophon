@@ -13,7 +13,10 @@ crate-type = ["cdylib"]
 [dependencies]
 log = { path = "../../libs/log" }
 kernel_module = { path = "../../libs/kernel_module" }
+memory = { path = "../../libs/memory" }
 anyhow = { workspace = true }
+fdt = { workspace = true }
+spin = { workspace = true }
 
 [features]
 default = []

@@ -82,7 +82,7 @@ impl BootDriver for UART0 {
         self.uart = Some(uart_page.start().as_mut_ptr());
         self.init_uart();
         log::init(&UART_LOGGER);
-        // log!("UART @ {:?} -> {:?}", uart_frame, uart_page);
+        log!("UART @ {:?} -> {:?}", uart_frame, uart_page);
     }
 }
 
