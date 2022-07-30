@@ -152,9 +152,11 @@ impl ShellExt for Shell {
         release: bool,
         target: Option<&str>,
     ) {
+        let path = path.as_ref();
         let _p = self.push_dir(path);
-        let mut cmd = cmd!(self, "cargo build");
+        let mut cmd = cmd!(self, "cargo build").quiet();
         cmd = append_cargo_args(cmd, features, release, target);
+        eprintln!("$ cd {} && {}", path.to_str().unwrap(), cmd);
         cmd.run().unwrap();
     }
     fn run_package(
@@ -165,10 +167,14 @@ impl ShellExt for Shell {
         target: Option<&str>,
         args: &[String],
     ) {
+        let path = path.as_ref();
         let _p = self.push_dir(path);
-        let mut cmd = cmd!(self, "cargo run");
+        let mut cmd = cmd!(self, "cargo run").quiet();
         cmd = append_cargo_args(cmd, features, release, target);
-        cmd = cmd.arg("--").args(args);
+        if !args.is_empty() {
+            cmd = cmd.arg("--").args(args);
+        }
+        eprintln!("$ cd {} && {}", path.to_str().unwrap(), cmd);
         cmd.run().unwrap();
     }
 }
