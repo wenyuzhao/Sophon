@@ -173,12 +173,12 @@ impl ArchContext for AArch64Context {
         sp: Address,
         page_table: &mut PageTable,
     ) -> ! {
-        log!(
-            "TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}",
-            TTBR0_EL1.get(),
-            entry as *const extern "C" fn(_argc: isize, _argv: *const *const u8),
-            sp
-        );
+        // log!(
+        //     "TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}",
+        //     TTBR0_EL1.get(),
+        //     entry as *const extern "C" fn(_argc: isize, _argv: *const *const u8),
+        //     sp
+        // );
         interrupt::disable();
         asm! {
             "

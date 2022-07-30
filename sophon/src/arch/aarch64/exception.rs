@@ -174,7 +174,7 @@ pub unsafe extern "C" fn setup_vbar() {
     // log!("handle_exception: {:?}", exception::handle_exception as *const fn());
     // log!("exception_handlers: {:?}", exception::exception_handlers as *const fn());
     let v_ptr = exception_handlers as *const fn() as u64;
-    log!("exception_handlers: {:#x}", v_ptr);
+    // log!("exception_handlers: {:#x}", v_ptr);
     VBAR_EL1.set(v_ptr as u64);
     barrier::isb(barrier::SY);
 }

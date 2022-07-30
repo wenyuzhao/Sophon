@@ -129,11 +129,11 @@ impl AbstractScheduler for RoundRobinScheduler {
                 next_task.scheduler_state::<Self>().load(Ordering::SeqCst),
                 RunState::Ready
             );
-            log!(
-                "Switch: {:?} -> {:?}",
-                current_task.as_ref().map(|t| t.id),
-                next_task.id
-            );
+            // log!(
+            //     "Switch: {:?} -> {:?}",
+            //     current_task.as_ref().map(|t| t.id),
+            //     next_task.id
+            // );
 
             // Run next task
             {
