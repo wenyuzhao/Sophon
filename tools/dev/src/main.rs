@@ -17,8 +17,9 @@ use clap::{AppSettings, Parser};
 use std::path::Path;
 use xshell::Shell;
 
+/// Tools for sophon development and compilation.
 #[derive(Parser)]
-#[clap(name = "Sophon Build Tool", version = "0.1", author = "Wenyu Zhao", setting = AppSettings::TrailingVarArg)]
+#[clap(name = "Sophon Build Tool", version, author = "Wenyu Zhao", setting = AppSettings::TrailingVarArg)]
 struct Opts {
     #[clap(subcommand)]
     sub_command: SubCommand,

@@ -92,7 +92,7 @@ checksum = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
 
 [[package]]
 name = "bitflags"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "spin",
 ]
@@ -105,7 +105,7 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "boot"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "memory",
 ]
@@ -246,7 +246,7 @@ dependencies = [
 
 [[package]]
 name = "dev"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -260,9 +260,9 @@ dependencies = [
 
 [[package]]
 name = "elf_loader"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
- "log 0.0.1",
+ "log 0.0.2",
  "memory",
  "xmas-elf",
 ]
@@ -285,7 +285,7 @@ checksum = "b643857cf70949306b81d7e92cb9d47add673868edac9863c4a49c42feaf3f1e"
 
 [[package]]
 name = "fs"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "postcard",
  "serde",
@@ -322,7 +322,7 @@ dependencies = [
 
 [[package]]
 name = "heap"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "spin",
 ]
@@ -349,11 +349,11 @@ checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 
 [[package]]
 name = "hello"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "kernel_module",
- "log 0.0.1",
+ "log 0.0.2",
 ]
 
 [[package]]
@@ -377,27 +377,27 @@ dependencies = [
 
 [[package]]
 name = "init"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "heap",
- "log 0.0.1",
+ "log 0.0.2",
  "syscall",
 ]
 
 [[package]]
 name = "interrupt"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "spin",
 ]
 
 [[package]]
 name = "kernel_module"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "kernel_module_macros",
- "log 0.0.1",
+ "log 0.0.2",
  "memory",
  "proc",
  "spin",
@@ -406,7 +406,7 @@ dependencies = [
 
 [[package]]
 name = "kernel_module_macros"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "quote",
  "syn",
@@ -442,7 +442,7 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.0.1"
+version = "0.0.2"
 
 [[package]]
 name = "log"
@@ -470,12 +470,12 @@ dependencies = [
 
 [[package]]
 name = "memory"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
- "bitflags 0.0.1",
+ "bitflags 0.0.2",
  "cortex-a",
  "interrupt",
- "log 0.0.1",
+ "log 0.0.2",
  "spin",
  "tock-registers",
 ]
@@ -520,9 +520,9 @@ dependencies = [
 
 [[package]]
 name = "proc"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
- "log 0.0.1",
+ "log 0.0.2",
  "spin",
 ]
 
@@ -673,7 +673,7 @@ dependencies = [
 
 [[package]]
 name = "sophon"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "atomic",
  "boot",
@@ -685,7 +685,7 @@ dependencies = [
  "hashbrown",
  "interrupt",
  "kernel_module",
- "log 0.0.1",
+ "log 0.0.2",
  "memory",
  "postcard",
  "proc",
@@ -698,13 +698,13 @@ dependencies = [
 
 [[package]]
 name = "sophon-boot-uefi"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "boot",
  "cortex-a",
  "elf_loader",
  "fdt",
- "log 0.0.1",
+ "log 0.0.2",
  "memory",
  "spin",
  "tock-registers",
@@ -746,9 +746,9 @@ dependencies = [
 
 [[package]]
 name = "syscall"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
- "log 0.0.1",
+ "log 0.0.2",
  "spin",
 ]
 
@@ -836,12 +836,12 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vfs"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "fs",
  "kernel_module",
- "log 0.0.1",
+ "log 0.0.2",
  "proc",
  "spin",
 ]

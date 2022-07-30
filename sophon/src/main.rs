@@ -46,7 +46,10 @@ fn display_banner() {
     println!(r"");
     println!(r" ____ ____ ___  _  _ ____ _  _    ____ ____ ");
     println!(r" [__  |  | |__] |__| |  | |\ |    |  | [__  ");
-    println!(r" ___] |__| |    |  | |__| | \|    |__| ___] ");
+    println!(
+        r" ___] |__| |    |  | |__| | \|    |__| ___]   v{}",
+        env!("CARGO_PKG_VERSION")
+    );
     println!(r"");
     println!(r" Hello Sophon! ");
     println!(r"");
