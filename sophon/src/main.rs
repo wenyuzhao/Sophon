@@ -46,7 +46,10 @@ fn display_banner() {
     println!(r"");
     println!(r" ____ ____ ___  _  _ ____ _  _    ____ ____ ");
     println!(r" [__  |  | |__] |__| |  | |\ |    |  | [__  ");
-    println!(r" ___] |__| |    |  | |__| | \|    |__| ___] ");
+    println!(
+        r" ___] |__| |    |  | |__| | \|    |__| ___]   v{}",
+        env!("CARGO_PKG_VERSION")
+    );
     println!(r"");
     println!(r" Hello Sophon! ");
     println!(r"");
@@ -95,7 +98,7 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     load_module_from_initfs("hello", "/etc/modules/libhello.so");
     load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
     crate::modules::init_vfs(initfs);
-    log!("[kernel] kernel modules loaded]");
+    log!("[kernel] kernel modules loaded");
 
     log!("[kernel] start idle process");
     let _proc = Proc::spawn(box Idle);

@@ -28,8 +28,8 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.1"
-edition = "2018"
+version = "0.0.2"
+edition = "2021"
 
 [profile.dev]
 panic = "abort"
