@@ -3,14 +3,16 @@ members = [
 # Kernel
     "sophon",
 # Kernel Modules,
+    "modules/dev",
     "modules/hello",
-    "modules/vfs",
     "modules/pl011",
+    "modules/vfs",
 # Libraries
     "libs/bitflags",
     "libs/boot",
+    "libs/dev",
     "libs/elf_loader",
-    "libs/fs",
+    "libs/vfs",
     "libs/heap",
     "libs/interrupt",
     "libs/proc",

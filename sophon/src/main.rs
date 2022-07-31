@@ -37,7 +37,7 @@ use crate::task::Proc;
 use alloc::boxed::Box;
 use boot::BootInfo;
 use fdt::Fdt;
-use fs::ramfs::RamFS;
+use vfs::ramfs::RamFS;
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
@@ -97,8 +97,9 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     log!("[kernel] load kernel modules...");
     load_module_from_initfs("hello", "/etc/modules/libhello.so");
     load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
-    load_module_from_initfs("pl011", "/etc/modules/libpl011.so");
     crate::modules::init_vfs(initfs);
+    load_module_from_initfs("dev", "/etc/modules/libdev.so");
+    load_module_from_initfs("pl011", "/etc/modules/libpl011.so");
     log!("[kernel] kernel modules loaded");
 
     log!("[kernel] start idle process");

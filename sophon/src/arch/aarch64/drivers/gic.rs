@@ -12,7 +12,7 @@ use memory::page::Frame;
 use spin::Mutex;
 use tock_registers::interfaces::{Readable, Writeable};
 
-const TIMER_INTERRUPT_FREQUENCY: usize = 10; // Hz
+const TIMER_INTERRUPT_FREQUENCY: usize = 60; // Hz
 
 pub const IRQ_LINES: usize = 256;
 
@@ -204,7 +204,7 @@ impl ArchInterruptController for GICInterruptController {
             let timer_irq = 16 + 14;
             GIC.gicd().ISENABLER[timer_irq / 32].set(1 << (timer_irq % 32));
             let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
-            assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
+            // assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
             let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;
             CNTP_TVAL_EL0.set(clock_ticks_per_timer_irq as u64);
             CNTP_CTL_EL0.set(1);

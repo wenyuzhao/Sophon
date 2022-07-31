@@ -2,7 +2,6 @@ use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, 
 use core::alloc::GlobalAlloc;
 use core::iter::Step;
 use core::mem;
-use fs::ramfs::RamFS;
 use kernel_module::KernelServiceWrapper;
 use kernel_module::ModuleCallHandler;
 use memory::page::Frame;
@@ -14,6 +13,8 @@ use memory::{
 };
 use proc::ProcId;
 use spin::{Lazy, Mutex};
+use syscall::RawModuleRequest;
+use vfs::ramfs::RamFS;
 
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
@@ -100,6 +101,10 @@ impl kernel_module::KernelService for KernelService {
             .unwrap();
     }
 
+    fn module_call<'a>(&self, module: &str, request: syscall::RawModuleRequest<'a>) -> isize {
+        module_call(module, true, request.as_buf())
+    }
+
     fn current_process(&self) -> Option<ProcId> {
         Some(Proc::current().id)
     }
@@ -115,7 +120,7 @@ impl kernel_module::KernelService for KernelService {
     }
 }
 
-pub fn module_call(module: &'static str, args: [usize; 4]) -> isize {
+pub fn module_call(module: &str, privileged: bool, args: [usize; 4]) -> isize {
     // log!("module call #{} {:x?}", module, args);
     let id = *MODULE_NAMES.lock().get(module).unwrap();
     MODULES
@@ -125,12 +130,12 @@ pub fn module_call(module: &'static str, args: [usize; 4]) -> isize {
             module
                 .call
                 .as_ref()
-                .map(|call| call.handle(args))
+                .map(|call| call.handle(privileged, RawModuleRequest::from_buf(args)))
                 .unwrap_or(-1)
         })
         .unwrap_or(-1)
 }
 
 pub fn init_vfs(ramfs: &'static RamFS) {
-    module_call("vfs", [usize::MAX, unsafe { mem::transmute(ramfs) }, 0, 0]);
+    module_call("vfs", true, [0, unsafe { mem::transmute(ramfs) }, 0, 0]);
 }

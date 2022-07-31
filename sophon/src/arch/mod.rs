@@ -8,7 +8,8 @@ use memory::page_table::PageTable;
 pub enum InterruptId {
     Timer = 0,
     Soft = 1,
-    PageFault = 2,
+    SoftPrivileged = 2,
+    PageFault = 3,
 }
 
 pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize) -> isize>;

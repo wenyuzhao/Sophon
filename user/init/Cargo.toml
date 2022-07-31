@@ -10,6 +10,7 @@ edition = { workspace = true }
 
 [dependencies]
 syscall = { path = "../../libs/syscall" }
+vfs = { path = "../../libs/vfs" }
 heap = { path = "../../libs/heap" }
 log = { path = "../../libs/log" }
 

@@ -1,22 +1,26 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "vfs-module"
+name = "dev-module"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
+description = "device management and dev-fs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "vfs"
+name = "dev"
 crate-type = ["cdylib"]
 
 [dependencies]
 log = { path = "../../libs/log" }
 kernel_module = { path = "../../libs/kernel_module" }
+memory = { path = "../../libs/memory" }
+syscall = { path = "../../libs/syscall" }
 vfs = { path = "../../libs/vfs" }
-proc = { path = "../../libs/proc" }
+dev = { path = "../../libs/dev" }
 anyhow = { workspace = true }
+fdt = { workspace = true }
 spin = { workspace = true }
 
 [features]

@@ -2,6 +2,8 @@
 use core::arch::asm;
 use core::intrinsics::transmute;
 
+use crate::ModuleRequest;
+
 #[repr(usize)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Syscall {
@@ -11,13 +13,13 @@ pub enum Syscall {
 
 #[inline]
 #[cfg(target_arch = "x86_64")]
-pub(crate) fn syscall(_syscall: Syscall, _args: &[usize]) -> isize {
+pub fn syscall(_syscall: Syscall, _args: &[usize]) -> isize {
     unimplemented!()
 }
 
 #[inline]
 #[cfg(target_arch = "aarch64")]
-pub(crate) fn syscall(syscall: Syscall, args: &[usize]) -> isize {
+pub fn syscall(syscall: Syscall, args: &[usize]) -> isize {
     debug_assert!(args.len() <= 6);
     let a: usize = args.get(0).cloned().unwrap_or(0);
     let b: usize = args.get(1).cloned().unwrap_or(0);
@@ -39,26 +41,14 @@ pub fn log(message: &str) {
     syscall(Syscall::Log, &[&message as *const &str as usize]);
 }
 
-pub fn open(path: &str) -> isize {
+#[inline]
+pub fn module_call<'a>(module: &str, request: &'a impl ModuleRequest<'a>) -> isize {
     unsafe {
-        let name = &"vfs" as *const &str;
-        let kind = 0;
-        let path = &path as *const &str;
+        let name = &module as *const &str;
+        let args = request.as_raw().as_buf();
         syscall(
             Syscall::ModuleCall,
-            &[transmute(name), kind, transmute(path)],
-        )
-    }
-}
-
-pub fn read(fd: usize, mut buf: &mut [u8]) -> isize {
-    unsafe {
-        let name = &"vfs" as *const &str;
-        let kind = 1;
-        let buf = &mut buf as *mut &mut [u8];
-        syscall(
-            Syscall::ModuleCall,
-            &[transmute(name), kind, fd, transmute(buf)],
+            &[transmute(name), args[0], args[1], args[2], args[3]],
         )
     }
 }

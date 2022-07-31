@@ -25,7 +25,7 @@ log = { path = "../libs/log" }
 boot = { path = "../libs/boot" }
 kernel_module = { path = "../libs/kernel_module" }
 elf_loader = { path = "../libs/elf_loader" }
-fs = { path = "../libs/fs" }
+vfs = { path = "../libs/vfs" }
 proc = { path = "../libs/proc" }
 
 [build-dependencies]

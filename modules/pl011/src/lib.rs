@@ -8,6 +8,7 @@ extern crate alloc;
 
 use core::{marker::PhantomData, ops::ControlFlow};
 
+use dev::{DevRequest, Device};
 use spin::RwLock;
 
 use fdt::{node::FdtNode, Fdt};
@@ -85,11 +86,16 @@ impl PL011 {
 }
 
 impl KernelModule for PL011 {
-    fn init(&self) -> anyhow::Result<()> {
+    fn init(&'static self) -> anyhow::Result<()> {
         log!("Hello, PL011!");
         let fdt = SERVICE.get_device_tree().unwrap();
         let (node, parent) = self.find_compatible(&fdt, &["arm,pl011"]).unwrap();
         self.init_uart0(node, parent.unwrap());
+        log!("register_device");
+        kernel_module::module_call(
+            "dev",
+            &DevRequest::RegisterDev(&(self as &'static dyn Device)),
+        );
         // log!("Please type");
         // loop {
         //     print!("> ");
@@ -100,6 +106,22 @@ impl KernelModule for PL011 {
         //     }
         // }
         Ok(())
+    }
+}
+
+impl Device for PL011 {
+    fn name(&self) -> &'static str {
+        "tty.serial"
+    }
+
+    fn read(&self, _offset: usize, buf: &mut [u8]) -> usize {
+        for i in 0..buf.len() {
+            buf[i] = match self.uart().getchar(false) {
+                Some(c) => c as u8,
+                None => return i,
+            };
+        }
+        0
     }
 }
 
@@ -124,9 +146,9 @@ pub struct UART0 {
 }
 
 impl UART0 {
-    fn transmit_fifo_full(&self) -> bool {
-        self.fr.get() & (1 << 5) != 0
-    }
+    // fn transmit_fifo_full(&self) -> bool {
+    //     self.fr.get() & (1 << 5) != 0
+    // }
 
     fn receive_fifo_empty(&self) -> bool {
         self.fr.get() & (1 << 4) != 0
@@ -145,13 +167,16 @@ impl UART0 {
         if ret == '\r' {
             ret = '\n';
         }
+        // if ret as u8 == 127 {
+        //     ret = 0x8u8 as _;
+        // }
         Some(ret)
     }
 
-    fn putchar(&mut self, c: char) {
-        while self.transmit_fifo_full() {}
-        self.dr.set(c as u8 as u32);
-    }
+    // fn putchar(&mut self, c: char) {
+    //     while self.transmit_fifo_full() {}
+    //     self.dr.set(c as u8 as u32);
+    // }
 
     fn init(&mut self) {
         self.cr.set(0);

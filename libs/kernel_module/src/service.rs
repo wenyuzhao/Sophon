@@ -3,12 +3,14 @@ use core::ops::Deref;
 use memory::address::Address;
 use memory::page::{Frame, Page};
 use proc::ProcId;
+use syscall::RawModuleRequest;
 
 pub trait KernelService: Send + Sync + 'static {
     // Logging
     fn log(&self, s: &str);
     // Module calls
     fn register_module_call_handler(&self, handler: &'static dyn super::ModuleCallHandler);
+    fn module_call<'a>(&self, module: &str, request: RawModuleRequest<'a>) -> isize;
     // Heap
     fn alloc(&self, layout: Layout) -> Option<Address>;
     fn dealloc(&self, address: Address, layout: Layout);

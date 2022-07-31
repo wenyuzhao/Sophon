@@ -58,9 +58,14 @@ unsafe fn get_exception_class() -> ExceptionClass {
     ::core::mem::transmute(esr_el1 >> 26)
 }
 
+unsafe fn is_el0(frame: &ExceptionFrame) -> bool {
+    frame.spsr_el1 & 0b1111usize == 0
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
     // log!("Exception received");
+    let privileged = !is_el0(exception_frame);
     Task::current()
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
@@ -69,7 +74,11 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
         ExceptionClass::SVCAArch64 => {
             // log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
             let r = TargetArch::interrupt().handle(
-                InterruptId::Soft,
+                if privileged {
+                    InterruptId::SoftPrivileged
+                } else {
+                    InterruptId::Soft
+                },
                 &[
                     exception_frame.x0,
                     exception_frame.x1,
