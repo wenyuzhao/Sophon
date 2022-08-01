@@ -55,7 +55,7 @@ impl GICTimer {
 
 impl KernelModule for GICTimer {
     fn init(&'static self) -> anyhow::Result<()> {
-        log!("Hello, GICTimer!");
+        log!("Hello, GIC-Timer!");
         let irq = self.get_timer_irq();
         self.set_timer_handler(irq);
         self.start_timer(irq);

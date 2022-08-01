@@ -102,8 +102,6 @@ impl KernelModule for VFS {
                 0
             }
             VFSRequest::RegisterFS(fs) => {
-                log!("RegisterFS");
-
                 crate::FILE_SYSTEMS
                     .write()
                     .insert(fs.name().to_owned(), fs.to_owned());
