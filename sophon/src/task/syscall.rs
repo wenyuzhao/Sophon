@@ -2,14 +2,9 @@ use crate::arch::*;
 use syscall::Syscall;
 
 pub fn init() {
-    TargetArch::interrupt().set_handler(
-        InterruptId::Soft,
-        Some(box |syscall_id, a, b, c, d, e| handle_syscall::<false>(syscall_id, a, b, c, d, e)),
-    );
-    TargetArch::interrupt().set_handler(
-        InterruptId::SoftPrivileged,
-        Some(box |syscall_id, a, b, c, d, e| handle_syscall::<true>(syscall_id, a, b, c, d, e)),
-    );
+    TargetArch::interrupt().set_syscall_handler(Some(box |syscall_id, a, b, c, d, e| {
+        handle_syscall::<false>(syscall_id, a, b, c, d, e)
+    }));
 }
 
 // =====================

@@ -36,11 +36,13 @@ use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use crate::task::Proc;
 use alloc::boxed::Box;
 use boot::BootInfo;
-use fdt::Fdt;
+use devtree::DeviceTree;
 use vfs::ramfs::RamFS;
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
+
+static mut DEV_TREE: Option<DeviceTree<'static, 'static>> = None;
 
 fn display_banner() {
     println!(r"");
@@ -78,10 +80,12 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     KERNEL_HEAP.init();
 
     // Initialize arch and boot drivers
-    log!("[kernel] load fdt");
-    let fdt = Fdt::new(boot_info.device_tree).unwrap();
+    log!("[kernel] load device tree");
+    unsafe {
+        DEV_TREE = DeviceTree::new(boot_info.device_tree);
+    }
     log!("[kernel] arch-specific initialization");
-    TargetArch::init(fdt);
+    TargetArch::init(unsafe { DEV_TREE.as_ref().unwrap() });
 
     log!("[kernel] initialize syscall");
     task::syscall::init();
@@ -96,6 +100,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     };
     log!("[kernel] load kernel modules...");
     load_module_from_initfs("hello", "/etc/modules/libhello.so");
+    load_module_from_initfs("gic-timer", "/etc/modules/libgictimer.so");
     load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
     crate::modules::init_vfs(initfs);
     load_module_from_initfs("dev", "/etc/modules/libdev.so");
@@ -112,9 +117,6 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     log!("[kernel] start tty process");
     let tty = initfs.get("/bin/tty").unwrap().as_file().unwrap().to_vec();
     let _proc = Proc::spawn_user(tty.to_vec());
-
-    log!("[kernel] start timer");
-    TargetArch::interrupt().start_timer();
 
     log!("[kernel] start scheduler");
     SCHEDULER.schedule();

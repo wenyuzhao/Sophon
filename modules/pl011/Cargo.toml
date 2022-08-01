@@ -16,7 +16,6 @@ kernel_module = { path = "../../libs/kernel_module" }
 memory = { path = "../../libs/memory" }
 dev = { path = "../../libs/dev" }
 anyhow = { workspace = true }
-fdt = { workspace = true }
 spin = { workspace = true }
 
 [features]

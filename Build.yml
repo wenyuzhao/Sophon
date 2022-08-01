@@ -21,5 +21,8 @@ init.fs:
         libpl011.so:
           + cargo-build: modules/pl011
           + copy: target/_out/libpl011.so
+        libgictimer.so:
+          + cargo-build: modules/gic-timer
+          + copy: target/_out/libgictimer.so
       hello.txt:
         + copy-str: "Hello world from file!"

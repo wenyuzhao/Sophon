@@ -16,7 +16,7 @@ cortex-a = { workspace = true }
 tock-registers = { workspace = true }
 uefi = { workspace = true }
 uefi-services = { workspace = true }
-fdt = { workspace = true }
+devtree = { path = "../../libs/devtree" }
 memory = { path = "../../libs/memory" }
 boot = { path = "../../libs/boot" }
 log = { path = "../../libs/log" }

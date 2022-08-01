@@ -1,7 +1,7 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "kernel_module"
+name = "devtree"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -9,15 +9,8 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = { path = "../log" }
+fdt-rs = { workspace = true }
 memory = { path = "../memory" }
-kernel_module_macros = { path = "./macros" }
-syscall = { path = "../syscall" }
-proc = { path = "../proc" }
-devtree = { path = "../devtree" }
-anyhow = { workspace = true }
-spin = { workspace = true }
 
 [features]
 default = []
-disable = []

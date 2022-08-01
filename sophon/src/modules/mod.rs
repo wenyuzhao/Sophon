@@ -2,6 +2,7 @@ use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, 
 use core::alloc::GlobalAlloc;
 use core::iter::Step;
 use core::mem;
+use devtree::DeviceTree;
 use kernel_module::KernelServiceWrapper;
 use kernel_module::ModuleCallHandler;
 use memory::page::Frame;
@@ -19,6 +20,8 @@ use vfs::ramfs::RamFS;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
+use crate::task::scheduler::AbstractScheduler;
+use crate::task::scheduler::SCHEDULER;
 use crate::task::Proc;
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrapper) -> usize {
@@ -109,14 +112,32 @@ impl kernel_module::KernelService for KernelService {
         Some(Proc::current().id)
     }
 
-    fn get_device_tree(&self) -> Option<fdt::Fdt<'static>> {
-        TargetArch::device_tree()
+    fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {
+        unsafe { crate::DEV_TREE.as_ref() }
     }
 
     fn map_device_page(&self, frame: Frame) -> Page {
         let page = KERNEL_HEAP.virtual_allocate::<Size4K>(1).start;
         KERNEL_MEMORY_MAPPER.map(page, frame, PageFlags::device());
         page
+    }
+
+    fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>) {
+        TargetArch::interrupt().set_irq_handler(irq, handler);
+    }
+
+    fn enable_irq(&self, irq: usize) {
+        TargetArch::interrupt().enable_irq(irq);
+    }
+
+    fn disable_irq(&self, irq: usize) {
+        TargetArch::interrupt().disable_irq(irq);
+    }
+
+    fn schedule(&self) -> ! {
+        TargetArch::interrupt().notify_end_of_interrupt();
+        SCHEDULER.timer_tick();
+        unreachable!()
     }
 }
 

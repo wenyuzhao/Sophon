@@ -1,6 +1,6 @@
-use crate::arch::InterruptId;
 use crate::arch::{aarch64::context::*, *};
 use crate::task::Task;
+use crate::TargetArch;
 use core::arch::{asm, global_asm};
 use cortex_a::{asm::barrier, registers::*};
 use tock_registers::interfaces::{Readable, Writeable};
@@ -65,7 +65,7 @@ unsafe fn is_el0(frame: &ExceptionFrame) -> bool {
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
     // log!("Exception received");
-    let privileged = !is_el0(exception_frame);
+    let _privileged = !is_el0(exception_frame);
     Task::current()
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
@@ -73,21 +73,18 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
     match exception {
         ExceptionClass::SVCAArch64 => {
             // log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
-            let r = TargetArch::interrupt().handle(
-                if privileged {
-                    InterruptId::SoftPrivileged
-                } else {
-                    InterruptId::Soft
-                },
-                &[
+            let r = if let Some(handler) = super::super::SYSCALL_HANDLER.as_ref() {
+                handler(
                     exception_frame.x0,
                     exception_frame.x1,
                     exception_frame.x2,
                     exception_frame.x3,
                     exception_frame.x4,
                     exception_frame.x5,
-                ],
-            );
+                )
+            } else {
+                -1
+            };
             exception_frame.x0 = ::core::mem::transmute(r);
             // log!("SVCAArch64 End {:?}", Task::current().unwrap().id());
         }
@@ -145,28 +142,8 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
     let irq = TargetArch::interrupt().get_active_irq();
-    // log!("IRQ {}", irq);
+    super::super::handle_irq(irq);
     TargetArch::interrupt().notify_end_of_interrupt();
-    // FIXME: GICC.EOIR.set(iar);
-    if irq < 256 {
-        if irq == 30 {
-            TargetArch::interrupt().handle(
-                InterruptId::Timer,
-                &[
-                    exception_frame.x0,
-                    exception_frame.x1,
-                    exception_frame.x2,
-                    exception_frame.x3,
-                    exception_frame.x4,
-                    exception_frame.x5,
-                ],
-            );
-            return;
-        } else {
-            log!("Unknown IRQ #{}", irq);
-        }
-    }
-
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     unsafe {
         Task::current().context.return_to_user();

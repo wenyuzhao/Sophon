@@ -12,7 +12,6 @@ edition = { workspace = true }
 spin = { workspace = true }
 cortex-a = { workspace = true }
 tock-registers = { workspace = true }
-fdt = { workspace = true }
 serde = { workspace = true }
 postcard = { workspace = true }
 atomic = { workspace = true }
@@ -27,6 +26,7 @@ kernel_module = { path = "../libs/kernel_module" }
 elf_loader = { path = "../libs/elf_loader" }
 vfs = { path = "../libs/vfs" }
 proc = { path = "../libs/proc" }
+devtree = { path = "../libs/devtree" }
 
 [build-dependencies]
 spin = { workspace = true }

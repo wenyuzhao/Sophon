@@ -1,5 +1,7 @@
+use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::ops::Deref;
+use devtree::DeviceTree;
 use memory::address::Address;
 use memory::page::{Frame, Page};
 use proc::ProcId;
@@ -17,8 +19,12 @@ pub trait KernelService: Send + Sync + 'static {
     // Process
     fn current_process(&self) -> Option<ProcId>;
     // Devices
-    fn get_device_tree(&self) -> Option<fdt::Fdt<'static>>;
+    fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
     fn map_device_page(&self, frame: Frame) -> Page;
+    fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>);
+    fn enable_irq(&self, irq: usize);
+    fn disable_irq(&self, irq: usize);
+    fn schedule(&self) -> !;
 }
 
 #[repr(C)]
