@@ -1,4 +1,7 @@
-use crate::arch::*;
+use crate::{
+    arch::*,
+    task::scheduler::{AbstractScheduler, SCHEDULER},
+};
 use syscall::Syscall;
 
 pub fn init() {
@@ -23,6 +26,10 @@ fn handle_syscall<const PRIVILEGED: bool>(
     match syscall {
         Syscall::Log => log(a, b, c, d, e),
         Syscall::ModuleCall => module_request::<PRIVILEGED>(a, b, c, d, e),
+        Syscall::Wait => {
+            SCHEDULER.freeze_current_task();
+            0
+        }
     }
 }
 

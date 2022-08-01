@@ -444,6 +444,7 @@ dependencies = [
  "kernel_module_macros",
  "log 0.0.2",
  "memory",
+ "mutex",
  "proc",
  "spin",
  "syscall",
@@ -535,6 +536,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mutex"
+version = "0.0.2"
+dependencies = [
+ "log 0.0.2",
+ "spin",
+ "syscall",
+]
+
+[[package]]
 name = "nb"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -590,6 +600,7 @@ dependencies = [
  "kernel_module",
  "log 0.0.2",
  "memory",
+ "mutex",
  "spin",
 ]
 
@@ -772,6 +783,7 @@ dependencies = [
  "kernel_module",
  "log 0.0.2",
  "memory",
+ "mutex",
  "postcard",
  "proc",
  "serde",

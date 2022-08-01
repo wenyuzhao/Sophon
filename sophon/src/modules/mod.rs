@@ -20,9 +20,11 @@ use vfs::ramfs::RamFS;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
+use crate::task::scheduler::mutex::SysMonitor;
 use crate::task::scheduler::AbstractScheduler;
 use crate::task::scheduler::SCHEDULER;
 use crate::task::Proc;
+use crate::task::Task;
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrapper) -> usize {
     let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
@@ -113,6 +115,10 @@ impl kernel_module::KernelService for KernelService {
         Some(Proc::current().id)
     }
 
+    fn current_task(&self) -> Option<proc::TaskId> {
+        Some(Task::current().id)
+    }
+
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {
         unsafe { crate::DEV_TREE.as_ref() }
     }
@@ -139,6 +145,10 @@ impl kernel_module::KernelService for KernelService {
         TargetArch::interrupt().notify_end_of_interrupt();
         SCHEDULER.timer_tick();
         unreachable!()
+    }
+
+    fn new_monitor(&self) -> mutex::Monitor {
+        mutex::Monitor::new(SysMonitor::new())
     }
 }
 

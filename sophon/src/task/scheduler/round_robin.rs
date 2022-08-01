@@ -96,6 +96,25 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     #[inline]
+    fn wake_up(&self, task: Arc<Task>) {
+        let _guard = interrupt::uninterruptible();
+        let old = task.scheduler_state::<Self>().fetch_update(
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+            |old| {
+                if old == RunState::Sleeping {
+                    Some(RunState::Ready)
+                } else {
+                    None
+                }
+            },
+        );
+        if old == Ok(RunState::Sleeping) {
+            self.task_queue.push(task.id);
+        }
+    }
+
+    #[inline]
     fn mark_task_as_ready(&self, task: Arc<Task>) {
         assert!(task.scheduler_state::<Self>().load(Ordering::SeqCst) != RunState::Ready);
         task.scheduler_state::<Self>()

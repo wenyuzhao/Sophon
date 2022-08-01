@@ -21,7 +21,7 @@ impl TTY {
     pub fn run(&self) -> ! {
         log!("[[Sophon TTY]]");
         let fd = vfs::open("/dev/tty.serial");
-        let mut buf = [0u8; 32];
+        let mut buf = [0u8; 1];
         loop {
             assert!(fd != -1);
             let len = vfs::read(fd as _, &mut buf);
@@ -29,8 +29,14 @@ impl TTY {
             if len == 0 {
                 continue;
             }
-            let s = core::str::from_utf8(&buf[0..len as usize]).unwrap();
-            print!("{}", s);
+            if buf[0] == 127 {
+                buf[0] = 8;
+                let s = core::str::from_utf8(&buf[0..len as usize]).unwrap();
+                print!("{} {}", s, s);
+            } else {
+                let s = core::str::from_utf8(&buf[0..len as usize]).unwrap();
+                print!("{}", s);
+            }
         }
     }
 }

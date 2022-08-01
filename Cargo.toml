@@ -17,6 +17,7 @@ members = [
     "libs/vfs",
     "libs/heap",
     "libs/interrupt",
+    "libs/mutex",
     "libs/proc",
     "libs/syscall",
     "libs/kernel_module",
@@ -42,7 +43,7 @@ panic = "abort"
 [profile.release]
 panic = "abort"
 lto = true
-codegen-units = 1
+# codegen-units = 1
 
 [workspace.dependencies]
 spin = "0.9.3"

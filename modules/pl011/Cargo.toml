@@ -15,6 +15,7 @@ log = { path = "../../libs/log" }
 kernel_module = { path = "../../libs/kernel_module" }
 memory = { path = "../../libs/memory" }
 dev = { path = "../../libs/dev" }
+mutex = { path = "../../libs/mutex" }
 anyhow = { workspace = true }
 spin = { workspace = true }
 

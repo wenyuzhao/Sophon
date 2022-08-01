@@ -1,13 +1,16 @@
 #![feature(format_args_nl)]
 #![feature(default_alloc_error_handler)]
+#![feature(box_syntax)]
 #![no_std]
 
 #[macro_use]
 extern crate log;
 extern crate alloc;
 
+use alloc::vec::Vec;
 use dev::{DevRequest, Device};
-use spin::RwLock;
+use mutex::Monitor;
+use spin::{Lazy, Mutex, RwLock};
 
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use memory::{page::Frame, volatile::Volatile};
@@ -15,6 +18,8 @@ use memory::{page::Frame, volatile::Volatile};
 #[kernel_module]
 pub static PL011_MODULE: PL011 = PL011 {
     uart: RwLock::new(core::ptr::null_mut()),
+    buffer: Mutex::new(Vec::new()),
+    monitor: Lazy::new(|| SERVICE.new_monitor()),
 };
 
 unsafe impl Send for PL011 {}
@@ -22,6 +27,8 @@ unsafe impl Sync for PL011 {}
 
 pub struct PL011 {
     pub uart: RwLock<*mut UART0>,
+    pub buffer: Mutex<Vec<u8>>,
+    monitor: Lazy<Monitor>,
 }
 
 impl PL011 {
@@ -40,12 +47,17 @@ impl KernelModule for PL011 {
         let uart = unsafe { &mut *(uart_page.start().as_mut_ptr() as *mut UART0) };
         uart.init();
         *self.uart.write() = uart;
-        // let mut irqs = node.interrupts().unwrap();
-        // let is_spi = irqs.next().unwrap() != 0;
-        // let irq_base = if is_spi { 32 } else { 16 };
-        // let irq_num = irqs.next().unwrap() + irq_base;
-
-        log!("register_device");
+        // Initialize interrupts
+        let irq = node.interrupts().unwrap().next().unwrap().0;
+        SERVICE.set_irq_handler(irq, box || {
+            while !self.uart().receive_fifo_empty() {
+                let c = self.uart().dr.get() as u8;
+                self.buffer.lock().push(c);
+            }
+            PL011_MODULE.monitor.notify();
+            0
+        });
+        SERVICE.enable_irq(irq);
         kernel_module::module_call(
             "dev",
             &DevRequest::RegisterDev(&(self as &'static dyn Device)),
@@ -61,12 +73,12 @@ impl Device for PL011 {
 
     fn read(&self, _offset: usize, buf: &mut [u8]) -> usize {
         for i in 0..buf.len() {
-            buf[i] = match self.uart().getchar(false) {
+            buf[i] = match self.uart().getchar(true) {
                 Some(c) => c as u8,
                 None => return i,
             };
         }
-        0
+        buf.len()
     }
 }
 
@@ -100,22 +112,26 @@ impl UART0 {
     }
 
     fn getchar(&mut self, block: bool) -> Option<char> {
-        if self.receive_fifo_empty() {
+        let mut buf = PL011_MODULE.buffer.lock();
+        if buf.is_empty() {
             if !block {
                 return None;
-            }
-            while self.receive_fifo_empty() {
-                core::hint::spin_loop();
+            } else {
+                while buf.is_empty() {
+                    drop(buf);
+                    PL011_MODULE.monitor.wait();
+                    buf = PL011_MODULE.buffer.lock();
+                }
             }
         }
-        let mut ret = self.dr.get() as u8 as char;
-        if ret == '\r' {
-            ret = '\n';
+        let mut c = buf.remove(0) as char;
+        if c == '\r' {
+            c = '\n';
         }
+        Some(c)
         // if ret as u8 == 127 {
         //     ret = 0x8u8 as _;
         // }
-        Some(ret)
     }
 
     // fn putchar(&mut self, c: char) {

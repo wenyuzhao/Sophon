@@ -1,3 +1,4 @@
+pub mod mutex;
 mod round_robin;
 
 use alloc::sync::Arc;
@@ -22,8 +23,7 @@ use super::{task::Task, TaskId};
 pub enum RunState {
     Ready,
     Running,
-    Sending,
-    Receiving,
+    Sleeping,
 }
 
 pub trait AbstractSchedulerState: Default + Debug + Deref<Target = Atomic<RunState>> {}
@@ -36,6 +36,20 @@ pub trait AbstractScheduler: Sized + 'static {
     fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>>;
     fn get_current_task_id(&self) -> Option<TaskId>;
     fn get_current_task(&self) -> Option<Arc<Task>>;
+
+    fn freeze_current_task(&self) {
+        let _guard = interrupt::uninterruptible();
+        let task = self.get_current_task().unwrap();
+        assert_eq!(
+            task.scheduler_state::<Self>().load(Ordering::SeqCst),
+            RunState::Running
+        );
+        task.scheduler_state::<Self>()
+            .store(RunState::Sleeping, Ordering::SeqCst);
+        self.schedule();
+    }
+
+    fn wake_up(&self, t: Arc<Task>);
 
     fn mark_task_as_ready(&self, t: Arc<Task>);
 

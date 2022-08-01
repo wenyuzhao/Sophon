@@ -9,6 +9,7 @@ use crate::ModuleRequest;
 pub enum Syscall {
     Log,
     ModuleCall,
+    Wait,
 }
 
 #[inline]
@@ -51,4 +52,9 @@ pub fn module_call<'a>(module: &str, request: &'a impl ModuleRequest<'a>) -> isi
             &[transmute(name), args[0], args[1], args[2], args[3]],
         )
     }
+}
+
+#[inline]
+pub fn wait() -> isize {
+    syscall(Syscall::Wait, &[])
 }
