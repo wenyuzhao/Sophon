@@ -4,7 +4,6 @@
 
 use core::{
     alloc::{GlobalAlloc, Layout},
-    intrinsics::likely,
     iter::Step,
     ops::Range,
 };
@@ -12,7 +11,7 @@ use core::{
 use memory::{
     address::V,
     free_list_allocator::FreeListAllocator,
-    page::{Page, PageResource, PageSize, Size1G, Size2M},
+    page::{Page, PageResource, PageSize, Size1G},
 };
 use spin::Mutex;
 
@@ -56,7 +55,7 @@ impl PageResource<V> for UserHeap {
     }
 
     /// Release and unmap virtual pages.
-    fn release_pages<S: PageSize>(&self, pages: Range<Page<S>>) {
+    fn release_pages<S: PageSize>(&self, _pages: Range<Page<S>>) {
         unimplemented!()
     }
 }

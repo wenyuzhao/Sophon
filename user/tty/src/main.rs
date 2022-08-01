@@ -78,7 +78,7 @@ impl TTY {
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     UserLogger::init();
     ALLOCATOR.init();
-    let mut tty = TTY::new();
+    let tty = TTY::new();
     tty.run();
 }
 
