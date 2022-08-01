@@ -20,7 +20,7 @@ use vfs::ramfs::RamFS;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
-use crate::task::scheduler::mutex::SysMonitor;
+use crate::task::scheduler::monitor::SysMonitor;
 use crate::task::scheduler::AbstractScheduler;
 use crate::task::scheduler::SCHEDULER;
 use crate::task::Proc;

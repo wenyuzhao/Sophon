@@ -1,4 +1,4 @@
-pub mod mutex;
+pub mod monitor;
 mod round_robin;
 
 use alloc::sync::Arc;
@@ -50,8 +50,6 @@ pub trait AbstractScheduler: Sized + 'static {
     }
 
     fn wake_up(&self, t: Arc<Task>);
-
-    fn mark_task_as_ready(&self, t: Arc<Task>);
 
     fn schedule(&self) -> !;
     fn timer_tick(&self);

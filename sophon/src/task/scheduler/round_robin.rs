@@ -115,14 +115,6 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     #[inline]
-    fn mark_task_as_ready(&self, task: Arc<Task>) {
-        assert!(task.scheduler_state::<Self>().load(Ordering::SeqCst) != RunState::Ready);
-        task.scheduler_state::<Self>()
-            .store(RunState::Ready, Ordering::SeqCst);
-        self.task_queue.push(task.id);
-    }
-
-    #[inline]
     fn schedule(&self) -> ! {
         interrupt::disable();
 
