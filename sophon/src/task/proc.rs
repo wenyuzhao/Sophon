@@ -136,7 +136,7 @@ impl Proc {
                     let old_aligned = old.align_up(Size4K::BYTES);
                     Some(old_aligned + (num_pages << Size4K::LOG_BYTES))
                 });
-        log!("sbrk: {:?} {:?}", self.id, result);
+        // log!("sbrk: {:?} {:?}", self.id, result);
         match result {
             Ok(a) => {
                 let old_top = a;

@@ -39,11 +39,12 @@ edition = "2021"
 
 [profile.dev]
 panic = "abort"
+opt-level = "z" # temporarily reduce init.fs load time
 
 [profile.release]
 panic = "abort"
 lto = true
-# codegen-units = 1
+codegen-units = 1
 
 [workspace.dependencies]
 spin = "0.9.3"

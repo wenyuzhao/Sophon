@@ -7,6 +7,7 @@ pub struct FreeListAllocator<
     K: MemoryKind,
     PA: PageResource<K> + 'static,
     const LOG_HEAP_SIZE: usize,
+    const RELEASE_LARGE_PAGES: bool = true,
 > where
     [(); LOG_HEAP_SIZE + 1]: Sized,
 {
@@ -15,8 +16,12 @@ pub struct FreeListAllocator<
     page_resource: Option<&'static PA>,
 }
 
-impl<K: MemoryKind, PA: PageResource<K> + 'static, const LOG_HEAP_SIZE: usize>
-    FreeListAllocator<K, PA, LOG_HEAP_SIZE>
+impl<
+        K: MemoryKind,
+        PA: PageResource<K> + 'static,
+        const LOG_HEAP_SIZE: usize,
+        const RELEASE_LARGE_PAGES: bool,
+    > FreeListAllocator<K, PA, LOG_HEAP_SIZE, RELEASE_LARGE_PAGES>
 where
     [(); LOG_HEAP_SIZE + 1]: Sized,
 {
@@ -147,6 +152,8 @@ where
         let cell_size = Self::cell_size(&layout);
         let size_class = Self::size_class(cell_size);
         self.push_cell(size_class, start);
-        self.release_large_pages();
+        if RELEASE_LARGE_PAGES {
+            self.release_large_pages();
+        }
     }
 }

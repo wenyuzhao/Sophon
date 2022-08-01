@@ -10,6 +10,8 @@ edition = { workspace = true }
 
 [dependencies]
 spin = { workspace = true }
+memory = { path = "../memory" }
+syscall = { path = "../syscall" }
 
 [features]
 default = []

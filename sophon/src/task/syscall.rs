@@ -2,7 +2,10 @@ use crate::{
     arch::*,
     task::scheduler::{AbstractScheduler, SCHEDULER},
 };
+use memory::page::{PageSize, Size4K};
 use syscall::Syscall;
+
+use super::Proc;
 
 pub fn init() {
     TargetArch::interrupt().set_syscall_handler(Some(box |syscall_id, a, b, c, d, e| {
@@ -30,6 +33,10 @@ fn handle_syscall<const PRIVILEGED: bool>(
             SCHEDULER.freeze_current_task();
             0
         }
+        Syscall::Sbrk => Proc::current()
+            .sbrk(a >> Size4K::LOG_BYTES)
+            .map(|r| r.start.start().as_usize() as isize)
+            .unwrap_or(-1),
     }
 }
 

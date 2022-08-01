@@ -10,6 +10,7 @@ pub enum Syscall {
     Log,
     ModuleCall,
     Wait,
+    Sbrk,
 }
 
 #[inline]

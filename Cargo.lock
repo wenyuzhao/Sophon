@@ -367,7 +367,9 @@ dependencies = [
 name = "heap"
 version = "0.0.2"
 dependencies = [
+ "memory",
  "spin",
+ "syscall",
 ]
 
 [[package]]
@@ -532,6 +534,7 @@ dependencies = [
  "interrupt",
  "log 0.0.2",
  "spin",
+ "syscall",
  "tock-registers",
 ]
 
