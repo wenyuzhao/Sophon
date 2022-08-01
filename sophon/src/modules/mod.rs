@@ -26,12 +26,13 @@ use crate::task::Proc;
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrapper) -> usize {
     let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
-        KERNEL_HEAP
+        let range = KERNEL_HEAP
             .acquire_pages::<Size4K>(Page::steps_between(&pages.start, &pages.end).unwrap())
-            .unwrap()
+            .unwrap();
+        // log!("code: {:?}", range);
+        range
     })
     .unwrap();
-    // log!("KM Entry: {:?}", entry);
     unsafe { core::mem::transmute(entry) }
 }
 

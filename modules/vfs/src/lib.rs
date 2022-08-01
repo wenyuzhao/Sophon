@@ -2,18 +2,18 @@
 #![feature(default_alloc_error_handler)]
 #![feature(generic_associated_types)]
 #![feature(const_btree_new)]
+#![feature(box_syntax)]
 #![no_std]
 
 #[macro_use]
 extern crate log;
 extern crate alloc;
-
 mod fs;
 mod mount;
 mod rootfs;
 
 use crate::fs::FileDescriptor;
-use alloc::{borrow::ToOwned, collections::BTreeMap, string::String};
+use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String};
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use proc::ProcId;
 use rootfs::ROOT_FS;
@@ -30,9 +30,9 @@ struct ProcData {
     files: usize,
 }
 
-impl Default for ProcData {
-    fn default() -> Self {
-        let data = Self {
+impl ProcData {
+    fn new() -> Box<Self> {
+        let data = box Self {
             nodes: [
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None,
@@ -47,7 +47,7 @@ impl Default for ProcData {
     }
 }
 
-static OPEN_FILES: Mutex<BTreeMap<ProcId, ProcData>> = Mutex::new(BTreeMap::new());
+static OPEN_FILES: Mutex<BTreeMap<ProcId, Box<ProcData>>> = Mutex::new(BTreeMap::new());
 
 impl KernelModule for VFS {
     type ModuleRequest<'a> = VFSRequest<'a>;
@@ -71,7 +71,7 @@ impl KernelModule for VFS {
                 };
                 let proc = SERVICE.current_process().unwrap();
                 let mut open_files = OPEN_FILES.lock();
-                let proc_data = open_files.entry(proc).or_default();
+                let proc_data = open_files.entry(proc).or_insert_with(|| ProcData::new());
                 let fd = proc_data.files;
                 proc_data.nodes[fd] = Some(FileDescriptor { node, offset: 0 });
                 proc_data.files += 1;

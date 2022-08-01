@@ -88,16 +88,14 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
             exception_frame.x0 = ::core::mem::transmute(r);
             // log!("SVCAArch64 End {:?}", Task::current().unwrap().id());
         }
-        //     ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
-        //         let far: usize;
-        //         llvm_asm!("mrs $0, far_el1":"=r"(far));
-        //         let elr: usize;
-        //         llvm_asm!("mrs $0, elr_el1":"=r"(elr));
-        //         log!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
-        //         // debug!(Kernel: "Data Abort {:?}", far as *mut ());
-        //         unreachable!()
-        //         // super::mm::handle_user_pagefault(far.into());
-        //     },
+        ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
+            let mut far: usize;
+            asm!("mrs {:x}, far_el1", out(reg) far);
+            let mut elr: usize;
+            asm!("mrs {:x}, elr_el1", out(reg) elr);
+            log!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
+            unreachable!()
+        }
         #[allow(unreachable_patterns)]
         _ => panic_for_unhandled_exception(exception_frame),
     }
