@@ -73,18 +73,14 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
     match exception {
         ExceptionClass::SVCAArch64 => {
             // log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
-            let r = if let Some(handler) = super::super::SYSCALL_HANDLER.as_ref() {
-                handler(
-                    exception_frame.x0,
-                    exception_frame.x1,
-                    exception_frame.x2,
-                    exception_frame.x3,
-                    exception_frame.x4,
-                    exception_frame.x5,
-                )
-            } else {
-                -1
-            };
+            let r = crate::task::syscall::handle_syscall::<false>(
+                exception_frame.x0,
+                exception_frame.x1,
+                exception_frame.x2,
+                exception_frame.x3,
+                exception_frame.x4,
+                exception_frame.x5,
+            );
             exception_frame.x0 = ::core::mem::transmute(r);
             // log!("SVCAArch64 End {:?}", Task::current().unwrap().id());
         }

@@ -1,11 +1,21 @@
-use crate::arch::ArchInterruptController;
-use crate::{arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver};
-use core::arch::asm;
+#![feature(format_args_nl)]
+#![feature(default_alloc_error_handler)]
+#![feature(box_syntax)]
+#![no_std]
+
+#[macro_use]
+extern crate log;
+extern crate alloc;
+
+use core::{
+    arch::asm,
+    cell::UnsafeCell,
+    sync::atomic::{AtomicU32, Ordering},
+};
 use cortex_a::asm::barrier;
-use devtree::Node;
-use memory::page::Frame;
-use memory::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
-use spin::Mutex;
+use interrupt::{IRQHandler, InterruptController};
+use kernel_module::{kernel_module, KernelModule, SERVICE};
+use memory::{page::Frame, volatile::*};
 
 pub const IRQ_LINES: usize = 256;
 
@@ -81,8 +91,9 @@ impl GICC {
 
 #[allow(non_snake_case)]
 pub struct GIC {
-    GICD: Option<*mut GICD>,
-    GICC: Option<*mut GICC>,
+    GICD: UnsafeCell<*mut GICD>,
+    GICC: UnsafeCell<*mut GICC>,
+    iar: AtomicU32,
 }
 
 unsafe impl Send for GIC {}
@@ -91,17 +102,18 @@ unsafe impl Sync for GIC {}
 impl GIC {
     const fn new() -> Self {
         Self {
-            GICD: None,
-            GICC: None,
+            GICD: UnsafeCell::new(core::ptr::null_mut()),
+            GICC: UnsafeCell::new(core::ptr::null_mut()),
+            iar: AtomicU32::new(0),
         }
     }
 
     fn gicd(&self) -> &'static mut GICD {
-        unsafe { &mut *self.GICD.unwrap() }
+        unsafe { &mut **self.GICD.get() }
     }
 
     fn gicc(&self) -> &'static mut GICC {
-        unsafe { &mut *self.GICC.unwrap() }
+        unsafe { &mut **self.GICC.get() }
     }
 
     fn init_gic(&self) {
@@ -144,44 +156,44 @@ impl GIC {
     }
 }
 
-pub static mut GIC: GIC = GIC::new();
+#[kernel_module]
+pub static GIC: GIC = GIC::new();
 
-impl BootDriver for GIC {
-    const COMPATIBLE: &'static [&'static str] = &["arm,cortex-a15-gic", "arm,gic-400"];
-    fn init(&mut self, node: &Node) {
+impl KernelModule for GIC {
+    fn init(&'static mut self) -> anyhow::Result<()> {
+        log!("Hello, GIC!");
+        let devtree = SERVICE.get_device_tree().unwrap();
+        let node = devtree
+            .compatible("arm,cortex-a15-gic")
+            .or_else(|| devtree.compatible("arm,gic-400"))
+            .unwrap();
         interrupt::disable();
         let mut regs = node.regs().unwrap();
         let gicd_address = node.translate(regs.next().unwrap().start);
         let gicc_address = node.translate(regs.next().unwrap().start);
         // log!("GICD@{:?} GICC@{:?}", gicd_address, gicc_address);
-        let gicd_page = Self::map_device_page(Frame::new(gicd_address));
-        let gicc_page = Self::map_device_page(Frame::new(gicc_address));
-        self.GICD = Some(gicd_page.start().as_mut_ptr());
-        self.GICC = Some(gicc_page.start().as_mut_ptr());
-        self.init_gic();
-        let irq_ctrl = box GICInterruptController::new();
+        let gicd_page = SERVICE.map_device_page(Frame::new(gicd_address));
+        let gicc_page = SERVICE.map_device_page(Frame::new(gicc_address));
         unsafe {
-            INTERRUPT_CONTROLLER = Some(irq_ctrl);
-            super::super::exception::setup_vbar();
+            *self.GICD.get() = gicd_page.start().as_mut_ptr();
+            *self.GICC.get() = gicc_page.start().as_mut_ptr();
         }
+        self.init_gic();
+        SERVICE.set_interrupt_controller(self);
+        Ok(())
     }
 }
 
-struct GICInterruptController {
-    iar: Mutex<u32>,
-}
+static mut IRQ_HANDLERS: [Option<IRQHandler>; IRQ_LINES] = {
+    const IRQ_UNINIT: Option<IRQHandler> = None;
+    [IRQ_UNINIT; IRQ_LINES]
+};
 
-impl GICInterruptController {
-    pub fn new() -> Self {
-        Self { iar: Mutex::new(0) }
-    }
-}
-
-impl ArchInterruptController for GICInterruptController {
+impl InterruptController for GIC {
     fn get_active_irq(&self) -> usize {
-        let gicc = unsafe { GIC.gicc() };
+        let gicc = GIC.gicc();
         let iar = gicc.IAR.get();
-        *self.iar.lock() = iar;
+        self.iar.store(iar, Ordering::SeqCst);
         let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
         irq as _
     }
@@ -199,6 +211,16 @@ impl ArchInterruptController for GICInterruptController {
     }
 
     fn notify_end_of_interrupt(&self) {
-        unsafe { GIC.gicc().EOIR.set(*self.iar.lock()) };
+        GIC.gicc().EOIR.set(self.iar.load(Ordering::SeqCst));
+    }
+
+    fn get_irq_handler(&self, irq: usize) -> Option<&IRQHandler> {
+        unsafe { IRQ_HANDLERS[irq].as_ref() }
+    }
+
+    fn set_irq_handler(&self, irq: usize, handler: IRQHandler) {
+        unsafe {
+            IRQ_HANDLERS[irq] = Some(handler);
+        }
     }
 }

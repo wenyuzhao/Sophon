@@ -43,7 +43,8 @@ pub fn init_kernel_module<T: KernelModule>(
 ) -> anyhow::Result<()> {
     init_kernel_service(service);
     call::register_module_call::<T>(instance);
-    instance.init()
+    let instance_mut = unsafe { &mut *(instance as *const T as *mut T) };
+    instance_mut.init()
 }
 
 pub trait KernelModule: 'static + Send + Sync {
@@ -51,7 +52,7 @@ pub trait KernelModule: 'static + Send + Sync {
 
     type ModuleRequest<'a>: ModuleRequest<'a> = !;
 
-    fn init(&'static self) -> anyhow::Result<()>;
+    fn init(&'static mut self) -> anyhow::Result<()>;
 
     fn handle_module_call<'a>(
         &self,

@@ -1,25 +1,25 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "kernel_module"
+name = "bcm2711-gpio"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
-log = { path = "../log" }
-memory = { path = "../memory" }
-kernel_module_macros = { path = "./macros" }
-syscall = { path = "../syscall" }
-proc = { path = "../proc" }
-devtree = { path = "../devtree" }
-mutex = { path = "../mutex" }
-interrupt = { path = "../interrupt" }
+log = { path = "../../libs/log" }
+kernel_module = { path = "../../libs/kernel_module" }
+memory = { path = "../../libs/memory" }
+interrupt = { path = "../../libs/interrupt" }
+dev = { path = "../../libs/dev" }
 anyhow = { workspace = true }
 spin = { workspace = true }
+cortex-a = { workspace = true }
+tock-registers = { workspace = true }
 
 [features]
 default = []
-disable = []

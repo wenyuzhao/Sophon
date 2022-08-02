@@ -92,6 +92,10 @@ impl kernel_module::KernelService for KernelService {
         TargetArch::interrupt().disable_irq(irq);
     }
 
+    fn set_interrupt_controller(&self, controller: &'static dyn interrupt::InterruptController) {
+        TargetArch::set_interrupt_controller(controller);
+    }
+
     fn schedule(&self) -> ! {
         TargetArch::interrupt().notify_end_of_interrupt();
         SCHEDULER.timer_tick();

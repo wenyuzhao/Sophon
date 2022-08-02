@@ -19,7 +19,7 @@ use kernel_module::{kernel_module, KernelModule, SERVICE};
 use memory::{page::Frame, volatile::Volatile};
 
 #[kernel_module]
-pub static PL011_MODULE: PL011 = PL011 {
+pub static PL011: PL011 = PL011 {
     uart: RwLock::new(core::ptr::null_mut()),
     buffer: Mutex::new(Vec::new()),
     monitor: Lazy::new(|| SERVICE.new_monitor()),
@@ -41,7 +41,7 @@ impl PL011 {
 }
 
 impl KernelModule for PL011 {
-    fn init(&'static self) -> anyhow::Result<()> {
+    fn init(&'static mut self) -> anyhow::Result<()> {
         log!("Hello, PL011!");
         let devtree = SERVICE.get_device_tree().unwrap();
         let node = devtree.compatible("arm,pl011").unwrap();
@@ -58,7 +58,7 @@ impl KernelModule for PL011 {
                 let c = self.uart().dr.get() as u8;
                 self.buffer.lock().push(c);
             }
-            PL011_MODULE.monitor.notify();
+            PL011.monitor.notify();
             0
         });
         SERVICE.enable_irq(irq);
@@ -116,15 +116,15 @@ impl UART0 {
     }
 
     fn getchar(&mut self, block: bool) -> Option<char> {
-        let mut buf = PL011_MODULE.buffer.lock();
+        let mut buf = PL011.buffer.lock();
         if buf.is_empty() {
             if !block {
                 return None;
             } else {
                 while buf.is_empty() {
                     drop(buf);
-                    PL011_MODULE.monitor.wait();
-                    buf = PL011_MODULE.buffer.lock();
+                    PL011.monitor.wait();
+                    buf = PL011.buffer.lock();
                 }
             }
         }
@@ -163,9 +163,9 @@ impl Logger for UARTLogger {
         let _guard = interrupt::uninterruptible();
         for c in s.chars() {
             if c == '\n' {
-                PL011_MODULE.uart().putchar('\r');
+                PL011.uart().putchar('\r');
             }
-            PL011_MODULE.uart().putchar(c);
+            PL011.uart().putchar(c);
         }
         Ok(())
     }

@@ -1,8 +1,12 @@
 #![no_std]
 
+extern crate alloc;
+
 #[allow(unused)]
 use core::arch::asm;
 use core::ops::{Deref, DerefMut};
+
+use alloc::boxed::Box;
 
 #[inline]
 #[cfg(target_arch = "x86_64")]
@@ -139,4 +143,16 @@ impl<T> Drop for Uninterruptible<T> {
             self::enable();
         }
     }
+}
+
+pub type IRQHandler = Box<dyn Fn() -> isize>;
+pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize) -> isize>;
+
+pub trait InterruptController {
+    fn get_active_irq(&self) -> usize;
+    fn enable_irq(&self, irq: usize);
+    fn disable_irq(&self, irq: usize);
+    fn notify_end_of_interrupt(&self);
+    fn get_irq_handler(&self, irq: usize) -> Option<&IRQHandler>;
+    fn set_irq_handler(&self, irq: usize, handler: IRQHandler);
 }

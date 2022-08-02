@@ -1,7 +1,4 @@
-use crate::{
-    arch::*,
-    task::scheduler::{AbstractScheduler, SCHEDULER},
-};
+use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
 use mutex::AbstractMonitor;
@@ -10,17 +7,11 @@ use vfs::{Fd, VFSRequest};
 
 use super::Proc;
 
-pub fn init() {
-    TargetArch::interrupt().set_syscall_handler(Some(box |syscall_id, a, b, c, d, e| {
-        handle_syscall::<false>(syscall_id, a, b, c, d, e)
-    }));
-}
-
 // =====================
 // ===   Syscalls   ===
 // =====================
 
-fn handle_syscall<const PRIVILEGED: bool>(
+pub fn handle_syscall<const PRIVILEGED: bool>(
     syscall_id: usize,
     a: usize,
     b: usize,

@@ -14,14 +14,14 @@ use spin::{Lazy, RwLock};
 use vfs::{FileSystem, Node, Stat, VFSRequest};
 
 #[kernel_module]
-pub static DEV: DeviceManager = DeviceManager {};
+pub static DEV: DEV = DEV {};
 
-pub struct DeviceManager {}
+pub struct DEV {}
 
-impl KernelModule for DeviceManager {
+impl KernelModule for DEV {
     type ModuleRequest<'a> = DevRequest<'a>;
 
-    fn init(&self) -> anyhow::Result<()> {
+    fn init(&mut self) -> anyhow::Result<()> {
         log!("Hello, Device Manager!");
         kernel_module::module_call(
             "vfs",

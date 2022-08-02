@@ -4,6 +4,8 @@ members = [
     "sophon",
 # Kernel Modules,
     "modules/dev",
+    "modules/bcm2711-gpio",
+    "modules/gic",
     "modules/gic-timer",
     "modules/hello",
     "modules/pl011",

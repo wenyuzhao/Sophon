@@ -13,7 +13,7 @@ pub static HELLO: Hello = Hello;
 pub struct Hello;
 
 impl KernelModule for Hello {
-    fn init(&self) -> anyhow::Result<()> {
+    fn init(&mut self) -> anyhow::Result<()> {
         log!("Hello, Kernel Module!");
         Ok(())
     }

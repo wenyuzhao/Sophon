@@ -20,7 +20,6 @@ extern crate log;
 #[macro_use]
 pub mod utils;
 pub mod arch;
-pub mod boot_driver;
 pub mod kernel_tasks;
 pub mod memory;
 pub mod modules;
@@ -57,6 +56,16 @@ fn display_banner() {
     println!(r"");
 }
 
+const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
+    ("bcm2711-gpio", "/etc/modules/libbcm2711-gpio.so"),
+    ("gic", "/etc/modules/libgic.so"),
+    ("hello", "/etc/modules/libhello.so"),
+    ("gic-timer", "/etc/modules/libgictimer.so"),
+    ("vfs", "/etc/modules/libvfs.so"),
+    ("dev", "/etc/modules/libdev.so"),
+    ("pl011", "/etc/modules/libpl011.so"),
+];
+
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
@@ -85,27 +94,21 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
         DEV_TREE = DeviceTree::new(boot_info.device_tree);
     }
     log!("[kernel] arch-specific initialization");
-    TargetArch::init(unsafe { DEV_TREE.as_ref().unwrap() });
-
-    log!("[kernel] initialize syscall");
-    task::syscall::init();
+    TargetArch::init();
 
     log!("[kernel] load init-fs");
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
     let initfs_ptr = initfs as *mut _;
 
-    let load_module_from_initfs = |name: &str, path: &str| {
+    log!("[kernel] load kernel modules...");
+    for (name, path) in ALL_MODULES {
         log!("[kernel]  - load module '{}'", name);
         let file = initfs.get(path).unwrap().as_file().unwrap();
         crate::modules::register(name, file.to_vec());
-    };
-    log!("[kernel] load kernel modules...");
-    load_module_from_initfs("hello", "/etc/modules/libhello.so");
-    load_module_from_initfs("gic-timer", "/etc/modules/libgictimer.so");
-    load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
-    crate::modules::init_vfs(initfs_ptr);
-    load_module_from_initfs("dev", "/etc/modules/libdev.so");
-    load_module_from_initfs("pl011", "/etc/modules/libpl011.so");
+        if *name == "vfs" {
+            crate::modules::init_vfs(initfs_ptr);
+        }
+    }
     log!("[kernel] kernel modules loaded");
 
     log!("[kernel] start idle process");

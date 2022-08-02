@@ -1,8 +1,15 @@
-use crate::boot_driver::BootDriver;
+#![feature(format_args_nl)]
+#![feature(default_alloc_error_handler)]
+#![feature(box_syntax)]
+#![no_std]
+
+#[macro_use]
+extern crate log;
+extern crate alloc;
+
 use core::arch::asm;
-use devtree::Node;
-use memory::page::Frame;
-use memory::volatile::Volatile;
+use kernel_module::{kernel_module, KernelModule, SERVICE};
+use memory::{page::Frame, volatile::*};
 
 #[repr(C)]
 pub struct GPIORegisters {
@@ -48,14 +55,15 @@ pub struct GPIORegisters {
     pub gppudclk1: Volatile<u32>, // 0x9c
 }
 
-pub struct GPIO {
+#[allow(non_camel_case_types)]
+pub struct BCM2177_GPIO {
     gpio: Option<*mut GPIORegisters>,
 }
 
-unsafe impl Send for GPIO {}
-unsafe impl Sync for GPIO {}
+unsafe impl Send for BCM2177_GPIO {}
+unsafe impl Sync for BCM2177_GPIO {}
 
-impl GPIO {
+impl BCM2177_GPIO {
     const fn new() -> Self {
         Self { gpio: None }
     }
@@ -84,14 +92,21 @@ impl GPIO {
     }
 }
 
-pub static mut GPIO: GPIO = GPIO::new();
+#[kernel_module]
+pub static BCM2177_GPIO: BCM2177_GPIO = BCM2177_GPIO::new();
 
-impl BootDriver for GPIO {
-    const COMPATIBLE: &'static [&'static str] = &["brcm,bcm2711-gpio"];
-    fn init(&mut self, node: &Node) {
+impl KernelModule for BCM2177_GPIO {
+    fn init(&'static mut self) -> anyhow::Result<()> {
+        let devtree = SERVICE.get_device_tree().unwrap();
+        let node = match devtree.compatible("brcm,bcm2711-gpio") {
+            Some(node) => node,
+            _ => return Ok(().into()),
+        };
+        log!("Hello, BCM2711 GPIO!");
         let gpio_frame = node.translate(node.regs().unwrap().next().unwrap().start);
-        let gpio_page = Self::map_device_page(Frame::new(gpio_frame));
+        let gpio_page = SERVICE.map_device_page(Frame::new(gpio_frame));
         self.gpio = Some(gpio_page.start().as_mut_ptr());
         self.init_gpio();
+        Ok(())
     }
 }

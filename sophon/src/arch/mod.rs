@@ -1,46 +1,15 @@
-use alloc::boxed::Box;
-use devtree::DeviceTree;
+use interrupt::InterruptController;
 use memory::address::*;
 use memory::page_table::PageTable;
-
-pub type IRQHandler = Box<dyn Fn() -> isize>;
-pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize) -> isize>;
-
-const MAX_IRQS: usize = 256;
-const IRQ_UNINIT: Option<IRQHandler> = None;
-static mut IRQ_HANDLERS: [Option<IRQHandler>; MAX_IRQS] = [IRQ_UNINIT; MAX_IRQS];
-static mut SYSCALL_HANDLER: Option<InterruptHandler> = None;
 
 #[allow(unused)]
 #[inline]
 pub(self) fn handle_irq(irq: usize) -> isize {
-    if let Some(handler) = unsafe { IRQ_HANDLERS[irq].as_ref() } {
+    if let Some(handler) = TargetArch::interrupt().get_irq_handler(irq) {
         handler()
     } else {
         log!("IRQ #{:?} has no handler!", irq);
         0
-    }
-}
-
-pub trait ArchInterruptController {
-    fn get_active_irq(&self) -> usize;
-
-    fn set_irq_handler(&self, irq: usize, handler: IRQHandler) {
-        unsafe {
-            IRQ_HANDLERS[irq] = Some(handler);
-        }
-    }
-
-    fn enable_irq(&self, irq: usize);
-
-    fn disable_irq(&self, irq: usize);
-
-    fn notify_end_of_interrupt(&self);
-
-    fn set_syscall_handler(&self, handler: Option<InterruptHandler>) {
-        unsafe {
-            SYSCALL_HANDLER = handler;
-        }
     }
 }
 
@@ -57,11 +26,23 @@ pub trait ArchContext: Sized + 'static {
     ) -> !;
 }
 
+static mut INTERRUPT_CONTROLLER: Option<&'static dyn InterruptController> = None;
+
 pub trait Arch {
     type Context: ArchContext;
 
-    fn init(device_tree: &'static DeviceTree<'static, 'static>);
-    fn interrupt() -> &'static dyn ArchInterruptController;
+    fn init();
+
+    fn interrupt() -> &'static dyn InterruptController {
+        unsafe { &**INTERRUPT_CONTROLLER.as_ref().unwrap() }
+    }
+
+    fn set_interrupt_controller(controller: &'static dyn InterruptController) {
+        unsafe { INTERRUPT_CONTROLLER = Some(controller) }
+        Self::setup_interrupt_table();
+    }
+
+    fn setup_interrupt_table();
 }
 
 pub type TargetArch = impl Arch;

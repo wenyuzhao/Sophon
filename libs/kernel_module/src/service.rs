@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::ops::Deref;
 use devtree::DeviceTree;
+use interrupt::InterruptController;
 use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
@@ -23,6 +24,7 @@ pub trait KernelService: Send + Sync + 'static {
     fn current_process(&self) -> Option<ProcId>;
     fn current_task(&self) -> Option<TaskId>;
     // Devices
+    fn set_interrupt_controller(&self, controller: &'static dyn InterruptController);
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
     fn map_device_page(&self, frame: Frame) -> Page;
     fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>);

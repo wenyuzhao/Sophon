@@ -15,12 +15,12 @@ use tock_registers::interfaces::{Readable, Writeable};
 const TIMER_INTERRUPT_FREQUENCY: usize = 60; // Hz
 
 #[kernel_module]
-pub static GIC_TIMER: GICTimer = GICTimer {};
+pub static GIC_TIMER: GICTimer = GICTimer;
 
 unsafe impl Send for GICTimer {}
 unsafe impl Sync for GICTimer {}
 
-pub struct GICTimer {}
+pub struct GICTimer;
 
 impl GICTimer {
     fn get_timer_irq(&self) -> usize {
@@ -54,7 +54,7 @@ impl GICTimer {
 }
 
 impl KernelModule for GICTimer {
-    fn init(&'static self) -> anyhow::Result<()> {
+    fn init(&mut self) -> anyhow::Result<()> {
         log!("Hello, GIC-Timer!");
         let irq = self.get_timer_irq();
         self.set_timer_handler(irq);

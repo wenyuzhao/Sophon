@@ -1,5 +1,4 @@
-use super::{Arch, ArchContext, ArchInterruptController, TargetArch};
-use devtree::DeviceTree;
+use super::{Arch, ArchContext, TargetArch};
 use memory::{address::Address, page_table::PageTable};
 
 #[repr(C)]
@@ -35,11 +34,11 @@ pub struct X64;
 impl Arch for X64 {
     type Context = X64Context;
 
-    fn init(_device_tree: &'static DeviceTree<'static, 'static>) {
+    fn init() {
         unimplemented!()
     }
 
-    fn interrupt() -> &'static dyn ArchInterruptController {
+    fn setup_interrupt_table() {
         unimplemented!()
     }
 }

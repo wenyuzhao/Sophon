@@ -21,9 +21,9 @@ use spin::{Mutex, RwLock};
 use vfs::{FileSystem, VFSRequest};
 
 #[kernel_module]
-pub static VFS_MODULE: VFS = VFS;
+pub static VFS: VFS = VFS {};
 
-pub struct VFS;
+pub struct VFS {}
 
 struct ProcData {
     nodes: [Option<FileDescriptor>; 16],
@@ -52,10 +52,11 @@ static OPEN_FILES: Mutex<BTreeMap<ProcId, Box<ProcData>>> = Mutex::new(BTreeMap:
 impl KernelModule for VFS {
     type ModuleRequest<'a> = VFSRequest<'a>;
 
-    fn init(&self) -> anyhow::Result<()> {
+    fn init(&mut self) -> anyhow::Result<()> {
         log!("Hello, VFS!");
         Ok(())
     }
+
     fn handle_module_call<'a>(&self, privileged: bool, request: Self::ModuleRequest<'a>) -> isize {
         match request {
             VFSRequest::Init(ramfs) => {

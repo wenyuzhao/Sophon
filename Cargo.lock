@@ -79,6 +79,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 
 [[package]]
+name = "bcm2711-gpio"
+version = "0.0.2"
+dependencies = [
+ "anyhow",
+ "cortex-a",
+ "dev",
+ "interrupt",
+ "kernel_module",
+ "log 0.0.2",
+ "memory",
+ "spin",
+ "tock-registers",
+]
+
+[[package]]
 name = "bit_field"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -332,6 +347,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "gic"
+version = "0.0.2"
+dependencies = [
+ "anyhow",
+ "cortex-a",
+ "dev",
+ "interrupt",
+ "kernel_module",
+ "log 0.0.2",
+ "memory",
+ "spin",
+ "tock-registers",
+]
+
+[[package]]
 name = "gic-timer"
 version = "0.0.2"
 dependencies = [
@@ -453,6 +483,7 @@ version = "0.0.2"
 dependencies = [
  "anyhow",
  "devtree",
+ "interrupt",
  "kernel_module_macros",
  "log 0.0.2",
  "memory",
