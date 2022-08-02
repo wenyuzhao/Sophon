@@ -12,6 +12,7 @@ pub enum Syscall {
     Wait,
     Sbrk,
     Exec,
+    Exit,
 }
 
 #[inline]
@@ -65,4 +66,10 @@ pub fn wait() -> isize {
 pub fn exec(path: &str) -> isize {
     let path = &path as *const &str;
     unsafe { syscall(Syscall::Exec, &[transmute(path)]) }
+}
+
+#[inline]
+pub fn exit() -> ! {
+    syscall(Syscall::Exit, &[]);
+    unreachable!()
 }

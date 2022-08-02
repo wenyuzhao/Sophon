@@ -85,7 +85,5 @@ pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
 #[panic_handler]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
     log!("{}", info);
-    loop {
-        syscall::wait();
-    }
+    syscall::exit();
 }

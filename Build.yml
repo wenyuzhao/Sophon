@@ -7,6 +7,9 @@ init.fs:
       tty:
         + cargo-build: user/tty
         + copy: target/_out/tty
+      hello:
+        + cargo-build: user/hello
+        + copy: target/_out/hello
     etc/:
       modules/:
         libhello.so:

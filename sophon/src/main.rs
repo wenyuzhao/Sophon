@@ -92,6 +92,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
 
     log!("[kernel] load init-fs");
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
+    let initfs_ptr = initfs as *mut _;
 
     let load_module_from_initfs = |name: &str, path: &str| {
         log!("[kernel]  - load module '{}'", name);
@@ -102,7 +103,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     load_module_from_initfs("hello", "/etc/modules/libhello.so");
     load_module_from_initfs("gic-timer", "/etc/modules/libgictimer.so");
     load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
-    crate::modules::init_vfs(initfs);
+    crate::modules::init_vfs(initfs_ptr);
     load_module_from_initfs("dev", "/etc/modules/libdev.so");
     load_module_from_initfs("pl011", "/etc/modules/libpl011.so");
     log!("[kernel] kernel modules loaded");

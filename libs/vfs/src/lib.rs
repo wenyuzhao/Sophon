@@ -2,6 +2,7 @@
 #![feature(const_btree_new)]
 
 use alloc::{borrow::Cow, string::String, vec::Vec};
+use proc::ProcId;
 use ramfs::RamFS;
 use syscall::{ModuleRequest, RawModuleRequest};
 
@@ -51,6 +52,7 @@ pub enum VFSRequest<'a> {
         fs: &'a str,
     },
     RegisterFS(&'a &'static dyn FileSystem),
+    ProcExit(ProcId),
 }
 
 impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
@@ -61,6 +63,7 @@ impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
             Self::Read(fd, buf) => RawModuleRequest::new(2, &fd.0, buf, &()),
             Self::Mount { path, dev, fs } => RawModuleRequest::new(3, path, dev, fs),
             Self::RegisterFS(ramfs) => RawModuleRequest::new(4, ramfs, &(), &()),
+            Self::ProcExit(id) => RawModuleRequest::new(5, &id.0, &(), &()),
         }
     }
     fn from_raw(raw: RawModuleRequest<'a>) -> Self {
@@ -74,6 +77,7 @@ impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
                 fs: raw.arg(2),
             },
             4 => Self::RegisterFS(raw.arg(0)),
+            5 => Self::ProcExit(ProcId(raw.arg(0))),
             _ => panic!("Unknown request"),
         }
     }

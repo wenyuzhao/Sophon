@@ -31,6 +31,7 @@ members = [
 # User programs
     "user/init",
     "user/tty",
+    "user/hello",
 ]
 
 [workspace.package]

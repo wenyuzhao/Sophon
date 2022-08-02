@@ -4,7 +4,7 @@ use crate::{
 };
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
-use syscall::{ModuleRequest, Syscall};
+use syscall::Syscall;
 use vfs::{Fd, VFSRequest};
 
 use super::Proc;
@@ -40,6 +40,7 @@ fn handle_syscall<const PRIVILEGED: bool>(
             .map(|r| r.start.start().as_usize() as isize)
             .unwrap_or(-1),
         Syscall::Exec => exec(a, b, c, d, e),
+        Syscall::Exit => exit(a, b, c, d, e),
     }
 }
 
@@ -59,23 +60,20 @@ fn module_request<const PRIVILEGED: bool>(
 ) -> isize {
     let string_pointer = a as *const &str;
     let s: &str = unsafe { &*string_pointer };
-    crate::modules::module_call(s, PRIVILEGED, [b, c, d, e])
+    crate::modules::raw_module_call(s, PRIVILEGED, [b, c, d, e])
 }
 
 fn exec(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     let path: &str = unsafe { &*(a as *const &str) };
     let mut elf = vec![];
-    let fd = crate::modules::module_call("vfs", false, VFSRequest::Open(path).as_raw().as_buf());
+    let fd = crate::modules::module_call("vfs", false, &VFSRequest::Open(path));
     if fd < 0 {
         return -1;
     }
     let mut buf = [0u8; 256];
     loop {
-        let size = crate::modules::module_call(
-            "vfs",
-            false,
-            VFSRequest::Read(Fd(fd as _), &mut buf).as_raw().as_buf(),
-        );
+        let size =
+            crate::modules::module_call("vfs", false, &VFSRequest::Read(Fd(fd as _), &mut buf));
         if size > 0 {
             elf.extend_from_slice(&buf[0..size as usize]);
         } else if size < 0 {
@@ -86,4 +84,9 @@ fn exec(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     }
     let proc = Proc::spawn_user(elf);
     proc.id.0 as _
+}
+
+fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    Proc::current().exit();
+    SCHEDULER.schedule()
 }

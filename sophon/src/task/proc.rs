@@ -15,6 +15,7 @@ use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};
 use spin::Mutex;
+use vfs::VFSRequest;
 
 static PROCS: Mutex<LinkedList<Arc<Proc>>> = Mutex::new(LinkedList::new());
 
@@ -164,9 +165,15 @@ impl Proc {
     }
 
     pub fn exit(&self) {
-        // TODO: Release file handles
+        // Release file handles
+        crate::modules::module_call("vfs", true, &VFSRequest::ProcExit(self.id));
         // Release memory
         let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
         crate::memory::utils::release_user_page_table(self.get_page_table());
+        // Remove from scheduler
+        let threads = self.threads.lock();
+        for t in &*threads {
+            SCHEDULER.remove_task(*t)
+        }
     }
 }

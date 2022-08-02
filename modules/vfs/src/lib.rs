@@ -107,6 +107,12 @@ impl KernelModule for VFS {
                     .insert(fs.name().to_owned(), fs.to_owned());
                 0
             }
+            VFSRequest::ProcExit(proc_id) => {
+                assert!(privileged);
+                let mut open_files = OPEN_FILES.lock();
+                open_files.remove(&proc_id);
+                0
+            }
         }
     }
 }
