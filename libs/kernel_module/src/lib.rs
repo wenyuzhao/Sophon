@@ -14,10 +14,11 @@ mod log;
 mod service;
 
 pub use ::log::log;
-pub use call::{ModuleCall, ModuleCallHandler};
+pub use call::ModuleCallHandler;
 pub use heap::KernelModuleAllocator;
 pub use kernel_module_macros::kernel_module;
 pub use service::{KernelService, KernelServiceWrapper};
+use syscall::ModuleRequest;
 
 static mut SERVICE_OPT: Option<&'static dyn KernelService> = None;
 
@@ -31,21 +32,34 @@ pub fn init_kernel_service(service: KernelServiceWrapper) {
     }
 }
 
+#[inline]
+pub fn module_call<'a>(module: &str, request: &'a impl ModuleRequest<'a>) -> isize {
+    SERVICE.module_call(module, request.as_raw())
+}
+
 pub fn init_kernel_module<T: KernelModule>(
     service: KernelServiceWrapper,
     instance: &'static T,
 ) -> anyhow::Result<()> {
     init_kernel_service(service);
-    call::register_module_call::<T>();
+    call::register_module_call::<T>(instance);
     instance.init()
 }
 
 pub trait KernelModule: 'static + Send + Sync {
     const NAME: &'static str = core::any::type_name::<Self>();
 
-    type ModuleCall<'a>: ModuleCall + 'a = !;
+    type ModuleRequest<'a>: ModuleRequest<'a> = !;
 
-    fn init(&self) -> anyhow::Result<()>;
+    fn init(&'static self) -> anyhow::Result<()>;
+
+    fn handle_module_call<'a>(
+        &self,
+        _privileged: bool,
+        _request: Self::ModuleRequest<'a>,
+    ) -> isize {
+        -1
+    }
 }
 
 #[macro_export]

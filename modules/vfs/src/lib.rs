@@ -2,107 +2,120 @@
 #![feature(default_alloc_error_handler)]
 #![feature(generic_associated_types)]
 #![feature(const_btree_new)]
+#![feature(box_syntax)]
 #![no_std]
 
 #[macro_use]
 extern crate log;
 extern crate alloc;
-
 mod fs;
 mod mount;
 mod rootfs;
 
-use core::mem;
-
 use crate::fs::FileDescriptor;
-use ::fs::ramfs::RamFS;
-use alloc::{
-    collections::BTreeMap,
-    string::{String, ToString},
-};
-use kernel_module::{kernel_module, KernelModule, ModuleCall, SERVICE};
+use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String};
+use kernel_module::{kernel_module, KernelModule, SERVICE};
 use proc::ProcId;
 use rootfs::ROOT_FS;
-use spin::Mutex;
+use spin::{Mutex, RwLock};
+use vfs::{FileSystem, VFSRequest};
 
 #[kernel_module]
 pub static VFS_MODULE: VFS = VFS;
 
 pub struct VFS;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(transparent)]
-pub struct Fd(pub(crate) u32);
-
-pub enum VFSRequest<'a> {
-    Init(&'static mut RamFS),
-    Open(String),
-    Read(Fd, &'a mut [u8]),
-}
-
-#[derive(Default)]
 struct ProcData {
     nodes: [Option<FileDescriptor>; 16],
     files: usize,
 }
 
-static OPEN_FILES: Mutex<BTreeMap<ProcId, ProcData>> = Mutex::new(BTreeMap::new());
-
-impl<'a> ModuleCall for VFSRequest<'a> {
-    fn from([kind, a, b, _c]: [usize; 4]) -> Self {
-        match kind {
-            0 => VFSRequest::Open(unsafe { (*(a as *const &str)).to_string() }),
-            1 => VFSRequest::Read(Fd(a as _), unsafe { *(b as *mut &mut [u8]) }),
-            usize::MAX => VFSRequest::Init(unsafe { mem::transmute(a) }),
-            _ => unreachable!(),
-        }
-    }
-
-    fn handle(self) -> anyhow::Result<isize> {
-        match self {
-            VFSRequest::Init(ramfs) => {
-                ROOT_FS.init(ramfs);
-                Ok(0)
-            }
-            VFSRequest::Open(path) => {
-                let node = match fs::vfs_open(&path) {
-                    Some(node) => node,
-                    None => return Ok(-1),
-                };
-                let proc = SERVICE.current_process().unwrap();
-                let mut open_files = OPEN_FILES.lock();
-                let proc_data = open_files.entry(proc).or_default();
-                let fd = proc_data.files;
-                proc_data.nodes[fd] = Some(FileDescriptor { node, offset: 0 });
-                proc_data.files += 1;
-                Ok(fd as _)
-            }
-            VFSRequest::Read(_fd, buf) => {
-                let mut open_files = OPEN_FILES.lock();
-                let fd = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
-                    Some(proc_data) => match proc_data.nodes[_fd.0 as usize].as_mut() {
-                        Some(node) => node,
-                        None => return Ok(-1),
-                    },
-                    None => return Ok(-1),
-                };
-                match fd.node.fs.read(&fd.node, fd.offset, buf) {
-                    None => Ok(-1),
-                    Some(v) => {
-                        fd.offset += v;
-                        Ok(v as _)
-                    }
-                }
-            }
-        }
+impl ProcData {
+    fn new() -> Box<Self> {
+        let data = box Self {
+            nodes: [
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None,
+            ],
+            files: 0,
+        };
+        // data.nodes[0] = Some(FileDescriptor {
+        //     node: ROOT_FS.clone(),
+        //     offset: 0,
+        // });
+        data
     }
 }
 
+static OPEN_FILES: Mutex<BTreeMap<ProcId, Box<ProcData>>> = Mutex::new(BTreeMap::new());
+
 impl KernelModule for VFS {
-    type ModuleCall<'a> = VFSRequest<'a>;
+    type ModuleRequest<'a> = VFSRequest<'a>;
 
     fn init(&self) -> anyhow::Result<()> {
         log!("Hello, VFS!");
         Ok(())
     }
+    fn handle_module_call<'a>(&self, privileged: bool, request: Self::ModuleRequest<'a>) -> isize {
+        match request {
+            VFSRequest::Init(ramfs) => {
+                assert!(privileged);
+                ROOT_FS.init(ramfs);
+                0
+            }
+            VFSRequest::Open(path) => {
+                assert!(!privileged);
+                let node = match fs::vfs_open(&path) {
+                    Some(node) => node,
+                    None => return -1,
+                };
+                let proc = SERVICE.current_process().unwrap();
+                let mut open_files = OPEN_FILES.lock();
+                let proc_data = open_files.entry(proc).or_insert_with(|| ProcData::new());
+                let fd = proc_data.files;
+                proc_data.nodes[fd] = Some(FileDescriptor { node, offset: 0 });
+                proc_data.files += 1;
+                fd as _
+            }
+            VFSRequest::Read(_fd, buf) => {
+                assert!(!privileged);
+                let mut open_files = OPEN_FILES.lock();
+                let fd = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
+                    Some(proc_data) => match proc_data.nodes[_fd.0 as usize].as_mut() {
+                        Some(node) => node,
+                        None => return -1,
+                    },
+                    None => return -1,
+                };
+                match fd.node.fs.read(&fd.node, fd.offset, buf) {
+                    None => -1,
+                    Some(v) => {
+                        fd.offset += v;
+                        v as _
+                    }
+                }
+            }
+            VFSRequest::Mount { path, dev, fs } => {
+                assert!(privileged);
+                let fs = FILE_SYSTEMS.read()[fs];
+                mount::vfs_mount(&path, dev, unsafe { &*(fs as *const dyn FileSystem) }).unwrap();
+                0
+            }
+            VFSRequest::RegisterFS(fs) => {
+                crate::FILE_SYSTEMS
+                    .write()
+                    .insert(fs.name().to_owned(), fs.to_owned());
+                0
+            }
+            VFSRequest::ProcExit(proc_id) => {
+                assert!(privileged);
+                let mut open_files = OPEN_FILES.lock();
+                open_files.remove(&proc_id);
+                0
+            }
+        }
+    }
 }
+
+static FILE_SYSTEMS: RwLock<BTreeMap<String, &'static dyn FileSystem>> =
+    RwLock::new(BTreeMap::new());

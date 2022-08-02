@@ -71,12 +71,43 @@ impl Dir {
             dir.insert(path, file)
         }
     }
+
+    pub fn mount(&mut self, path: &str, mnt: Mount) {
+        let (name, path) = match path.split_once('/') {
+            Some(x) => x,
+            _ => (path, ""),
+        };
+        if path.is_empty() {
+            debug_assert!(!self.entries.contains_key(name));
+            self.entries.insert(name.to_owned(), Entry::Mount(mnt));
+        } else {
+            let dir = match self.entries.get_mut(name) {
+                Some(Entry::Dir(dir)) => dir,
+                Some(_) => unreachable!(),
+                None => {
+                    self.entries
+                        .insert(name.to_owned(), Entry::Dir(Dir::default()));
+                    match self.entries.get_mut(name) {
+                        Some(Entry::Dir(dir)) => dir,
+                        _ => unreachable!(),
+                    }
+                }
+            };
+            dir.mount(path, mnt)
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct Mount {
+    pub key: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Entry {
     File(File),
     Dir(Dir),
+    Mount(Mount),
 }
 
 impl Entry {
@@ -89,6 +120,12 @@ impl Entry {
     pub fn as_dir(&self) -> Option<&Dir> {
         match self {
             Self::Dir(dir) => Some(dir),
+            _ => None,
+        }
+    }
+    pub fn as_mnt(&self) -> Option<&Mount> {
+        match self {
+            Self::Mount(mnt) => Some(mnt),
             _ => None,
         }
     }
@@ -113,6 +150,16 @@ impl RamFS {
         debug_assert!(path.starts_with('/'));
         let path = path.strip_prefix('/').unwrap();
         self.root.as_dir().unwrap().get(path)
+    }
+
+    pub fn mount(&mut self, path: &str, mnt: Mount) {
+        debug_assert!(path.starts_with('/'));
+        let path = path.strip_prefix('/').unwrap();
+        if let Entry::Dir(dir) = &mut self.root {
+            dir.mount(path, mnt)
+        } else {
+            unreachable!()
+        }
     }
 
     pub fn insert(&mut self, path: &str, file: File) {

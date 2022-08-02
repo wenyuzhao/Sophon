@@ -1,7 +1,7 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "fs"
+name = "vfs"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -11,6 +11,8 @@ edition = { workspace = true }
 [dependencies]
 serde = { workspace = true }
 postcard = { workspace = true }
+syscall = { path = "../syscall" }
+proc = { path = "../proc" }
 
 [features]
 default = []

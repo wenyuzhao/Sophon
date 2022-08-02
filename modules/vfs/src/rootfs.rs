@@ -4,10 +4,9 @@ use core::{
 };
 
 use alloc::{borrow::ToOwned, boxed::Box, format, string::String, vec::Vec};
-use fs::ramfs::RamFS;
 use spin::{Lazy, RwLock};
-
-use crate::fs::{FileSystem, Node, Stat};
+use vfs::ramfs::{self, RamFS};
+use vfs::{FileSystem, Node, Stat};
 
 pub static ROOT_FS: Lazy<RootFS> = Lazy::new(|| RootFS::new());
 
@@ -28,7 +27,7 @@ impl RootFS {
         self.is_initialized.load(Ordering::SeqCst)
     }
 
-    pub fn init(&self, ramfs: &'static mut RamFS) {
+    pub fn init(&'static self, ramfs: &'static mut RamFS) {
         if self
             .is_initialized
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -38,7 +37,10 @@ impl RootFS {
         }
         assert!(ramfs.get("/etc").is_some());
         *self.ramfs.write() = unsafe { Box::from_raw(ramfs) };
-        assert!(self.is_initialized())
+        assert!(self.is_initialized());
+        crate::FILE_SYSTEMS
+            .write()
+            .insert("rootfs".to_owned(), self);
     }
 
     pub fn root_node(&self) -> Node {
@@ -54,13 +56,16 @@ impl RootFS {
 }
 
 impl FileSystem for RootFS {
+    fn name(&self) -> &'static str {
+        "rootfs"
+    }
     fn stat(&self, parent: &Node, file: &str) -> Option<Stat> {
         let fs = self.ramfs.read();
         assert!(self.is_initialized());
         fs.get(&format!("{}/{}", parent.path, file))
             .map(|entry| Stat {
                 fs: unsafe { &*(self as *const Self) },
-                mount: false,
+                mount: entry.as_mnt().map(|x| x.key),
                 is_dir: entry.as_dir().is_some(),
             })
     }
@@ -102,5 +107,19 @@ impl FileSystem for RootFS {
     }
     fn read_dir(&self, _node: &Node) -> Option<Vec<String>> {
         unimplemented!()
+    }
+    fn mount(&self, parent: &Node, file: &str, key: usize) -> Option<Node> {
+        let mut fs = self.ramfs.write();
+        let path = format!("{}/{}", parent.path, file);
+        println!("mount {}", path);
+        fs.mount(&path, ramfs::Mount { key });
+        Some(Node {
+            name: file.to_owned().into(),
+            path: path.into(),
+            fs: unsafe { &*(self as *const Self) },
+            mount: Some(key),
+            block: 0,
+            offset: 0,
+        })
     }
 }

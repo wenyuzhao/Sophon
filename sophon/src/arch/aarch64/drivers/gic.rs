@@ -1,18 +1,11 @@
 use crate::arch::ArchInterruptController;
-use crate::task::scheduler::AbstractScheduler;
 use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
-use crate::{
-    arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver, task::scheduler::SCHEDULER,
-};
+use crate::{arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver};
 use core::arch::asm;
-use cortex_a::{asm::barrier, registers::*};
-use fdt::node::FdtNode;
-use memory::address::{Address, P};
+use cortex_a::asm::barrier;
+use devtree::Node;
 use memory::page::Frame;
 use spin::Mutex;
-use tock_registers::interfaces::{Readable, Writeable};
-
-const TIMER_INTERRUPT_FREQUENCY: usize = 10; // Hz
 
 pub const IRQ_LINES: usize = 256;
 
@@ -155,33 +148,20 @@ pub static mut GIC: GIC = GIC::new();
 
 impl BootDriver for GIC {
     const COMPATIBLE: &'static [&'static str] = &["arm,cortex-a15-gic", "arm,gic-400"];
-    fn init(&mut self, node: &FdtNode, parent: Option<&FdtNode>) {
+    fn init(&mut self, node: &Node) {
         interrupt::disable();
-
-        let mut regs = node.reg().unwrap();
-        let mut gicd_address = Address::<P>::new(regs.next().unwrap().starting_address as usize);
-        gicd_address = Self::translate_address(gicd_address, parent.unwrap());
-        let mut gicc_address = Address::<P>::new(regs.next().unwrap().starting_address as usize);
-        gicc_address = Self::translate_address(gicc_address, parent.unwrap());
+        let mut regs = node.regs().unwrap();
+        let gicd_address = node.translate(regs.next().unwrap().start);
+        let gicc_address = node.translate(regs.next().unwrap().start);
         // log!("GICD@{:?} GICC@{:?}", gicd_address, gicc_address);
         let gicd_page = Self::map_device_page(Frame::new(gicd_address));
         let gicc_page = Self::map_device_page(Frame::new(gicc_address));
         self.GICD = Some(gicd_page.start().as_mut_ptr());
         self.GICC = Some(gicc_page.start().as_mut_ptr());
         self.init_gic();
-        let irq = box GICInterruptController::new();
-        irq.set_handler(
-            crate::arch::InterruptId::Timer,
-            Some(box |_, _, _, _, _, _| {
-                // Update compare value
-                let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
-                CNTP_TVAL_EL0.set(step as u64);
-                SCHEDULER.timer_tick();
-                0
-            }),
-        );
+        let irq_ctrl = box GICInterruptController::new();
         unsafe {
-            INTERRUPT_CONTROLLER = Some(irq);
+            INTERRUPT_CONTROLLER = Some(irq_ctrl);
             super::super::exception::setup_vbar();
         }
     }
@@ -198,26 +178,24 @@ impl GICInterruptController {
 }
 
 impl ArchInterruptController for GICInterruptController {
-    fn start_timer(&self) {
-        unsafe {
-            asm!("dsb SY");
-            let timer_irq = 16 + 14;
-            GIC.gicd().ISENABLER[timer_irq / 32].set(1 << (timer_irq % 32));
-            let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
-            assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
-            let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;
-            CNTP_TVAL_EL0.set(clock_ticks_per_timer_irq as u64);
-            CNTP_CTL_EL0.set(1);
-            asm!("dmb SY");
-        }
-    }
-
     fn get_active_irq(&self) -> usize {
         let gicc = unsafe { GIC.gicc() };
         let iar = gicc.IAR.get();
         *self.iar.lock() = iar;
         let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
         irq as _
+    }
+
+    fn enable_irq(&self, irq: usize) {
+        unsafe {
+            asm!("dsb SY");
+            GIC.gicd().ISENABLER[irq / 32].set(1 << (irq & (32 - 1)));
+            asm!("dmb SY");
+        }
+    }
+
+    fn disable_irq(&self, _irq: usize) {
+        unimplemented!()
     }
 
     fn notify_end_of_interrupt(&self) {

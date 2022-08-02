@@ -19,3 +19,4 @@ pub mod cache;
 pub mod free_list_allocator;
 pub mod page;
 pub mod page_table;
+pub mod volatile;

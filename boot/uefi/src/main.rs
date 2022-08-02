@@ -16,7 +16,7 @@ use core::arch::asm;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, slice};
 use cortex_a::registers::*;
-use fdt::Fdt;
+use devtree::DeviceTree;
 use memory::address::*;
 use memory::page::*;
 use memory::page_table::*;
@@ -246,22 +246,18 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
 }
 
 fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo {
-    let fdt = Fdt::new(device_tree).unwrap();
-    let uart = if let Some(node) = fdt.find_compatible(&["arm,pl011"]) {
-        let mut addr = node.reg().unwrap().next().unwrap().starting_address as usize;
-        if addr & 0xff000000 == 0x7e000000 {
-            addr += 0x80000000
-        }
+    let uart = {
+        let devtree = DeviceTree::new(device_tree).unwrap();
+        let node = devtree.compatible("arm,pl011").unwrap();
+        let addr = node.translate(node.regs().unwrap().next().unwrap().start);
         const UART: Address = Address::new(0xdead_0000_0000);
         map_kernel_page_4k(
             PageTable::<L4>::get(),
             Page::new(UART),
-            Frame::new(addr.into()),
+            Frame::new(addr),
             PageFlags::device(),
         );
         Some(UART)
-    } else {
-        None
     };
     BootInfo {
         available_physical_memory: gen_available_physical_memory(),
@@ -479,6 +475,12 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
     debug_assert_eq!(CurrentEL.get() >> 2, 2);
 
     log!("Loading kernel...");
+
+    // let mut config_entries = st.config_table().iter();
+    // let rsdp_addr = config_entries
+    //     .find(|entry| matches!(entry.guid, cfg::ACPI2_GUID))
+    //     .map(|entry| entry.address);
+    // log!("RSDP @ {:?}", rsdp_addr);
 
     establish_el1_page_table();
 
