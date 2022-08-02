@@ -64,13 +64,17 @@ impl TTY {
         core::str::from_utf8(&buf).unwrap().to_owned()
     }
 
-    pub fn run(&self) -> ! {
+    pub fn run(&self) {
         log!("[[Sophon TTY]]");
         loop {
             let cmd = self.prompt();
             // println!("{:?}", cmd);
+            if cmd == "exit" {
+                break;
+            }
             syscall::exec(&cmd);
         }
+        log!("Sophon TTY exited.");
     }
 }
 
@@ -80,6 +84,7 @@ pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     ALLOCATOR.init();
     let tty = TTY::new();
     tty.run();
+    syscall::exit()
 }
 
 #[panic_handler]
