@@ -1,7 +1,7 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "heap"
+name = "mutex"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -10,7 +10,7 @@ edition = { workspace = true }
 
 [dependencies]
 spin = { workspace = true }
-memory = { path = "../memory" }
+log = { path = "../log" }
 syscall = { path = "../syscall" }
 
 [features]

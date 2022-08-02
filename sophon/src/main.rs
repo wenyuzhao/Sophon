@@ -115,6 +115,10 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
     let _proc = Proc::spawn_user(init.to_vec());
 
+    log!("[kernel] start tty process");
+    let tty = initfs.get("/bin/tty").unwrap().as_file().unwrap().to_vec();
+    let _proc = Proc::spawn_user(tty.to_vec());
+
     log!("[kernel] start scheduler");
     SCHEDULER.schedule();
 }

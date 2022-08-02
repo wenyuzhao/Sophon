@@ -20,6 +20,7 @@ use vfs::VFSRequest;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
+use crate::task::scheduler::monitor::SysMonitor;
 use crate::task::scheduler::AbstractScheduler;
 use crate::task::scheduler::SCHEDULER;
 use crate::task::Proc;
@@ -144,6 +145,10 @@ impl kernel_module::KernelService for KernelService {
         TargetArch::interrupt().notify_end_of_interrupt();
         SCHEDULER.timer_tick();
         unreachable!()
+    }
+
+    fn new_monitor(&self) -> mutex::Monitor {
+        mutex::Monitor::new(SysMonitor::new())
     }
 }
 

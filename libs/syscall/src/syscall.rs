@@ -9,6 +9,10 @@ use crate::ModuleRequest;
 pub enum Syscall {
     Log,
     ModuleCall,
+    Wait,
+    Sbrk,
+    Exec,
+    Exit,
 }
 
 #[inline]
@@ -51,4 +55,21 @@ pub fn module_call<'a>(module: &str, request: &'a impl ModuleRequest<'a>) -> isi
             &[transmute(name), args[0], args[1], args[2], args[3]],
         )
     }
+}
+
+#[inline]
+pub fn wait() -> isize {
+    syscall(Syscall::Wait, &[])
+}
+
+#[inline]
+pub fn exec(path: &str) -> isize {
+    let path = &path as *const &str;
+    unsafe { syscall(Syscall::Exec, &[transmute(path)]) }
+}
+
+#[inline]
+pub fn exit() -> ! {
+    syscall(Syscall::Exit, &[]);
+    unreachable!()
 }

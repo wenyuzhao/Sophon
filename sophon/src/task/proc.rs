@@ -1,3 +1,4 @@
+use super::scheduler::monitor::SysMonitor;
 use super::{ProcId, TaskId};
 use crate::kernel_tasks::user::UserTask;
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
@@ -14,7 +15,9 @@ use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};
+use mutex::AbstractMonitor;
 use spin::Mutex;
+use vfs::VFSRequest;
 
 static PROCS: Mutex<LinkedList<Arc<Proc>>> = Mutex::new(LinkedList::new());
 
@@ -24,6 +27,7 @@ pub struct Proc {
     page_table: Atomic<*mut PageTable>,
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
+    pub monitor: Arc<SysMonitor>,
 }
 
 unsafe impl Send for Proc {}
@@ -45,6 +49,7 @@ impl Proc {
             },
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
+            monitor: SysMonitor::new(),
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);
@@ -136,7 +141,7 @@ impl Proc {
                     let old_aligned = old.align_up(Size4K::BYTES);
                     Some(old_aligned + (num_pages << Size4K::LOG_BYTES))
                 });
-        log!("sbrk: {:?} {:?}", self.id, result);
+        // log!("sbrk: {:?} {:?}", self.id, result);
         match result {
             Ok(a) => {
                 let old_top = a;
@@ -164,9 +169,16 @@ impl Proc {
     }
 
     pub fn exit(&self) {
-        // TODO: Release file handles
+        // Release file handles
+        crate::modules::module_call("vfs", true, &VFSRequest::ProcExit(self.id));
         // Release memory
         let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
         crate::memory::utils::release_user_page_table(self.get_page_table());
+        // Remove from scheduler
+        let threads = self.threads.lock();
+        for t in &*threads {
+            SCHEDULER.remove_task(*t)
+        }
+        self.monitor.notify();
     }
 }

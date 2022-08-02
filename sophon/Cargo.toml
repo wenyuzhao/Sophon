@@ -27,6 +27,7 @@ elf_loader = { path = "../libs/elf_loader" }
 vfs = { path = "../libs/vfs" }
 proc = { path = "../libs/proc" }
 devtree = { path = "../libs/devtree" }
+mutex = { path = "../libs/mutex" }
 
 [build-dependencies]
 spin = { workspace = true }

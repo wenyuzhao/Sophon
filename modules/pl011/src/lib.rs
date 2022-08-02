@@ -9,7 +9,8 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use dev::{DevRequest, Device};
-use spin::{Mutex, RwLock};
+use mutex::Monitor;
+use spin::{Lazy, Mutex, RwLock};
 
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use memory::{page::Frame, volatile::Volatile};
@@ -18,6 +19,7 @@ use memory::{page::Frame, volatile::Volatile};
 pub static PL011_MODULE: PL011 = PL011 {
     uart: RwLock::new(core::ptr::null_mut()),
     buffer: Mutex::new(Vec::new()),
+    monitor: Lazy::new(|| SERVICE.new_monitor()),
 };
 
 unsafe impl Send for PL011 {}
@@ -26,6 +28,7 @@ unsafe impl Sync for PL011 {}
 pub struct PL011 {
     pub uart: RwLock<*mut UART0>,
     pub buffer: Mutex<Vec<u8>>,
+    monitor: Lazy<Monitor>,
 }
 
 impl PL011 {
@@ -51,7 +54,7 @@ impl KernelModule for PL011 {
                 let c = self.uart().dr.get() as u8;
                 self.buffer.lock().push(c);
             }
-            // PL011_MODULE.monitor.notify();
+            PL011_MODULE.monitor.notify();
             0
         });
         SERVICE.enable_irq(irq);
@@ -116,7 +119,7 @@ impl UART0 {
             } else {
                 while buf.is_empty() {
                     drop(buf);
-                    // PL011_MODULE.monitor.wait();
+                    PL011_MODULE.monitor.wait();
                     buf = PL011_MODULE.buffer.lock();
                 }
             }

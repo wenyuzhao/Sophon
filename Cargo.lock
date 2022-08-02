@@ -367,7 +367,9 @@ dependencies = [
 name = "heap"
 version = "0.0.2"
 dependencies = [
+ "memory",
  "spin",
+ "syscall",
 ]
 
 [[package]]
@@ -392,6 +394,16 @@ checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 
 [[package]]
 name = "hello"
+version = "0.0.2"
+dependencies = [
+ "heap",
+ "log 0.0.2",
+ "syscall",
+ "vfs",
+]
+
+[[package]]
+name = "hello-module"
 version = "0.0.2"
 dependencies = [
  "anyhow",
@@ -444,6 +456,7 @@ dependencies = [
  "kernel_module_macros",
  "log 0.0.2",
  "memory",
+ "mutex",
  "proc",
  "spin",
  "syscall",
@@ -536,6 +549,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mutex"
+version = "0.0.2"
+dependencies = [
+ "log 0.0.2",
+ "spin",
+ "syscall",
+]
+
+[[package]]
 name = "nb"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -591,6 +613,7 @@ dependencies = [
  "kernel_module",
  "log 0.0.2",
  "memory",
+ "mutex",
  "spin",
 ]
 
@@ -773,6 +796,7 @@ dependencies = [
  "kernel_module",
  "log 0.0.2",
  "memory",
+ "mutex",
  "postcard",
  "proc",
  "serde",
@@ -879,6 +903,16 @@ name = "tock-registers"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ee8fba06c1f4d0b396ef61a54530bb6b28f0dc61c38bc8bc5a5a48161e6282e"
+
+[[package]]
+name = "tty"
+version = "0.0.2"
+dependencies = [
+ "heap",
+ "log 0.0.2",
+ "syscall",
+ "vfs",
+]
 
 [[package]]
 name = "ucs2"

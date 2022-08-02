@@ -4,6 +4,7 @@ use core::ops::Deref;
 use devtree::DeviceTree;
 use memory::address::Address;
 use memory::page::{Frame, Page};
+use mutex::Monitor;
 use proc::{ProcId, TaskId};
 use syscall::RawModuleRequest;
 
@@ -27,6 +28,7 @@ pub trait KernelService: Send + Sync + 'static {
     fn disable_irq(&self, irq: usize);
     // Scheduler
     fn schedule(&self) -> !;
+    fn new_monitor(&self) -> Monitor;
 }
 
 #[repr(C)]

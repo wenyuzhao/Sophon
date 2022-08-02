@@ -4,6 +4,12 @@ init.fs:
       init:
         + cargo-build: user/init
         + copy: target/_out/init
+      tty:
+        + cargo-build: user/tty
+        + copy: target/_out/tty
+      hello:
+        + cargo-build: user/hello
+        + copy: target/_out/hello
     etc/:
       modules/:
         libhello.so:

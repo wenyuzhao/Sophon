@@ -17,6 +17,7 @@ members = [
     "libs/vfs",
     "libs/heap",
     "libs/interrupt",
+    "libs/mutex",
     "libs/proc",
     "libs/syscall",
     "libs/kernel_module",
@@ -29,6 +30,8 @@ members = [
     "boot/uefi",
 # User programs
     "user/init",
+    "user/tty",
+    "user/hello",
 ]
 
 [workspace.package]

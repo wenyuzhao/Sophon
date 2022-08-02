@@ -96,11 +96,22 @@ impl AbstractScheduler for RoundRobinScheduler {
     }
 
     #[inline]
-    fn mark_task_as_ready(&self, task: Arc<Task>) {
-        assert!(task.scheduler_state::<Self>().load(Ordering::SeqCst) != RunState::Ready);
-        task.scheduler_state::<Self>()
-            .store(RunState::Ready, Ordering::SeqCst);
-        self.task_queue.push(task.id);
+    fn wake_up(&self, task: Arc<Task>) {
+        let _guard = interrupt::uninterruptible();
+        let old = task.scheduler_state::<Self>().fetch_update(
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+            |old| {
+                if old == RunState::Sleeping {
+                    Some(RunState::Ready)
+                } else {
+                    None
+                }
+            },
+        );
+        if old == Ok(RunState::Sleeping) {
+            self.task_queue.push(task.id);
+        }
     }
 
     #[inline]
@@ -129,12 +140,13 @@ impl AbstractScheduler for RoundRobinScheduler {
                 next_task.scheduler_state::<Self>().load(Ordering::SeqCst),
                 RunState::Ready
             );
-            // log!(
-            //     "Switch: {:?} -> {:?}",
-            //     current_task.as_ref().map(|t| t.id),
-            //     next_task.id
-            // );
-
+            // if current_task.as_ref().map(|t| t.id) != Some(next_task.id) {
+            //     log!(
+            //         "Switch: {:?} -> {:?}",
+            //         current_task.as_ref().map(|t| t.id),
+            //         next_task.id
+            //     );
+            // }
             // Run next task
             {
                 let state = next_task.scheduler_state::<Self>();
