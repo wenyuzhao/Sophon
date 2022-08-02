@@ -4,6 +4,7 @@ use crate::{
 };
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
+use mutex::AbstractMonitor;
 use syscall::Syscall;
 use vfs::{Fd, VFSRequest};
 
@@ -83,6 +84,7 @@ fn exec(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
         }
     }
     let proc = Proc::spawn_user(elf);
+    proc.monitor.wait();
     proc.id.0 as _
 }
 

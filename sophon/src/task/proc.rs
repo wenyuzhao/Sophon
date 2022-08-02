@@ -1,3 +1,4 @@
+use super::scheduler::monitor::SysMonitor;
 use super::{ProcId, TaskId};
 use crate::kernel_tasks::user::UserTask;
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
@@ -14,6 +15,7 @@ use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};
+use mutex::AbstractMonitor;
 use spin::Mutex;
 use vfs::VFSRequest;
 
@@ -25,6 +27,7 @@ pub struct Proc {
     page_table: Atomic<*mut PageTable>,
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
+    pub monitor: Arc<SysMonitor>,
 }
 
 unsafe impl Send for Proc {}
@@ -46,6 +49,7 @@ impl Proc {
             },
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
+            monitor: SysMonitor::new(),
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);
@@ -175,5 +179,6 @@ impl Proc {
         for t in &*threads {
             SCHEDULER.remove_task(*t)
         }
+        self.monitor.notify();
     }
 }
