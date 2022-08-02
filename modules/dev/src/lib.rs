@@ -3,6 +3,7 @@
 #![feature(generic_associated_types)]
 #![no_std]
 
+#[allow(unused)]
 #[macro_use]
 extern crate log;
 extern crate alloc;
@@ -22,7 +23,6 @@ impl KernelModule for DEV {
     type ModuleRequest<'a> = DevRequest<'a>;
 
     fn init(&mut self) -> anyhow::Result<()> {
-        log!("Hello, Device Manager!");
         kernel_module::module_call(
             "vfs",
             &VFSRequest::RegisterFS(&(&*DEV_FS as &'static dyn FileSystem)),

@@ -3,6 +3,7 @@
 #![feature(box_syntax)]
 #![no_std]
 
+#[allow(unused)]
 #[macro_use]
 extern crate log;
 extern crate alloc;
@@ -55,7 +56,6 @@ impl GICTimer {
 
 impl KernelModule for GICTimer {
     fn init(&mut self) -> anyhow::Result<()> {
-        log!("Hello, GIC-Timer!");
         let irq = self.get_timer_irq();
         self.set_timer_handler(irq);
         self.start_timer(irq);

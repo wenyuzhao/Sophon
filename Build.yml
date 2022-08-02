@@ -24,13 +24,13 @@ init.fs:
         libpl011.so:
           + cargo-build: modules/pl011
           + copy: target/_out/libpl011.so
-        libgictimer.so:
+        libgic_timer.so:
           + cargo-build: modules/gic-timer
-          + copy: target/_out/libgictimer.so
+          + copy: target/_out/libgic_timer.so
         libgic.so:
           + cargo-build: modules/gic
           + copy: target/_out/libgic.so
-        libbcm2711-gpio.so:
+        libbcm2711_gpio.so:
           + cargo-build: modules/bcm2711-gpio
           + copy: target/_out/libbcm2711_gpio.so
       hello.txt:

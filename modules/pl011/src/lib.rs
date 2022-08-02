@@ -3,6 +3,7 @@
 #![feature(box_syntax)]
 #![no_std]
 
+#[allow(unused)]
 #[macro_use]
 extern crate log;
 extern crate alloc;
@@ -42,7 +43,6 @@ impl PL011 {
 
 impl KernelModule for PL011 {
     fn init(&'static mut self) -> anyhow::Result<()> {
-        log!("Hello, PL011!");
         let devtree = SERVICE.get_device_tree().unwrap();
         let node = devtree.compatible("arm,pl011").unwrap();
         let uart_frame = node.translate(node.regs().unwrap().next().unwrap().start);

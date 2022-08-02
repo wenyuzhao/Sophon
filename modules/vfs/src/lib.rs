@@ -53,7 +53,6 @@ impl KernelModule for VFS {
     type ModuleRequest<'a> = VFSRequest<'a>;
 
     fn init(&mut self) -> anyhow::Result<()> {
-        log!("Hello, VFS!");
         Ok(())
     }
 

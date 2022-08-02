@@ -44,23 +44,21 @@ static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
 static mut DEV_TREE: Option<DeviceTree<'static, 'static>> = None;
 
 fn display_banner() {
+    let ver = env!("CARGO_PKG_VERSION");
     println!(r"");
     println!(r" ____ ____ ___  _  _ ____ _  _    ____ ____ ");
     println!(r" [__  |  | |__] |__| |  | |\ |    |  | [__  ");
-    println!(
-        r" ___] |__| |    |  | |__| | \|    |__| ___]   v{}",
-        env!("CARGO_PKG_VERSION")
-    );
+    println!(r" ___] |__| |    |  | |__| | \|    |__| ___]   v{}", ver);
     println!(r"");
     println!(r" Hello Sophon! ");
     println!(r"");
 }
 
 const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
-    ("bcm2711-gpio", "/etc/modules/libbcm2711-gpio.so"),
-    ("gic", "/etc/modules/libgic.so"),
     ("hello", "/etc/modules/libhello.so"),
-    ("gic-timer", "/etc/modules/libgictimer.so"),
+    ("bcm2711-gpio", "/etc/modules/libbcm2711_gpio.so"),
+    ("gic", "/etc/modules/libgic.so"),
+    ("gic-timer", "/etc/modules/libgic_timer.so"),
     ("vfs", "/etc/modules/libvfs.so"),
     ("dev", "/etc/modules/libdev.so"),
     ("pl011", "/etc/modules/libpl011.so"),
@@ -117,10 +115,6 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     log!("[kernel] start init process");
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
     let _proc = Proc::spawn_user(init.to_vec());
-
-    log!("[kernel] start tty process");
-    let tty = initfs.get("/bin/tty").unwrap().as_file().unwrap().to_vec();
-    let _proc = Proc::spawn_user(tty.to_vec());
 
     log!("[kernel] start scheduler");
     SCHEDULER.schedule();

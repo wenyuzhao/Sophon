@@ -3,6 +3,7 @@
 #![feature(box_syntax)]
 #![no_std]
 
+#[allow(unused)]
 #[macro_use]
 extern crate log;
 extern crate alloc;
@@ -161,7 +162,6 @@ pub static GIC: GIC = GIC::new();
 
 impl KernelModule for GIC {
     fn init(&'static mut self) -> anyhow::Result<()> {
-        log!("Hello, GIC!");
         let devtree = SERVICE.get_device_tree().unwrap();
         let node = devtree
             .compatible("arm,cortex-a15-gic")
