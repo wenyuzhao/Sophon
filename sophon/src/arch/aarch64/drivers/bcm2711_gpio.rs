@@ -1,10 +1,7 @@
 use crate::{boot_driver::BootDriver, utils::volatile::Volatile};
 use core::arch::asm;
-use fdt::node::FdtNode;
-use memory::{
-    address::{Address, P},
-    page::Frame,
-};
+use devtree::Node;
+use memory::page::Frame;
 
 #[repr(C)]
 pub struct GPIORegisters {
@@ -90,10 +87,8 @@ pub static mut GPIO: GPIO = GPIO::new();
 
 impl BootDriver for GPIO {
     const COMPATIBLE: &'static [&'static str] = &["brcm,bcm2711-gpio"];
-    fn init(&mut self, node: &FdtNode, parent: Option<&FdtNode>) {
-        let mut gpio_frame =
-            Address::<P>::new(node.reg().unwrap().next().unwrap().starting_address as usize);
-        gpio_frame = Self::translate_address(gpio_frame, parent.unwrap());
+    fn init(&mut self, node: &Node) {
+        let gpio_frame = node.translate(node.regs().unwrap().next().unwrap().start);
         let gpio_page = Self::map_device_page(Frame::new(gpio_frame));
         self.gpio = Some(gpio_page.start().as_mut_ptr());
         self.init_gpio();

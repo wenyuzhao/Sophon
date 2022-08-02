@@ -3,13 +3,18 @@ members = [
 # Kernel
     "sophon",
 # Kernel Modules,
+    "modules/dev",
+    "modules/gic-timer",
     "modules/hello",
+    "modules/pl011",
     "modules/vfs",
 # Libraries
     "libs/bitflags",
     "libs/boot",
+    "libs/dev",
+    "libs/devtree",
     "libs/elf_loader",
-    "libs/fs",
+    "libs/vfs",
     "libs/heap",
     "libs/interrupt",
     "libs/proc",
@@ -32,6 +37,7 @@ edition = "2021"
 
 [profile.dev]
 panic = "abort"
+opt-level = "z" # temporarily reduce init.fs load time
 
 [profile.release]
 panic = "abort"
@@ -40,7 +46,7 @@ codegen-units = 1
 
 [workspace.dependencies]
 spin = "0.9.3"
-fdt = "0.1.3"
+fdt-rs = { version = "0.4.3", default-features = false }
 serde = { version = "1.0", default-features = false }
 postcard = { version = "1.0.0", features = ["alloc"] }
 atomic = "0.5"

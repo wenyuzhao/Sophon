@@ -48,10 +48,10 @@ static ALLOCATOR: NoAlloc = NoAlloc;
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     UserLogger::init();
     log!("Init process start");
-    let file = syscall::open("/etc/hello.txt");
+    let file = vfs::open("/etc/hello.txt");
     assert!(file != -1);
     let mut buf = [0u8; 32];
-    let len = syscall::read(file as usize, &mut buf) as usize;
+    let len = vfs::read(file as usize, &mut buf) as usize;
     let s = core::str::from_utf8(&buf[0..len]);
     log!("read: {:?}", s);
     loop {}

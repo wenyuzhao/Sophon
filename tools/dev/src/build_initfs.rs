@@ -1,6 +1,6 @@
 use crate::util::{self, Arch, CargoFlags, ShellExt};
-use ::fs::ramfs::{self, RamFS};
 use std::{error::Error, fs};
+use vfs::ramfs::{self, RamFS};
 use xshell::Shell;
 use yaml_rust::Yaml;
 

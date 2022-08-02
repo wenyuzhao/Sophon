@@ -1,41 +1,15 @@
 use alloc::{
     borrow::{Cow, ToOwned},
     format,
-    string::String,
-    vec::Vec,
 };
+use vfs::Node;
 
-use crate::{mount::Mount, rootfs::ROOT_FS};
+use crate::rootfs::ROOT_FS;
 
 /// Per-process file descriptor
 pub struct FileDescriptor {
     pub node: Node,
     pub offset: usize,
-}
-
-#[derive(Clone)]
-pub struct Node {
-    pub name: Cow<'static, str>,
-    pub path: Cow<'static, str>,
-    pub fs: &'static dyn FileSystem,
-    pub mount: Option<&'static Mount>,
-    pub block: usize,
-    pub offset: usize,
-}
-
-pub struct Stat {
-    pub fs: &'static dyn FileSystem,
-    pub mount: bool,
-    pub is_dir: bool,
-}
-
-pub trait FileSystem: Sync + Send {
-    fn stat(&self, parent: &Node, file: &str) -> Option<Stat>;
-    // File operations
-    fn open(&self, parent: &Node, file: &str) -> Option<Node>;
-    fn read(&self, node: &Node, offset: usize, buf: &mut [u8]) -> Option<usize>;
-    // Dir operations
-    fn read_dir(&self, node: &Node) -> Option<Vec<String>>;
 }
 
 fn vfs_open_impl(parent: &Node, path: &str) -> Option<Node> {
@@ -58,6 +32,10 @@ fn vfs_open_impl(parent: &Node, path: &str) -> Option<Node> {
                 remaining_path,
             )
         }
+    } else if let Some(mnt) = stat.mount {
+        let mnt_table = super::mount::MOUNT_POINTS.read();
+        let mnt = mnt_table[mnt].as_ref()?;
+        vfs_open_impl(&mnt.root, remaining_path)
     } else {
         parent.fs.open(parent, entry)
     }

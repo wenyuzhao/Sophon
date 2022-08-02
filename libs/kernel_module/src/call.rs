@@ -1,41 +1,25 @@
 use crate::KernelModule;
 use alloc::boxed::Box;
 use core::intrinsics::type_id;
-use core::marker::PhantomData;
+use syscall::{ModuleRequest, RawModuleRequest};
 
 pub trait ModuleCallHandler: Send + Sync {
-    fn handle(&self, args: [usize; 4]) -> isize;
+    fn handle<'a>(&self, privileged: bool, request: RawModuleRequest<'a>) -> isize;
 }
 
-pub trait ModuleCall {
-    fn from(args: [usize; 4]) -> Self;
-    fn handle(self) -> anyhow::Result<isize>;
-}
-
-impl ModuleCall for ! {
-    fn from(_args: [usize; 4]) -> Self {
-        unreachable!()
-    }
-    fn handle(self) -> anyhow::Result<isize> {
-        unreachable!()
-    }
-}
-
-pub(crate) fn register_module_call<T: KernelModule>() {
-    if type_id::<T::ModuleCall<'static>>() == type_id::<!>() {
+pub(crate) fn register_module_call<T: KernelModule>(module: &'static T) {
+    if type_id::<T::ModuleRequest<'static>>() == type_id::<!>() {
         return;
     }
     struct HandlerImpl<T: KernelModule> {
-        _marker: PhantomData<T>,
+        module: &'static T,
     }
     impl<T: KernelModule> ModuleCallHandler for HandlerImpl<T> {
-        fn handle<'a>(&'a self, args: [usize; 4]) -> isize {
-            let call = <T::ModuleCall<'a> as ModuleCall>::from(args);
-            call.handle().unwrap_or_else(|_| -1)
+        fn handle<'a>(&'a self, privileged: bool, raw: RawModuleRequest<'a>) -> isize {
+            let request = <T::ModuleRequest<'a> as ModuleRequest>::from_raw(raw);
+            self.module.handle_module_call(privileged, request)
         }
     }
-    let handler: &'static HandlerImpl<T> = Box::leak(Box::new(HandlerImpl {
-        _marker: PhantomData,
-    }));
+    let handler: &'static HandlerImpl<T> = Box::leak(Box::new(HandlerImpl { module }));
     crate::SERVICE.register_module_call_handler(handler);
 }

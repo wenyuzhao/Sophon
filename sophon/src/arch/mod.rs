@@ -1,43 +1,45 @@
 use alloc::boxed::Box;
-use fdt::Fdt;
+use devtree::DeviceTree;
 use memory::address::*;
 use memory::page_table::PageTable;
 
-#[repr(usize)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum InterruptId {
-    Timer = 0,
-    Soft = 1,
-    PageFault = 2,
-}
-
+pub type IRQHandler = Box<dyn Fn() -> isize>;
 pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize) -> isize>;
 
-static mut INTERRUPT_HANDLERS: [Option<InterruptHandler>; 3] = [None, None, None];
+const MAX_IRQS: usize = 256;
+const IRQ_UNINIT: Option<IRQHandler> = None;
+static mut IRQ_HANDLERS: [Option<IRQHandler>; MAX_IRQS] = [IRQ_UNINIT; MAX_IRQS];
+static mut SYSCALL_HANDLER: Option<InterruptHandler> = None;
+
+#[allow(unused)]
+#[inline]
+pub(self) fn handle_irq(irq: usize) -> isize {
+    if let Some(handler) = unsafe { IRQ_HANDLERS[irq].as_ref() } {
+        handler()
+    } else {
+        log!("IRQ #{:?} has no handler!", irq);
+        0
+    }
+}
 
 pub trait ArchInterruptController {
-    fn start_timer(&self);
-
     fn get_active_irq(&self) -> usize;
 
-    fn notify_end_of_interrupt(&self);
-
-    fn handle(&self, id: InterruptId, args: &[usize]) -> isize {
-        let mut x = [0usize; 6];
-        for i in 0..args.len() {
-            x[i] = args[i];
-        }
-        if let Some(handler) = unsafe { &INTERRUPT_HANDLERS[id as usize] } {
-            handler(x[0], x[1], x[2], x[3], x[4], x[5])
-        } else {
-            log!("Interrupt<{:?}> has no handler!", id);
-            0
+    fn set_irq_handler(&self, irq: usize, handler: IRQHandler) {
+        unsafe {
+            IRQ_HANDLERS[irq] = Some(handler);
         }
     }
 
-    fn set_handler(&self, id: InterruptId, handler: Option<InterruptHandler>) {
+    fn enable_irq(&self, irq: usize);
+
+    fn disable_irq(&self, irq: usize);
+
+    fn notify_end_of_interrupt(&self);
+
+    fn set_syscall_handler(&self, handler: Option<InterruptHandler>) {
         unsafe {
-            INTERRUPT_HANDLERS[id as usize] = handler;
+            SYSCALL_HANDLER = handler;
         }
     }
 }
@@ -58,7 +60,7 @@ pub trait ArchContext: Sized + 'static {
 pub trait Arch {
     type Context: ArchContext;
 
-    fn init(device_tree: &Fdt);
+    fn init(device_tree: &'static DeviceTree<'static, 'static>);
     fn interrupt() -> &'static dyn ArchInterruptController;
 }
 

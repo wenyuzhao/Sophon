@@ -36,11 +36,13 @@ use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use crate::task::Proc;
 use alloc::boxed::Box;
 use boot::BootInfo;
-use fdt::Fdt;
-use fs::ramfs::RamFS;
+use devtree::DeviceTree;
+use vfs::ramfs::RamFS;
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
+
+static mut DEV_TREE: Option<DeviceTree<'static, 'static>> = None;
 
 fn display_banner() {
     println!(r"");
@@ -56,7 +58,7 @@ fn display_banner() {
 }
 
 #[no_mangle]
-pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
+pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
         utils::boot_log::init(uart);
     }
@@ -78,16 +80,19 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     KERNEL_HEAP.init();
 
     // Initialize arch and boot drivers
-    log!("[kernel] load fdt");
-    let fdt = Fdt::new(boot_info.device_tree).unwrap();
+    log!("[kernel] load device tree");
+    unsafe {
+        DEV_TREE = DeviceTree::new(boot_info.device_tree);
+    }
     log!("[kernel] arch-specific initialization");
-    TargetArch::init(&fdt);
+    TargetArch::init(unsafe { DEV_TREE.as_ref().unwrap() });
 
     log!("[kernel] initialize syscall");
     task::syscall::init();
 
     log!("[kernel] load init-fs");
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
+    let initfs_ptr = initfs as *mut _;
 
     let load_module_from_initfs = |name: &str, path: &str| {
         log!("[kernel]  - load module '{}'", name);
@@ -96,8 +101,11 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     };
     log!("[kernel] load kernel modules...");
     load_module_from_initfs("hello", "/etc/modules/libhello.so");
+    load_module_from_initfs("gic-timer", "/etc/modules/libgictimer.so");
     load_module_from_initfs("vfs", "/etc/modules/libvfs.so");
-    crate::modules::init_vfs(initfs);
+    crate::modules::init_vfs(initfs_ptr);
+    load_module_from_initfs("dev", "/etc/modules/libdev.so");
+    load_module_from_initfs("pl011", "/etc/modules/libpl011.so");
     log!("[kernel] kernel modules loaded");
 
     log!("[kernel] start idle process");
@@ -106,9 +114,6 @@ pub extern "C" fn _start(boot_info: &BootInfo) -> isize {
     log!("[kernel] start init process");
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
     let _proc = Proc::spawn_user(init.to_vec());
-
-    log!("[kernel] start timer");
-    TargetArch::interrupt().start_timer();
 
     log!("[kernel] start scheduler");
     SCHEDULER.schedule();

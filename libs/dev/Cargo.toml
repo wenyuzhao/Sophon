@@ -1,7 +1,7 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "sophon-dev"
+name = "dev"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -9,11 +9,7 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-vfs = {path = "../../libs/vfs" }
-xshell = { workspace = true }
-clap = { workspace = true }
-spin = { workspace = true }
-serde = { workspace = true }
-postcard = { workspace = true }
-yaml-rust = { workspace = true }
-anyhow = { workspace = true }
+syscall = { path = "../syscall" }
+
+[features]
+default = []
