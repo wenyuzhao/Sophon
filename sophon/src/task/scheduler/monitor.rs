@@ -39,7 +39,9 @@ impl AbstractMonitor for SysMonitor {
     }
     fn notify(&self) {
         for t in &*self.waiters.lock() {
-            SCHEDULER.wake_up(SCHEDULER.get_task_by_id(*t).unwrap())
+            if let Some(task) = SCHEDULER.get_task_by_id(*t) {
+                SCHEDULER.wake_up(task)
+            }
         }
     }
 }

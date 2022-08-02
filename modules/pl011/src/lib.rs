@@ -7,8 +7,11 @@
 extern crate log;
 extern crate alloc;
 
+use core::fmt;
+
 use alloc::vec::Vec;
 use dev::{DevRequest, Device};
+use log::Logger;
 use mutex::Monitor;
 use spin::{Lazy, Mutex, RwLock};
 
@@ -47,6 +50,7 @@ impl KernelModule for PL011 {
         let uart = unsafe { &mut *(uart_page.start().as_mut_ptr() as *mut UART0) };
         uart.init();
         *self.uart.write() = uart;
+        SERVICE.set_sys_logger(&UART_LOGGER);
         // Initialize interrupts
         let irq = node.interrupts().unwrap().next().unwrap().0;
         SERVICE.set_irq_handler(irq, box || {
@@ -103,9 +107,9 @@ pub struct UART0 {
 }
 
 impl UART0 {
-    // fn transmit_fifo_full(&self) -> bool {
-    //     self.fr.get() & (1 << 5) != 0
-    // }
+    fn transmit_fifo_full(&self) -> bool {
+        self.fr.get() & (1 << 5) != 0
+    }
 
     fn receive_fifo_empty(&self) -> bool {
         self.fr.get() & (1 << 4) != 0
@@ -134,10 +138,10 @@ impl UART0 {
         // }
     }
 
-    // fn putchar(&mut self, c: char) {
-    //     while self.transmit_fifo_full() {}
-    //     self.dr.set(c as u8 as u32);
-    // }
+    fn putchar(&mut self, c: char) {
+        while self.transmit_fifo_full() {}
+        self.dr.set(c as u8 as u32);
+    }
 
     fn init(&mut self) {
         self.cr.set(0);
@@ -147,5 +151,26 @@ impl UART0 {
         self.lcrh.set(0b11 << 5);
         self.imsc.set(1 << 4);
         self.cr.set((1 << 0) | (1 << 8) | (1 << 9));
+    }
+}
+
+static UART_LOGGER: UARTLogger = UARTLogger;
+
+pub struct UARTLogger;
+
+impl Logger for UARTLogger {
+    fn log(&self, s: &str) -> Result<(), fmt::Error> {
+        let _guard = interrupt::uninterruptible();
+        for c in s.chars() {
+            if c == '\n' {
+                PL011_MODULE.uart().putchar('\r');
+            }
+            PL011_MODULE.uart().putchar(c);
+        }
+        Ok(())
+    }
+    fn log_fmt(&self, args: fmt::Arguments) -> Result<(), fmt::Error> {
+        let _guard = interrupt::uninterruptible();
+        log::log_fmt(self, args)
     }
 }

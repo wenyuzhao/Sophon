@@ -1,10 +1,10 @@
 use crate::arch::ArchInterruptController;
-use crate::utils::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use crate::{arch::aarch64::INTERRUPT_CONTROLLER, boot_driver::BootDriver};
 use core::arch::asm;
 use cortex_a::asm::barrier;
 use devtree::Node;
 use memory::page::Frame;
+use memory::volatile::{PaddingForRange, Volatile, VolatileArrayForRange};
 use spin::Mutex;
 
 pub const IRQ_LINES: usize = 256;

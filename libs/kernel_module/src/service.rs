@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::ops::Deref;
 use devtree::DeviceTree;
+use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
 use mutex::Monitor;
@@ -11,6 +12,7 @@ use syscall::RawModuleRequest;
 pub trait KernelService: Send + Sync + 'static {
     // Logging
     fn log(&self, s: &str);
+    fn set_sys_logger(&self, logger: &'static dyn Logger);
     // Module calls
     fn register_module_call_handler(&self, handler: &'static dyn super::ModuleCallHandler);
     fn module_call<'a>(&self, module: &str, request: RawModuleRequest<'a>) -> isize;

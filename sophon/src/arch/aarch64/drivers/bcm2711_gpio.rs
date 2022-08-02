@@ -1,7 +1,8 @@
-use crate::{boot_driver::BootDriver, utils::volatile::Volatile};
+use crate::boot_driver::BootDriver;
 use core::arch::asm;
 use devtree::Node;
 use memory::page::Frame;
+use memory::volatile::Volatile;
 
 #[repr(C)]
 pub struct GPIORegisters {

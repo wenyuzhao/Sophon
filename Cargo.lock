@@ -610,6 +610,7 @@ version = "0.0.2"
 dependencies = [
  "anyhow",
  "dev",
+ "interrupt",
  "kernel_module",
  "log 0.0.2",
  "memory",

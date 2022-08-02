@@ -26,7 +26,7 @@ impl Logger for BootLogger {
             Some(a) => a,
             _ => return Ok(()),
         };
-        use crate::utils::volatile::*;
+        use memory::volatile::*;
         #[repr(C)]
         struct UARTRegisters {
             pub dr: Volatile<u32>,     // 0x00
