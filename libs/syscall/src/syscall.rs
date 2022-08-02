@@ -11,6 +11,7 @@ pub enum Syscall {
     ModuleCall,
     Wait,
     Sbrk,
+    Exec,
 }
 
 #[inline]
@@ -58,4 +59,10 @@ pub fn module_call<'a>(module: &str, request: &'a impl ModuleRequest<'a>) -> isi
 #[inline]
 pub fn wait() -> isize {
     syscall(Syscall::Wait, &[])
+}
+
+#[inline]
+pub fn exec(path: &str) -> isize {
+    let path = &path as *const &str;
+    unsafe { syscall(Syscall::Exec, &[transmute(path)]) }
 }

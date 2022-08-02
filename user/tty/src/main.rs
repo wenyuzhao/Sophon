@@ -55,11 +55,10 @@ impl TTY {
             let c = self.read_byte();
             if c == 8 {
                 buf.pop();
+            } else if c == b'\n' {
+                break;
             } else {
                 buf.push(c);
-            }
-            if c == b'\n' {
-                break;
             }
         }
         core::str::from_utf8(&buf).unwrap().to_owned()
@@ -69,7 +68,8 @@ impl TTY {
         log!("[[Sophon TTY]]");
         loop {
             let cmd = self.prompt();
-            println!("{:?}", cmd);
+            // println!("{:?}", cmd);
+            syscall::exec(&cmd);
         }
     }
 }
