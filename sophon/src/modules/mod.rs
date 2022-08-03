@@ -3,7 +3,6 @@ use core::iter::Step;
 use kernel_module::KernelServiceWrapper;
 use kernel_module::ModuleCallHandler;
 use memory::page::{Page, PageResource, Size4K};
-use spin::Lazy;
 use spin::RwLock;
 use syscall::RawModuleRequest;
 use vfs::ramfs::RamFS;
@@ -28,7 +27,7 @@ static MODULES: RwLock<[Option<Box<KernelModule>>; MAX_MODULES]> = {
     const UNINIT: Option<Box<KernelModule>> = None;
     RwLock::new([UNINIT; MAX_MODULES])
 };
-static MODULE_NAMES: Lazy<RwLock<BTreeMap<String, usize>>> = Lazy::new(Default::default);
+static MODULE_NAMES: RwLock<BTreeMap<String, usize>> = RwLock::new(BTreeMap::new());
 
 fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrapper) -> usize {
     let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
