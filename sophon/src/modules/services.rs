@@ -49,13 +49,9 @@ impl kernel_module::KernelService for KernelService {
 
     fn register_module_call_handler(&self, handler: &'static dyn ModuleCallHandler) {
         // log!("register module call");
-        MODULES
-            .lock()
-            .get_mut(&self.0)
-            .map(|module| {
-                module.call = Some(handler);
-            })
-            .unwrap();
+        MODULES.write()[self.0].as_mut().map(|m| {
+            m.call = Some(handler);
+        });
     }
 
     fn module_call<'a>(&self, module: &str, request: syscall::RawModuleRequest<'a>) -> isize {
