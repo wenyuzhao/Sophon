@@ -102,7 +102,14 @@ impl FileSystem for DevFS {
         if !devices.contains_key(node.name.as_ref()) {
             return None;
         }
-        Some(devices[node.name.as_ref()].read(offset, buf))
+        devices[node.name.as_ref()].read(offset, buf)
+    }
+    fn write(&self, node: &Node, offset: usize, buf: &[u8]) -> Option<usize> {
+        let devices = self.devices.read();
+        if !devices.contains_key(node.name.as_ref()) {
+            return None;
+        }
+        devices[node.name.as_ref()].write(offset, buf)
     }
     fn read_dir(&self, _node: &Node) -> Option<Vec<String>> {
         unimplemented!()

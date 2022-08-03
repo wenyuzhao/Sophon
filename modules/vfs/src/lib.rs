@@ -95,6 +95,24 @@ impl KernelModule for VFS {
                     }
                 }
             }
+            VFSRequest::Write(_fd, buf) => {
+                assert!(!privileged);
+                let mut open_files = OPEN_FILES.lock();
+                let fd = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
+                    Some(proc_data) => match proc_data.nodes[_fd.0 as usize].as_mut() {
+                        Some(node) => node,
+                        None => return -1,
+                    },
+                    None => return -1,
+                };
+                match fd.node.fs.write(&fd.node, fd.offset, buf) {
+                    None => -1,
+                    Some(v) => {
+                        fd.offset += v;
+                        v as _
+                    }
+                }
+            }
             VFSRequest::Mount { path, dev, fs } => {
                 assert!(privileged);
                 let fs = FILE_SYSTEMS.read()[fs];

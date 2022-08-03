@@ -36,6 +36,7 @@ pub trait FileSystem: Sync + Send {
     // File operations
     fn open(&self, parent: &Node, file: &str) -> Option<Node>;
     fn read(&self, node: &Node, offset: usize, buf: &mut [u8]) -> Option<usize>;
+    fn write(&self, node: &Node, offset: usize, buf: &[u8]) -> Option<usize>;
     // Dir operations
     fn read_dir(&self, node: &Node) -> Option<Vec<String>>;
     // Mount
@@ -46,6 +47,7 @@ pub enum VFSRequest<'a> {
     Init(&'static mut RamFS),
     Open(&'a str),
     Read(Fd, &'a mut [u8]),
+    Write(Fd, &'a [u8]),
     Mount {
         path: &'a str,
         dev: usize,
@@ -61,9 +63,10 @@ impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
             Self::Init(ramfs) => RawModuleRequest::new(0, ramfs, &(), &()),
             Self::Open(s) => RawModuleRequest::new(1, s, &(), &()),
             Self::Read(fd, buf) => RawModuleRequest::new(2, &fd.0, buf, &()),
-            Self::Mount { path, dev, fs } => RawModuleRequest::new(3, path, dev, fs),
-            Self::RegisterFS(ramfs) => RawModuleRequest::new(4, ramfs, &(), &()),
-            Self::ProcExit(id) => RawModuleRequest::new(5, &id.0, &(), &()),
+            Self::Write(fd, buf) => RawModuleRequest::new(3, &fd.0, buf, &()),
+            Self::Mount { path, dev, fs } => RawModuleRequest::new(4, path, dev, fs),
+            Self::RegisterFS(ramfs) => RawModuleRequest::new(5, ramfs, &(), &()),
+            Self::ProcExit(id) => RawModuleRequest::new(6, &id.0, &(), &()),
         }
     }
     fn from_raw(raw: RawModuleRequest<'a>) -> Self {
@@ -71,13 +74,14 @@ impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
             0 => Self::Init(raw.arg(0)),
             1 => Self::Open(raw.arg(0)),
             2 => Self::Read(Fd(raw.arg(0)), raw.arg(1)),
-            3 => Self::Mount {
+            3 => Self::Write(Fd(raw.arg(0)), raw.arg(1)),
+            4 => Self::Mount {
                 path: raw.arg(0),
                 dev: raw.arg(1),
                 fs: raw.arg(2),
             },
-            4 => Self::RegisterFS(raw.arg(0)),
-            5 => Self::ProcExit(ProcId(raw.arg(0))),
+            5 => Self::RegisterFS(raw.arg(0)),
+            6 => Self::ProcExit(ProcId(raw.arg(0))),
             _ => panic!("Unknown request"),
         }
     }
@@ -89,4 +93,8 @@ pub fn open(path: &str) -> isize {
 
 pub fn read(fd: usize, buf: &mut [u8]) -> isize {
     syscall::module_call("vfs", &VFSRequest::Read(Fd(fd as _), buf))
+}
+
+pub fn write(fd: usize, buf: &[u8]) -> isize {
+    syscall::module_call("vfs", &VFSRequest::Write(Fd(fd as _), buf))
 }

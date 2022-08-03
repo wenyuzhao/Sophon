@@ -105,6 +105,9 @@ impl FileSystem for RootFS {
             None
         }
     }
+    fn write(&self, _node: &Node, _offset: usize, _buf: &[u8]) -> Option<usize> {
+        unimplemented!()
+    }
     fn read_dir(&self, _node: &Node) -> Option<Vec<String>> {
         unimplemented!()
     }

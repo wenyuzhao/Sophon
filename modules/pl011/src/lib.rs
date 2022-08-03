@@ -75,14 +75,18 @@ impl Device for PL011 {
         "tty.serial"
     }
 
-    fn read(&self, _offset: usize, buf: &mut [u8]) -> usize {
+    fn read(&self, _offset: usize, buf: &mut [u8]) -> Option<usize> {
         for i in 0..buf.len() {
-            buf[i] = match self.uart().getchar(true) {
-                Some(c) => c as u8,
-                None => return i,
-            };
+            buf[i] = self.uart().getchar(true).unwrap() as _;
         }
-        buf.len()
+        Some(buf.len())
+    }
+
+    fn write(&self, _offset: usize, buf: &[u8]) -> Option<usize> {
+        for i in 0..buf.len() {
+            self.uart().putchar(buf[i] as _);
+        }
+        Some(buf.len())
     }
 }
 

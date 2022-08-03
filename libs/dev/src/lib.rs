@@ -6,7 +6,8 @@ extern crate alloc;
 
 pub trait Device: Send + Sync {
     fn name(&self) -> &'static str;
-    fn read(&self, offset: usize, buf: &mut [u8]) -> usize;
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Option<usize>;
+    fn write(&self, offset: usize, buf: &[u8]) -> Option<usize>;
 }
 
 pub enum DevRequest<'a> {

@@ -27,8 +27,12 @@ impl TTY {
         Self { fd: fd as _ }
     }
 
+    fn write(&self, s: &str) {
+        vfs::write(self.fd, s.as_bytes());
+    }
+
     fn prompt(&self) -> String {
-        print!("> ");
+        self.write("> ");
         self.readline()
     }
 
@@ -65,7 +69,7 @@ impl TTY {
     }
 
     pub fn run(&self) {
-        log!("[[Sophon TTY]]");
+        self.write("[[Sophon TTY]]\n");
         loop {
             let cmd = self.prompt();
             // println!("{:?}", cmd);
@@ -74,7 +78,7 @@ impl TTY {
             }
             syscall::exec(&cmd);
         }
-        log!("Sophon TTY exited.");
+        self.write("Sophon TTY exited.\n");
     }
 }
 
