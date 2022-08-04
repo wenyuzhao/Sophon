@@ -1,5 +1,5 @@
 pub mod proc;
-pub mod scheduler;
+pub mod runnable;
 pub mod syscall;
 pub mod task;
 

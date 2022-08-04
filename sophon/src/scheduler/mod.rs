@@ -6,7 +6,7 @@ use atomic::{Atomic, Ordering};
 use core::fmt::Debug;
 use core::ops::Deref;
 
-use super::{task::Task, TaskId};
+use crate::task::{Task, TaskId};
 
 /**
  *                        ___________

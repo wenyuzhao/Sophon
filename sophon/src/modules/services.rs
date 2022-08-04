@@ -15,9 +15,9 @@ use proc::ProcId;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
-use crate::task::scheduler::monitor::SysMonitor;
-use crate::task::scheduler::AbstractScheduler;
-use crate::task::scheduler::SCHEDULER;
+use crate::scheduler::monitor::SysMonitor;
+use crate::scheduler::AbstractScheduler;
+use crate::scheduler::SCHEDULER;
 use crate::task::Proc;
 use crate::task::Task;
 

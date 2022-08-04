@@ -1,4 +1,4 @@
-use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
+use crate::scheduler::{AbstractScheduler, SCHEDULER};
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
 use mutex::AbstractMonitor;

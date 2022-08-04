@@ -1,10 +1,10 @@
-use super::scheduler::monitor::SysMonitor;
+use super::runnable::UserTask;
+use super::{runnable::Runnable, task::Task};
 use super::{ProcId, TaskId};
-use crate::kernel_tasks::user::UserTask;
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
-use crate::{kernel_tasks::KernelTask, task::Task};
+use crate::scheduler::monitor::SysMonitor;
+use crate::scheduler::{AbstractScheduler, SCHEDULER};
 use alloc::ffi::CString;
 use alloc::sync::Arc;
 use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
@@ -35,7 +35,7 @@ unsafe impl Send for Proc {}
 unsafe impl Sync for Proc {}
 
 impl Proc {
-    fn create(t: Box<dyn KernelTask>, user_elf: Option<Vec<u8>>) -> Arc<Proc> {
+    fn create(t: Box<dyn Runnable>, user_elf: Option<Vec<u8>>) -> Arc<Proc> {
         // Assign an id
         static COUNTER: AtomicUsize = AtomicUsize::new(1);
         let proc_id = ProcId(COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -116,7 +116,7 @@ impl Proc {
         entry
     }
 
-    pub fn spawn(t: Box<dyn KernelTask>) -> Arc<Proc> {
+    pub fn spawn(t: Box<dyn Runnable>) -> Arc<Proc> {
         Self::create(t, None)
     }
 

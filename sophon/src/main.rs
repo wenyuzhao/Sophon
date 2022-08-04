@@ -20,18 +20,18 @@ extern crate log;
 #[macro_use]
 pub mod utils;
 pub mod arch;
-pub mod kernel_tasks;
 pub mod memory;
 pub mod modules;
+pub mod scheduler;
 pub mod task;
 
 use core::panic::PanicInfo;
 
 use crate::arch::{Arch, TargetArch};
-use crate::kernel_tasks::Idle;
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
+use crate::scheduler::{AbstractScheduler, SCHEDULER};
+use crate::task::runnable::Idle;
 use crate::task::Proc;
 use alloc::boxed::Box;
 use boot::BootInfo;
@@ -67,7 +67,7 @@ const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
-        utils::boot_log::init(uart);
+        utils::boot_logger::init(uart);
     }
     log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
         *(boot_info as *const _ as *const usize)

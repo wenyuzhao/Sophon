@@ -1,15 +1,15 @@
-use super::scheduler::AbstractScheduler;
-use super::scheduler::Scheduler;
-use super::scheduler::SCHEDULER;
+use super::runnable::Runnable;
 use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
+use crate::scheduler::AbstractScheduler;
+use crate::scheduler::Scheduler;
+use crate::scheduler::SCHEDULER;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use kernel_tasks::KernelTask;
 
 static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -34,7 +34,7 @@ impl Task {
         unsafe { core::mem::transmute(state) }
     }
 
-    pub(super) fn create(proc: Arc<Proc>, t: Box<dyn KernelTask>) -> Arc<Self> {
+    pub(super) fn create(proc: Arc<Proc>, t: Box<dyn Runnable>) -> Arc<Self> {
         let t = Box::into_raw(box t);
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
         Arc::new(Task {
@@ -78,7 +78,7 @@ impl PartialEq for Task {
 
 impl Eq for Task {}
 
-extern "C" fn entry(t: *mut Box<dyn KernelTask>) -> ! {
-    let mut t: Box<Box<dyn KernelTask>> = unsafe { Box::from_raw(t) };
+extern "C" fn entry(t: *mut Box<dyn Runnable>) -> ! {
+    let mut t: Box<Box<dyn Runnable>> = unsafe { Box::from_raw(t) };
     t.run()
 }
