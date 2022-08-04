@@ -17,6 +17,6 @@ static ALLOCATOR: heap::UserHeap = heap::UserHeap::new();
 
 #[panic_handler]
 fn panic(info: &::core::panic::PanicInfo) -> ! {
-    log!("{}", info);
+    println!("{}", info);
     sys::exit()
 }
