@@ -1,7 +1,7 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "heap"
+name = "user"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -12,6 +12,7 @@ edition = { workspace = true }
 spin = { workspace = true }
 memory = { path = "../memory" }
 syscall = { path = "../syscall" }
+vfs = { path = "../vfs" }
 
 [features]
 default = []

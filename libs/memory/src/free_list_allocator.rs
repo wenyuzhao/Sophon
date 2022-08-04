@@ -35,7 +35,7 @@ where
         }
     }
 
-    pub fn init(&mut self, page_resource: &'static PA) {
+    pub const fn init(&mut self, page_resource: &'static PA) {
         self.page_resource = Some(page_resource);
     }
 

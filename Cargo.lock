@@ -394,15 +394,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "heap"
-version = "0.0.3"
-dependencies = [
- "memory",
- "spin",
- "syscall",
-]
-
-[[package]]
 name = "heapless"
 version = "0.7.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -426,10 +417,7 @@ checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 name = "hello"
 version = "0.0.3"
 dependencies = [
- "heap",
- "log 0.0.3",
- "syscall",
- "vfs",
+ "user",
 ]
 
 [[package]]
@@ -464,10 +452,7 @@ dependencies = [
 name = "init"
 version = "0.0.3"
 dependencies = [
- "heap",
- "log 0.0.3",
- "syscall",
- "vfs",
+ "user",
 ]
 
 [[package]]
@@ -546,10 +531,7 @@ dependencies = [
 name = "ls"
 version = "0.0.3"
 dependencies = [
- "heap",
- "log 0.0.3",
- "syscall",
- "vfs",
+ "user",
 ]
 
 [[package]]
@@ -950,10 +932,7 @@ checksum = "4ee8fba06c1f4d0b396ef61a54530bb6b28f0dc61c38bc8bc5a5a48161e6282e"
 name = "tty"
 version = "0.0.3"
 dependencies = [
- "heap",
- "log 0.0.3",
- "syscall",
- "vfs",
+ "user",
 ]
 
 [[package]]
@@ -1010,6 +989,16 @@ name = "unsafe_unwrap"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1230ec65f13e0f9b28d789da20d2d419511893ea9dac2c1f4ef67b8b14e5da80"
+
+[[package]]
+name = "user"
+version = "0.0.3"
+dependencies = [
+ "memory",
+ "spin",
+ "syscall",
+ "vfs",
+]
 
 [[package]]
 name = "vcell"

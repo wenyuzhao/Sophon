@@ -9,10 +9,7 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-syscall = { path = "../../libs/syscall" }
-vfs = { path = "../../libs/vfs" }
-heap = { path = "../../libs/heap" }
-log = { path = "../../libs/log" }
+user = { path = "../../libs/user" }
 
 [features]
 default = []

@@ -1,21 +1,14 @@
-#![feature(format_args_nl)]
 #![feature(default_alloc_error_handler)]
 #![no_std]
 #![no_main]
 
-#[macro_use]
-extern crate log;
 extern crate alloc;
 
-use alloc::{borrow::ToOwned, format, string::String, vec, vec::Vec};
-// use core::arch::asm;
-// use core::sync::atomic::{AtomicUsize, Ordering};
-use heap::UserHeap;
-use syscall::UserLogger;
-use vfs::Fd;
+#[macro_use]
+extern crate user;
 
-#[global_allocator]
-static ALLOCATOR: UserHeap = UserHeap::new();
+use alloc::{borrow::ToOwned, format, string::String, vec, vec::Vec};
+use user::sys::Fd;
 
 struct TTY {}
 
@@ -24,20 +17,15 @@ impl TTY {
         Self {}
     }
 
-    fn write(&self, s: &str) {
-        let _ = vfs::write(Fd::STDOUT, s.as_bytes()).unwrap();
-    }
-
     fn prompt(&self) -> String {
-        let cwd = vfs::cwd().unwrap();
-        self.write(&cwd);
-        self.write(" $ ");
+        let cwd = user::sys::cwd().unwrap();
+        print!("{} $ ", cwd);
         self.readline()
     }
 
     fn read_byte(&self, first: bool) -> u8 {
         let mut buf = [0u8; 1];
-        let _len = vfs::read(Fd::STDIN, &mut buf).unwrap();
+        let _len = user::sys::read(Fd::STDIN, &mut buf).unwrap();
         let mut c = buf[0];
         if c == 127 {
             c = 8;
@@ -75,25 +63,24 @@ impl TTY {
     fn exec_internal_cmd(&self, cmd: &str, args: &[&str]) {
         match cmd {
             "exit" => {
-                self.write("Sophon TTY exited.\n");
-                syscall::exit();
+                println!("Sophon TTY exited.");
+                user::sys::exit();
             }
             "cd" => {
                 if args.len() == 1 {
-                    match vfs::chdir(&args[0]) {
+                    match user::sys::chdir(&args[0]) {
                         Ok(_) => {}
                         Err(_) => {
-                            self.write("cd: no such file or directory\n");
+                            println!("cd: no such file or directory");
                         }
                     };
                 } else {
-                    self.write("Usage: cd <path>\n");
+                    println!("Usage: cd <path>");
                 }
             }
             "pwd" => {
-                let cwd = vfs::cwd().unwrap();
-                self.write(&cwd);
-                self.write("\n");
+                let cwd = user::sys::cwd().unwrap();
+                println!("{}", cwd);
             }
             _ => unreachable!(),
         }
@@ -105,14 +92,14 @@ impl TTY {
         } else {
             cmd.to_owned()
         };
-        if syscall::exec(&cmd, args) == -1 {
+        if user::sys::exec(&cmd, args) == -1 {
             // FIXME
-            self.write("ERROR: command not found\n");
+            println!("ERROR: command not found");
         }
     }
 
     pub fn run(&self) {
-        self.write("[[Sophon TTY]]\n");
+        println!("[[Sophon TTY]]");
         loop {
             let cmd = self.prompt();
             // println!("{:?}", cmd);
@@ -135,15 +122,7 @@ impl TTY {
 
 #[no_mangle]
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
-    UserLogger::init();
-    ALLOCATOR.init();
     let tty = TTY::new();
     tty.run();
-    syscall::exit()
-}
-
-#[panic_handler]
-fn panic(info: &::core::panic::PanicInfo) -> ! {
-    log!("{}", info);
-    syscall::exit();
+    user::sys::exit()
 }

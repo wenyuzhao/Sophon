@@ -1,7 +1,3 @@
-#![no_std]
-#![feature(core_intrinsics)]
-#![feature(step_trait)]
-
 use core::{
     alloc::{GlobalAlloc, Layout},
     iter::Step,
@@ -27,24 +23,24 @@ unsafe impl GlobalAlloc for NoAlloc {
     }
 }
 
-/// The kernel heap memory manager.
+/// Userspace heap allocator.
 pub struct UserHeap {
-    fa: Mutex<FreeListAllocator<V, Self, { Size1G::LOG_BYTES + 1 }, false>>,
+    fa: Mutex<FreeListAllocator<V, UserPageResource, { Size1G::LOG_BYTES + 1 }, false>>,
 }
 
 impl UserHeap {
     pub const fn new() -> Self {
-        Self {
-            fa: Mutex::new(FreeListAllocator::new()),
-        }
-    }
-
-    pub fn init(&'static self) {
-        self.fa.lock().init(self)
+        let mut fa = FreeListAllocator::new();
+        fa.init(&USER_PAGE_RESOURCE);
+        Self { fa: Mutex::new(fa) }
     }
 }
 
-impl PageResource<V> for UserHeap {
+const USER_PAGE_RESOURCE: UserPageResource = UserPageResource;
+
+struct UserPageResource;
+
+impl PageResource<V> for UserPageResource {
     /// Allocate virtual pages that are backed by physical memory.
     fn acquire_pages<S: PageSize>(&self, pages: usize) -> Option<Range<Page<S>>> {
         let addr = memory::sbrk(pages << S::LOG_BYTES)?;
