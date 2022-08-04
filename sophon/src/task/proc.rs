@@ -56,6 +56,8 @@ impl Proc {
         proc.threads.lock().push(task.id);
         // Add to list
         PROCS.lock_uninterruptible().push_back(proc.clone());
+        // Notify VFS
+        crate::modules::module_call("vfs", true, &VFSRequest::ProcStart(proc.id));
         // Spawn
         SCHEDULER.register_new_task(task);
         proc

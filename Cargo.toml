@@ -34,6 +34,7 @@ members = [
     "user/init",
     "user/tty",
     "user/hello",
+    "user/ls",
 ]
 
 [workspace.package]

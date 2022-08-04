@@ -32,17 +32,26 @@ struct ProcData {
 
 impl ProcData {
     fn new() -> Box<Self> {
-        let data = box Self {
+        let mut data = box Self {
             nodes: [
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None,
             ],
-            files: 0,
+            files: 3,
         };
-        // data.nodes[0] = Some(FileDescriptor {
-        //     node: ROOT_FS.clone(),
-        //     offset: 0,
-        // });
+        let stdio = fs::vfs_open("/dev/tty.serial").unwrap();
+        data.nodes[0] = Some(FileDescriptor {
+            node: stdio.clone(),
+            offset: 0,
+        });
+        data.nodes[1] = Some(FileDescriptor {
+            node: stdio.clone(),
+            offset: 0,
+        });
+        data.nodes[2] = Some(FileDescriptor {
+            node: stdio.clone(),
+            offset: 0,
+        });
         data
     }
 }
@@ -71,18 +80,37 @@ impl KernelModule for VFS {
                 };
                 let proc = SERVICE.current_process().unwrap();
                 let mut open_files = OPEN_FILES.lock();
-                let proc_data = open_files.entry(proc).or_insert_with(|| ProcData::new());
+                let proc_data = open_files.get_mut(&proc).unwrap();
                 let fd = proc_data.files;
                 proc_data.nodes[fd] = Some(FileDescriptor { node, offset: 0 });
                 proc_data.files += 1;
                 fd as _
             }
-            VFSRequest::Read(_fd, buf) => {
+            VFSRequest::Close(fd) => {
+                assert!(!privileged);
+                if fd.0 < 3 {
+                    return -1;
+                }
+                let mut open_files = OPEN_FILES.lock();
+                let node = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
+                    Some(proc_data) => match proc_data.nodes[fd.0 as usize].take() {
+                        Some(fd) => {
+                            proc_data.files -= 1;
+                            fd.node
+                        }
+                        None => return -1,
+                    },
+                    None => return -1,
+                };
+                node.fs.close(&node);
+                0
+            }
+            VFSRequest::Read(fd, buf) => {
                 assert!(!privileged);
                 let mut open_files = OPEN_FILES.lock();
                 let fd = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
-                    Some(proc_data) => match proc_data.nodes[_fd.0 as usize].as_mut() {
-                        Some(node) => node,
+                    Some(proc_data) => match proc_data.nodes[fd.0 as usize].as_mut() {
+                        Some(fd) => fd,
                         None => return -1,
                     },
                     None => return -1,
@@ -95,12 +123,12 @@ impl KernelModule for VFS {
                     }
                 }
             }
-            VFSRequest::Write(_fd, buf) => {
+            VFSRequest::Write(fd, buf) => {
                 assert!(!privileged);
                 let mut open_files = OPEN_FILES.lock();
                 let fd = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
-                    Some(proc_data) => match proc_data.nodes[_fd.0 as usize].as_mut() {
-                        Some(node) => node,
+                    Some(proc_data) => match proc_data.nodes[fd.0 as usize].as_mut() {
+                        Some(fd) => fd,
                         None => return -1,
                     },
                     None => return -1,
@@ -113,6 +141,28 @@ impl KernelModule for VFS {
                     }
                 }
             }
+            VFSRequest::ReadDir(fd, i, buf) => {
+                let mut open_files = OPEN_FILES.lock();
+                let fd = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
+                    Some(proc_data) => match proc_data.nodes[fd.0 as usize].as_mut() {
+                        Some(fd) => fd,
+                        None => return -1,
+                    },
+                    None => return -1,
+                };
+                if let Some(entries) = fd.node.fs.read_dir(&fd.node) {
+                    if i >= entries.len() {
+                        0
+                    } else {
+                        let s = entries[i].as_bytes();
+                        let len = usize::min(s.len(), buf.len());
+                        unsafe { core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), len) }
+                        1
+                    }
+                } else {
+                    0
+                }
+            }
             VFSRequest::Mount { path, dev, fs } => {
                 assert!(privileged);
                 let fs = FILE_SYSTEMS.read()[fs];
@@ -123,6 +173,12 @@ impl KernelModule for VFS {
                 crate::FILE_SYSTEMS
                     .write()
                     .insert(fs.name().to_owned(), fs.to_owned());
+                0
+            }
+            VFSRequest::ProcStart(proc_id) => {
+                assert!(privileged);
+                let mut open_files = OPEN_FILES.lock();
+                open_files.insert(proc_id, ProcData::new());
                 0
             }
             VFSRequest::ProcExit(proc_id) => {

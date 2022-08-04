@@ -543,6 +543,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ls"
+version = "0.0.3"
+dependencies = [
+ "heap",
+ "log 0.0.3",
+ "syscall",
+ "vfs",
+]
+
+[[package]]
 name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

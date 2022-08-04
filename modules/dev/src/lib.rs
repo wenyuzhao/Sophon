@@ -97,6 +97,9 @@ impl FileSystem for DevFS {
             offset: 0,
         })
     }
+    fn close(&self, _node: &Node) {
+        // Nothing to do
+    }
     fn read(&self, node: &Node, offset: usize, buf: &mut [u8]) -> Option<usize> {
         let devices = self.devices.read();
         if !devices.contains_key(node.name.as_ref()) {
@@ -112,7 +115,8 @@ impl FileSystem for DevFS {
         devices[node.name.as_ref()].write(offset, buf)
     }
     fn read_dir(&self, _node: &Node) -> Option<Vec<String>> {
-        unimplemented!()
+        let devices = self.devices.read();
+        Some(devices.keys().cloned().collect())
     }
     fn mount(&self, _parent: &Node, _file: &str, _key: usize) -> Option<Node> {
         unimplemented!()

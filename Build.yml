@@ -10,6 +10,9 @@ init.fs:
       hello:
         + cargo-build: user/hello
         + copy: target/_out/hello
+      ls:
+        + cargo-build: user/ls
+        + copy: target/_out/ls
     etc/:
       modules/:
         libhello.so:

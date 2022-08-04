@@ -7,28 +7,25 @@
 extern crate log;
 extern crate alloc;
 
-use alloc::{borrow::ToOwned, string::String, vec};
+use alloc::{borrow::ToOwned, format, string::String, vec};
 // use core::arch::asm;
 // use core::sync::atomic::{AtomicUsize, Ordering};
 use heap::UserHeap;
 use syscall::UserLogger;
+use vfs::Fd;
 
 #[global_allocator]
 static ALLOCATOR: UserHeap = UserHeap::new();
 
-struct TTY {
-    fd: usize,
-}
+struct TTY {}
 
 impl TTY {
     fn new() -> Self {
-        let fd = vfs::open("/dev/tty.serial");
-        assert!(fd != -1);
-        Self { fd: fd as _ }
+        Self {}
     }
 
     fn write(&self, s: &str) {
-        vfs::write(self.fd, s.as_bytes());
+        let _ = vfs::write(Fd::STDOUT, s.as_bytes()).unwrap();
     }
 
     fn prompt(&self) -> String {
@@ -38,8 +35,7 @@ impl TTY {
 
     fn read_byte(&self) -> u8 {
         let mut buf = [0u8; 1];
-        let len = vfs::read(self.fd, &mut buf);
-        assert!(len > 0);
+        let _len = vfs::read(Fd::STDIN, &mut buf).unwrap();
         let mut c = buf[0];
         if c == 127 {
             c = 8;
@@ -76,6 +72,11 @@ impl TTY {
             if cmd == "exit" {
                 break;
             }
+            let cmd = if !cmd.starts_with("/") && !cmd.starts_with(".") {
+                format!("/bin/{}", cmd)
+            } else {
+                cmd
+            };
             syscall::exec(&cmd);
         }
         self.write("Sophon TTY exited.\n");
