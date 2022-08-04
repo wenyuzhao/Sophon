@@ -40,6 +40,18 @@ pub fn vfs_locate_node<'a>(parent: &Node, path: &'a str) -> Option<(Node, &'a st
     }
 }
 
+pub fn vfs_locate_node_from_path<'a>(path: &'a str) -> Option<(Node, &'a str)> {
+    assert!(path.starts_with("/"));
+    let mut path = path.trim();
+    if path.ends_with("/") {
+        path = &path[..path.len() - 1];
+    }
+    if path.starts_with("/") {
+        path = &path[1..];
+    }
+    vfs_locate_node(&ROOT_FS.root_node(), path)
+}
+
 pub fn vfs_open(path: &str) -> Option<Node> {
     if !path.starts_with("/") {
         return None;
@@ -56,4 +68,16 @@ pub fn vfs_open(path: &str) -> Option<Node> {
     }
     let (parent, entry) = vfs_locate_node(&ROOT_FS.root_node(), path)?;
     parent.fs.open(&parent, entry)
+}
+
+pub fn dir_or_mnt_exists(path: &str) -> bool {
+    let (parent, entry) = match vfs_locate_node_from_path(path) {
+        Some(x) => x,
+        _ => return false,
+    };
+    let stat = match parent.fs.stat(&parent, entry) {
+        Some(x) => x,
+        _ => return false,
+    };
+    stat.is_dir || stat.mount.is_some()
 }

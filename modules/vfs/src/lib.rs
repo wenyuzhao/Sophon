@@ -13,7 +13,9 @@ mod mount;
 mod rootfs;
 
 use crate::fs::FileDescriptor;
-use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String};
+use alloc::{
+    borrow::ToOwned, boxed::Box, collections::BTreeMap, format, string::String, vec, vec::Vec,
+};
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use proc::ProcId;
 use rootfs::ROOT_FS;
@@ -27,16 +29,18 @@ pub struct VFS {}
 
 struct ProcData {
     nodes: [Option<FileDescriptor>; 16],
+    cwd: String,
     files: usize,
 }
 
 impl ProcData {
-    fn new() -> Box<Self> {
+    fn new(cwd: String) -> Box<Self> {
         let mut data = box Self {
             nodes: [
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
                 None, None,
             ],
+            cwd,
             files: 3,
         };
         let stdio = fs::vfs_open("/dev/tty.serial").unwrap();
@@ -53,6 +57,46 @@ impl ProcData {
             offset: 0,
         });
         data
+    }
+
+    fn set_cwd(&mut self, cwd: &str) -> Result<(), ()> {
+        let cwd = self.canonicalize(cwd.to_owned())?;
+        if !fs::dir_or_mnt_exists(&cwd) {
+            return Err(());
+        }
+        self.cwd = cwd;
+        Ok(())
+    }
+
+    fn canonicalize(&self, s: String) -> Result<String, ()> {
+        if s.starts_with("/") {
+            return Ok(s);
+        }
+        let s = s.strip_suffix("/").unwrap_or_else(|| s.as_str());
+        let mut buf = if s.starts_with("/") {
+            vec![]
+        } else {
+            self.cwd
+                .strip_prefix("/")
+                .unwrap()
+                .split("/")
+                .filter(|x| !x.is_empty())
+                .collect::<Vec<_>>()
+        };
+        for seg in s.split("/").filter(|x| !x.is_empty()) {
+            if seg == "." || seg == "" {
+                continue;
+            } else if seg == ".." {
+                if !buf.is_empty() {
+                    buf.pop();
+                } else {
+                    return Err(());
+                }
+            } else {
+                buf.push(seg);
+            }
+        }
+        Ok(format!("/{}", buf.join("/")))
     }
 }
 
@@ -74,6 +118,13 @@ impl KernelModule for VFS {
             }
             VFSRequest::Open(path) => {
                 assert!(!privileged);
+                let proc = SERVICE.current_process().unwrap();
+                let mut open_files = OPEN_FILES.lock();
+                let proc_data = open_files.get_mut(&proc).unwrap();
+                let path = match proc_data.canonicalize(path.to_owned()) {
+                    Ok(path) => path,
+                    Err(_) => return -1,
+                };
                 let node = match fs::vfs_open(&path) {
                     Some(node) => node,
                     None => return -1,
@@ -85,9 +136,6 @@ impl KernelModule for VFS {
                 } else {
                     node
                 };
-                let proc = SERVICE.current_process().unwrap();
-                let mut open_files = OPEN_FILES.lock();
-                let proc_data = open_files.get_mut(&proc).unwrap();
                 let fd = proc_data.files;
                 proc_data.nodes[fd] = Some(FileDescriptor { node, offset: 0 });
                 proc_data.files += 1;
@@ -182,10 +230,18 @@ impl KernelModule for VFS {
                     .insert(fs.name().to_owned(), fs.to_owned());
                 0
             }
-            VFSRequest::ProcStart(proc_id) => {
+            VFSRequest::ProcStart { proc, parent, cwd } => {
                 assert!(privileged);
                 let mut open_files = OPEN_FILES.lock();
-                open_files.insert(proc_id, ProcData::new());
+                let cwd = if cwd == "" || !fs::dir_or_mnt_exists(cwd) {
+                    open_files
+                        .get(&parent)
+                        .map(|x| x.cwd.clone())
+                        .unwrap_or_else(|| "/".to_owned())
+                } else {
+                    cwd.to_owned()
+                };
+                open_files.insert(proc, ProcData::new(cwd.to_owned()));
                 0
             }
             VFSRequest::ProcExit(proc_id) => {
@@ -193,6 +249,32 @@ impl KernelModule for VFS {
                 let mut open_files = OPEN_FILES.lock();
                 open_files.remove(&proc_id);
                 0
+            }
+            VFSRequest::GetCwd(buf) => {
+                let mut open_files = OPEN_FILES.lock();
+                let cwd = match open_files
+                    .get_mut(&SERVICE.current_process().unwrap())
+                    .map(|proc_data| proc_data.cwd.as_str())
+                {
+                    Some(x) => x,
+                    _ => return -1,
+                };
+                if cwd.len() > buf.len() {
+                    return -1;
+                }
+                unsafe { core::ptr::copy_nonoverlapping(cwd.as_ptr(), buf.as_mut_ptr(), cwd.len()) }
+                cwd.len() as _
+            }
+            VFSRequest::SetCwd(path) => {
+                let mut open_files = OPEN_FILES.lock();
+                let proc_data = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
+                    Some(proc_data) => proc_data,
+                    None => return -1,
+                };
+                match proc_data.set_cwd(path) {
+                    Ok(_) => 0,
+                    Err(_) => -1,
+                }
             }
         }
     }

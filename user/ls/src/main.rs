@@ -21,8 +21,9 @@ static ALLOCATOR: UserHeap = UserHeap::new();
 pub extern "C" fn _start(argc: isize, argv: *const *const u8) -> isize {
     UserLogger::init();
     ALLOCATOR.init();
-    assert!(argc == 1);
-    let path = {
+    let path = if argc == 0 {
+        "."
+    } else {
         let c_str: &CStr = unsafe { CStr::from_ptr(argv.read() as _) };
         c_str.to_str().unwrap().trim()
     };

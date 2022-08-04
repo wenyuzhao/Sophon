@@ -37,7 +37,7 @@ unsafe impl Sync for Proc {}
 impl Proc {
     fn create(t: Box<dyn KernelTask>, user_elf: Option<Vec<u8>>) -> Arc<Proc> {
         // Assign an id
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        static COUNTER: AtomicUsize = AtomicUsize::new(1);
         let proc_id = ProcId(COUNTER.fetch_add(1, Ordering::SeqCst));
         // Allocate proc struct
         let proc = Arc::new(Proc {
@@ -58,7 +58,15 @@ impl Proc {
         // Add to list
         PROCS.lock_uninterruptible().push_back(proc.clone());
         // Notify VFS
-        crate::modules::module_call("vfs", true, &VFSRequest::ProcStart(proc.id));
+        crate::modules::module_call(
+            "vfs",
+            true,
+            &VFSRequest::ProcStart {
+                proc: proc.id,
+                parent: Proc::current_opt().map(|p| p.id).unwrap_or(ProcId::KERNEL),
+                cwd: "",
+            },
+        );
         // Spawn
         SCHEDULER.register_new_task(task);
         proc
@@ -135,6 +143,11 @@ impl Proc {
     #[inline]
     pub fn current() -> Arc<Proc> {
         Task::current().proc.clone()
+    }
+
+    #[inline]
+    pub fn current_opt() -> Option<Arc<Proc>> {
+        Task::current_opt().map(|t| t.proc.clone())
     }
 
     pub fn spawn_task(self: Arc<Self>, f: *const extern "C" fn()) -> Arc<Task> {

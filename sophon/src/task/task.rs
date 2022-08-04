@@ -53,6 +53,10 @@ impl Task {
         SCHEDULER.get_current_task().unwrap()
     }
 
+    pub fn current_opt() -> Option<Arc<Self>> {
+        SCHEDULER.get_current_task()
+    }
+
     pub fn get_context<C: ArchContext>(&self) -> &C {
         let ptr = &self.context as *const _;
         unsafe { &mut *(ptr as *mut C) }

@@ -22,7 +22,8 @@ pub fn kernel_module(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #[panic_handler]
         fn panic(info: &core::panic::PanicInfo) -> ! {
             kernel_module::log!("{}", info);
-            loop {}
+            // TODO: Notify the module to release any locks.
+            kernel_module::handle_panic();
         }
     };
     result.into()

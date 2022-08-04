@@ -29,11 +29,13 @@ impl TTY {
     }
 
     fn prompt(&self) -> String {
-        self.write("> ");
+        let cwd = vfs::cwd().unwrap();
+        self.write(&cwd);
+        self.write(" $ ");
         self.readline()
     }
 
-    fn read_byte(&self) -> u8 {
+    fn read_byte(&self, first: bool) -> u8 {
         let mut buf = [0u8; 1];
         let _len = vfs::read(Fd::STDIN, &mut buf).unwrap();
         let mut c = buf[0];
@@ -41,7 +43,9 @@ impl TTY {
             c = 8;
             buf[0] = c;
             let s = core::str::from_utf8(&buf).unwrap();
-            print!("{} {}", s, s);
+            if !first {
+                print!("{} {}", s, s);
+            }
         } else {
             let s = core::str::from_utf8(&buf).unwrap();
             print!("{}", s);
@@ -52,7 +56,7 @@ impl TTY {
     fn readline(&self) -> String {
         let mut buf = vec![];
         loop {
-            let c = self.read_byte();
+            let c = self.read_byte(buf.is_empty());
             if c == 8 {
                 buf.pop();
             } else if c == b'\n' {
@@ -64,19 +68,55 @@ impl TTY {
         core::str::from_utf8(&buf).unwrap().to_owned()
     }
 
+    fn is_internal_cmd(&self, cmd: &str) -> bool {
+        ["exit", "cd", "pwd"].iter().any(|&x| x == cmd)
+    }
+
+    fn exec_internal_cmd(&self, cmd: &str, args: &[&str]) {
+        match cmd {
+            "exit" => {
+                self.write("Sophon TTY exited.\n");
+                syscall::exit();
+            }
+            "cd" => {
+                if args.len() == 1 {
+                    match vfs::chdir(&args[0]) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            self.write("cd: no such file or directory\n");
+                        }
+                    };
+                } else {
+                    self.write("Usage: cd <path>\n");
+                }
+            }
+            "pwd" => {
+                let cwd = vfs::cwd().unwrap();
+                self.write(&cwd);
+                self.write("\n");
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn exec_external_cmd(&self, cmd: &str, args: &[&str]) {
+        let cmd = if !cmd.starts_with("/") && !cmd.starts_with(".") {
+            format!("/bin/{}", cmd)
+        } else {
+            cmd.to_owned()
+        };
+        if syscall::exec(&cmd, args) == -1 {
+            // FIXME
+            self.write("ERROR: command not found\n");
+        }
+    }
+
     pub fn run(&self) {
         self.write("[[Sophon TTY]]\n");
         loop {
             let cmd = self.prompt();
             // println!("{:?}", cmd);
-            if cmd == "exit" {
-                break;
-            }
-            let cmd = if !cmd.starts_with("/") && !cmd.starts_with(".") {
-                format!("/bin/{}", cmd)
-            } else {
-                cmd
-            };
+
             let segments = cmd
                 .split(" ")
                 .map(|s| s.trim())
@@ -84,9 +124,12 @@ impl TTY {
                 .collect::<Vec<_>>();
             let cmd = segments[0];
             let args = &segments[1..];
-            syscall::exec(cmd, args);
+            if self.is_internal_cmd(cmd) {
+                self.exec_internal_cmd(cmd, args)
+            } else {
+                self.exec_external_cmd(cmd, args)
+            }
         }
-        self.write("Sophon TTY exited.\n");
     }
 }
 

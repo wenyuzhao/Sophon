@@ -71,8 +71,14 @@ pub enum VFSRequest<'a> {
         fs: &'a str,
     },
     RegisterFS(&'a &'static dyn FileSystem),
-    ProcStart(ProcId),
+    ProcStart {
+        proc: ProcId,
+        parent: ProcId,
+        cwd: &'a str,
+    },
     ProcExit(ProcId),
+    GetCwd(&'a mut [u8]),
+    SetCwd(&'a str),
 }
 
 impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
@@ -86,8 +92,12 @@ impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
             Self::ReadDir(fd, i, buf) => RawModuleRequest::new(5, &fd.0, i, buf),
             Self::Mount { path, dev, fs } => RawModuleRequest::new(6, path, dev, fs),
             Self::RegisterFS(ramfs) => RawModuleRequest::new(7, ramfs, &(), &()),
-            Self::ProcStart(id) => RawModuleRequest::new(8, &id.0, &(), &()),
+            Self::ProcStart { proc, parent, cwd } => {
+                RawModuleRequest::new(8, &proc.0, &parent.0, cwd)
+            }
             Self::ProcExit(id) => RawModuleRequest::new(9, &id.0, &(), &()),
+            Self::GetCwd(buf) => RawModuleRequest::new(10, buf, &(), &()),
+            Self::SetCwd(s) => RawModuleRequest::new(11, s, &(), &()),
         }
     }
     fn from_raw(raw: RawModuleRequest<'a>) -> Self {
@@ -104,8 +114,14 @@ impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
                 fs: raw.arg(2),
             },
             7 => Self::RegisterFS(raw.arg(0)),
-            8 => Self::ProcStart(ProcId(raw.arg(0))),
+            8 => Self::ProcStart {
+                proc: ProcId(raw.arg(0)),
+                parent: ProcId(raw.arg(1)),
+                cwd: raw.arg(2),
+            },
             9 => Self::ProcExit(ProcId(raw.arg(0))),
+            10 => Self::GetCwd(raw.arg(0)),
+            11 => Self::SetCwd(raw.arg(0)),
             _ => panic!("Unknown request"),
         }
     }
@@ -152,5 +168,27 @@ pub fn readdir(fd: Fd, i: usize) -> Result<Option<String>, ()> {
     } else {
         let end = buf.iter().position(|&x| x == 0).unwrap_or(buf.len());
         Ok(core::str::from_utf8(&buf[..end]).map(|s| s.to_owned()).ok())
+    }
+}
+
+pub fn cwd() -> Result<String, ()> {
+    let mut buf = [0u8; 256];
+    let ret = syscall::module_call("vfs", &VFSRequest::GetCwd(&mut buf));
+    if ret < 0 {
+        Err(())
+    } else {
+        let size = ret as usize;
+        core::str::from_utf8(&buf[..size])
+            .map(|s| s.to_owned())
+            .map_err(|_| ())
+    }
+}
+
+pub fn chdir(path: &str) -> Result<(), ()> {
+    let ret = syscall::module_call("vfs", &VFSRequest::SetCwd(path));
+    if ret < 0 {
+        Err(())
+    } else {
+        Ok(())
     }
 }

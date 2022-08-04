@@ -63,24 +63,6 @@ pub trait KernelModule: 'static + Send + Sync {
     }
 }
 
-#[macro_export]
-macro_rules! declare_kernel_module {
-    ($name:ident) => {
-        #[global_allocator]
-        static ALLOCATOR: $crate::KernelModuleAllocator = $crate::KernelModuleAllocator;
-
-        #[no_mangle]
-        pub extern "C" fn _start(service: $crate::KernelServiceWrapper) -> isize {
-            if $crate::init_kernel_module(service, &$name).is_err() {
-                return -1;
-            }
-            0
-        }
-
-        #[panic_handler]
-        fn panic(info: &::core::panic::PanicInfo) -> ! {
-            log!("{}", info);
-            loop {}
-        }
-    };
+pub fn handle_panic() -> ! {
+    syscall::exit()
 }
