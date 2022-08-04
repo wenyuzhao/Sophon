@@ -114,9 +114,13 @@ impl FileSystem for DevFS {
         }
         devices[node.name.as_ref()].write(offset, buf)
     }
-    fn read_dir(&self, _node: &Node) -> Option<Vec<String>> {
-        let devices = self.devices.read();
-        Some(devices.keys().cloned().collect())
+    fn read_dir(&self, node: &Node) -> Option<Vec<String>> {
+        if node.path.as_ref() == "/dev" {
+            let devices = self.devices.read();
+            Some(devices.keys().cloned().collect())
+        } else {
+            None
+        }
     }
     fn mount(&self, _parent: &Node, _file: &str, _key: usize) -> Option<Node> {
         unimplemented!()

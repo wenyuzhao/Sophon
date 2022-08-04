@@ -63,9 +63,10 @@ pub fn wait() -> isize {
 }
 
 #[inline]
-pub fn exec(path: &str) -> isize {
+pub fn exec(path: &str, args: &[&str]) -> isize {
     let path = &path as *const &str;
-    unsafe { syscall(Syscall::Exec, &[transmute(path)]) }
+    let args = &args as *const &[&str];
+    unsafe { syscall(Syscall::Exec, &[transmute(path), transmute(args)]) }
 }
 
 #[inline]

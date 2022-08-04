@@ -7,7 +7,7 @@
 extern crate log;
 extern crate alloc;
 
-use alloc::{borrow::ToOwned, format, string::String, vec};
+use alloc::{borrow::ToOwned, format, string::String, vec, vec::Vec};
 // use core::arch::asm;
 // use core::sync::atomic::{AtomicUsize, Ordering};
 use heap::UserHeap;
@@ -77,7 +77,14 @@ impl TTY {
             } else {
                 cmd
             };
-            syscall::exec(&cmd);
+            let segments = cmd
+                .split(" ")
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>();
+            let cmd = segments[0];
+            let args = &segments[1..];
+            syscall::exec(cmd, args);
         }
         self.write("Sophon TTY exited.\n");
     }

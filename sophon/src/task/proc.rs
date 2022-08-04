@@ -5,6 +5,7 @@ use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::task::scheduler::{AbstractScheduler, SCHEDULER};
 use crate::{kernel_tasks::KernelTask, task::Task};
+use alloc::ffi::CString;
 use alloc::sync::Arc;
 use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
@@ -111,8 +112,14 @@ impl Proc {
         Self::create(t, None)
     }
 
-    pub fn spawn_user(elf: Vec<u8>) -> Arc<Proc> {
-        Self::create(box UserTask::new(None), Some(elf))
+    pub fn spawn_user(elf: Vec<u8>, args: &[&str]) -> Arc<Proc> {
+        Self::create(
+            box UserTask::new(
+                None,
+                Some(args.iter().map(|s| CString::new(*s).unwrap()).collect()),
+            ),
+            Some(elf),
+        )
     }
 
     #[inline]
@@ -131,7 +138,7 @@ impl Proc {
     }
 
     pub fn spawn_task(self: Arc<Self>, f: *const extern "C" fn()) -> Arc<Task> {
-        let task = Task::create(self.clone(), box UserTask::new(Some(f)));
+        let task = Task::create(self.clone(), box UserTask::new(Some(f), None));
         self.threads.lock_uninterruptible().push(task.id);
         SCHEDULER.register_new_task(task)
     }

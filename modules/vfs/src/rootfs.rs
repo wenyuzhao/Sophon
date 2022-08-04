@@ -72,11 +72,11 @@ impl FileSystem for RootFS {
     fn open(&self, parent: &Node, fname: &str) -> Option<Node> {
         let fs = self.ramfs.read();
         let path = format!("{}/{}", parent.path, fname);
-        fs.get(&path).map(|_| Node {
+        fs.get(&path).map(|e| Node {
             name: fname.to_owned().into(),
             path: path.into(),
             fs: unsafe { &*(self as *const Self) },
-            mount: None,
+            mount: e.as_mnt().map(|x| x.key),
             block: 0,
             offset: 0,
         })
@@ -110,7 +110,12 @@ impl FileSystem for RootFS {
     }
     fn read_dir(&self, node: &Node) -> Option<Vec<String>> {
         let fs = self.ramfs.read();
-        if let Some(dir) = fs.get(&node.path).map(|entry| entry.as_dir()).flatten() {
+        let path = if node.path.is_empty() {
+            "/"
+        } else {
+            &node.path
+        };
+        if let Some(dir) = fs.get(path).map(|entry| entry.as_dir()).flatten() {
             Some(dir.entries())
         } else {
             None
@@ -120,7 +125,7 @@ impl FileSystem for RootFS {
         let mut fs = self.ramfs.write();
         let path = format!("{}/{}", parent.path, file);
         println!("mount {}", path);
-        fs.mount(&path, ramfs::Mount { key });
+        fs.mount(&path, ramfs::Mount { key }).ok()?;
         Some(Node {
             name: file.to_owned().into(),
             path: path.into(),

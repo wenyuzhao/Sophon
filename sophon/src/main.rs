@@ -114,7 +114,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
 
     log!("[kernel] start init process");
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
-    let _proc = Proc::spawn_user(init.to_vec());
+    let _proc = Proc::spawn_user(init.to_vec(), &[]);
 
     log!("[kernel] start scheduler");
     SCHEDULER.schedule();

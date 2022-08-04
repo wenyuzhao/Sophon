@@ -172,6 +172,8 @@ impl ArchContext for AArch64Context {
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,
         page_table: &mut PageTable,
+        argc: isize,
+        argv: *const *const u8,
     ) -> ! {
         // log!(
         //     "TTBR0_EL1={:x} elr_el1={:?} sp_el0={:?}",
@@ -186,6 +188,8 @@ impl ArchContext for AArch64Context {
                 msr elr_el1, {1}
                 msr sp_el0, {2}
                 msr	ttbr0_el1, {3}
+                mov x0, {4}
+                mov x1, {5}
                 tlbi vmalle1is
                 dsb sy
                 isb sy
@@ -194,7 +198,9 @@ impl ArchContext for AArch64Context {
             in(reg) 0usize,
             in(reg) entry,
             in(reg) sp.as_usize(),
-            in(reg) page_table as *const _
+            in(reg) page_table as *const _,
+            in(reg) argc,
+            in(reg) argv,
         }
         unreachable!()
     }

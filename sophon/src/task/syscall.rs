@@ -55,8 +55,9 @@ fn module_request<const PRIVILEGED: bool>(
     crate::modules::raw_module_call(s, PRIVILEGED, [b, c, d, e])
 }
 
-fn exec(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
     let path: &str = unsafe { &*(a as *const &str) };
+    let args: &[&str] = unsafe { &*(b as *const &[&str]) };
     let mut elf = vec![];
     let fd = crate::modules::module_call("vfs", false, &VFSRequest::Open(path));
     if fd < 0 {
@@ -74,7 +75,7 @@ fn exec(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
             break;
         }
     }
-    let proc = Proc::spawn_user(elf);
+    let proc = Proc::spawn_user(elf, args);
     proc.monitor.wait();
     proc.id.0 as _
 }

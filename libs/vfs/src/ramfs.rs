@@ -148,17 +148,21 @@ impl RamFS {
 
     pub fn get(&self, path: &str) -> Option<&Entry> {
         debug_assert!(path.starts_with('/'));
-        let path = path.strip_prefix('/').unwrap();
+        let path = path.strip_prefix('/')?;
+        if path == "" {
+            return Some(&self.root);
+        }
         self.root.as_dir().unwrap().get(path)
     }
 
-    pub fn mount(&mut self, path: &str, mnt: Mount) {
+    pub fn mount(&mut self, path: &str, mnt: Mount) -> Result<(), ()> {
         debug_assert!(path.starts_with('/'));
-        let path = path.strip_prefix('/').unwrap();
+        let path = path.strip_prefix('/').ok_or(())?;
         if let Entry::Dir(dir) = &mut self.root {
-            dir.mount(path, mnt)
+            dir.mount(path, mnt);
+            Ok(())
         } else {
-            unreachable!()
+            Err(())
         }
     }
 

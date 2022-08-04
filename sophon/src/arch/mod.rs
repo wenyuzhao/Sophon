@@ -23,6 +23,8 @@ pub trait ArchContext: Sized + 'static {
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,
         page_table: &mut PageTable,
+        argc: isize,
+        argv: *const *const u8,
     ) -> !;
 }
 

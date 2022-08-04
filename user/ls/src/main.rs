@@ -6,6 +6,11 @@
 #[macro_use]
 extern crate log;
 
+extern crate alloc;
+
+use core::ffi::CStr;
+
+use alloc::format;
 use heap::UserHeap;
 use syscall::UserLogger;
 
@@ -13,13 +18,28 @@ use syscall::UserLogger;
 static ALLOCATOR: UserHeap = UserHeap::new();
 
 #[no_mangle]
-pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
+pub extern "C" fn _start(argc: isize, argv: *const *const u8) -> isize {
     UserLogger::init();
     ALLOCATOR.init();
-    let dir = vfs::open("/etc").unwrap();
+    assert!(argc == 1);
+    let path = {
+        let c_str: &CStr = unsafe { CStr::from_ptr(argv.read() as _) };
+        c_str.to_str().unwrap().trim()
+    };
+    let dir = vfs::open(path).expect("ERROR: No such file or directory");
     for i in 0..100 {
         if let Ok(Some(x)) = vfs::readdir(dir, i) {
-            log!("{}", x);
+            let child_path = if path == "/" {
+                format!("/{}", x)
+            } else {
+                format!("{}/{}", path, x)
+            };
+            let fd = vfs::open(&child_path).unwrap();
+            if vfs::readdir(fd, 0).is_ok() {
+                log!("{}/", x);
+            } else {
+                log!("{}", x);
+            }
         } else {
             break;
         }

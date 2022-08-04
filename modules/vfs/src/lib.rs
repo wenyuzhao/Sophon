@@ -78,6 +78,13 @@ impl KernelModule for VFS {
                     Some(node) => node,
                     None => return -1,
                 };
+                let node = if let Some(mnt) = node.mount {
+                    let mnt_table = mount::MOUNT_POINTS.read();
+                    let mnt = mnt_table[mnt].as_ref().unwrap();
+                    mnt.root.clone()
+                } else {
+                    node
+                };
                 let proc = SERVICE.current_process().unwrap();
                 let mut open_files = OPEN_FILES.lock();
                 let proc_data = open_files.get_mut(&proc).unwrap();
@@ -160,7 +167,7 @@ impl KernelModule for VFS {
                         1
                     }
                 } else {
-                    0
+                    -1
                 }
             }
             VFSRequest::Mount { path, dev, fs } => {

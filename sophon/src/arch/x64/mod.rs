@@ -25,6 +25,8 @@ impl ArchContext for X64Context {
         _entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         _sp: Address,
         _page_table: &mut PageTable,
+        _argc: isize,
+        _argv: *const *const u8,
     ) -> ! {
         unimplemented!()
     }
