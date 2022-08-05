@@ -7,7 +7,7 @@
 extern crate log;
 extern crate alloc;
 
-use core::arch::asm;
+use core::{arch::asm, cell::UnsafeCell, ptr};
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use memory::{page::Frame, volatile::*};
 
@@ -57,7 +57,7 @@ pub struct GPIORegisters {
 
 #[allow(non_camel_case_types)]
 pub struct BCM2177_GPIO {
-    gpio: Option<*mut GPIORegisters>,
+    gpio: UnsafeCell<*mut GPIORegisters>,
 }
 
 unsafe impl Send for BCM2177_GPIO {}
@@ -65,11 +65,13 @@ unsafe impl Sync for BCM2177_GPIO {}
 
 impl BCM2177_GPIO {
     const fn new() -> Self {
-        Self { gpio: None }
+        Self {
+            gpio: UnsafeCell::new(ptr::null_mut()),
+        }
     }
 
-    fn gpio(&self) -> &mut GPIORegisters {
-        unsafe { &mut *self.gpio.unwrap() }
+    fn gpio(&self) -> &'static mut GPIORegisters {
+        unsafe { &mut **self.gpio.get() }
     }
 
     #[inline(never)]
@@ -105,7 +107,7 @@ impl KernelModule for BCM2177_GPIO {
         log!("Hello, BCM2711 GPIO!");
         let gpio_frame = node.translate(node.regs().unwrap().next().unwrap().start);
         let gpio_page = SERVICE.map_device_page(Frame::new(gpio_frame));
-        self.gpio = Some(gpio_page.start().as_mut_ptr());
+        unsafe { *self.gpio.get() = gpio_page.start().as_mut_ptr() };
         self.init_gpio();
         Ok(())
     }

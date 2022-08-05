@@ -18,9 +18,6 @@ const TIMER_INTERRUPT_FREQUENCY: usize = 60; // Hz
 #[kernel_module]
 pub static GIC_TIMER: GICTimer = GICTimer;
 
-unsafe impl Send for GICTimer {}
-unsafe impl Sync for GICTimer {}
-
 pub struct GICTimer;
 
 impl GICTimer {
