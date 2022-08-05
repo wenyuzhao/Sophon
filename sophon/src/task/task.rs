@@ -59,7 +59,7 @@ impl Task {
 
     pub fn get_context<C: ArchContext>(&self) -> &C {
         let ptr = &self.context as *const _;
-        unsafe { &mut *(ptr as *mut C) }
+        unsafe { &*(ptr as *const C) }
     }
 
     pub fn exit(&self) {

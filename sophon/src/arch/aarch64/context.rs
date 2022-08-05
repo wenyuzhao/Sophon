@@ -5,11 +5,11 @@ use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::task::Proc;
 use alloc::vec;
 use alloc::vec::Vec;
+use atomic::{Atomic, Ordering};
 use core::arch::asm;
 use core::ops::Range;
 use core::ptr;
 use cortex_a::registers::*;
-use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::PageResource;
 use memory::page::*;
@@ -89,7 +89,7 @@ pub struct AArch64Context {
     // q: [u128; 32], // Neon registers
     kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
-    response_status: Mutex<Option<isize>>,
+    response_status: Atomic<Option<isize>>,
 }
 
 impl AArch64Context {
@@ -110,7 +110,7 @@ impl ArchContext for AArch64Context {
             entry_pc: ptr::null_mut(),
             kernel_stack: None,
             kernel_stack_top: ptr::null_mut(),
-            response_status: Mutex::new(None),
+            response_status: Atomic::new(None),
         }
     }
 
@@ -129,7 +129,7 @@ impl ArchContext for AArch64Context {
     }
 
     fn set_response_status(&self, s: isize) {
-        *self.response_status.lock_uninterruptible() = Some(s);
+        self.response_status.store(Some(s), Ordering::SeqCst);
     }
 
     unsafe extern "C" fn return_to_user(&self) -> ! {
@@ -137,14 +137,9 @@ impl ArchContext for AArch64Context {
         // Switch page table
         let p4 = Proc::current().get_page_table();
         if p4 as *mut _ as u64 != TTBR0_EL1.get() {
-            // log!(
-            //     "Switch page table {:?} -> {:?}",
-            //     TTBR0_EL1.get() as *mut u8,
-            //     p4 as *mut _
-            // );
             PageTable::set(p4);
         }
-
+        // Load user frame
         let exception_frame = self.pop_exception_frame().unwrap_or_else(|| {
             let mut frame: *mut ExceptionFrame =
                 (self.kernel_stack_top as usize - ::core::mem::size_of::<ExceptionFrame>()) as _;
@@ -152,18 +147,14 @@ impl ArchContext for AArch64Context {
             (*frame).spsr_el1 = 0b0101;
             frame
         });
-        if let Some(status) = self.response_status.lock().take() {
+        // Set return value
+        if let Some(status) = self.response_status.swap(None, Ordering::SeqCst) {
             let slot = Address::<V>::from(&(*exception_frame).x0 as *const usize);
             slot.store(status);
             (*exception_frame).x0 = ::core::mem::transmute(status);
         }
-        // log!(
-        //     "[return-to-user] SP={:?} IP={:?}",
-        //     exception_frame,
-        //     (*exception_frame).elr_el1
-        // );
+        // Set stack pointer
         asm!("mov sp, {}", in(reg) exception_frame);
-        // log!(crate::Kernel: "exit_exception ");
         // Return from exception
         super::exception::exit_exception();
     }
