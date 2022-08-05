@@ -10,7 +10,7 @@ use memory::address::V;
 use memory::bitmap_page_allocator::BitMapPageAllocator;
 use memory::free_list_allocator::FreeListAllocator;
 use memory::page::*;
-use memory::page_table::{PageFlags, PageFlagsExt};
+use memory::page_table::PageFlags;
 use spin::Mutex;
 
 static VIRTUAL_PAGE_ALLOCATOR: Mutex<BitMapPageAllocator<V, LOG_KERNEL_HEAP_SIZE>> =

@@ -1,156 +1,161 @@
-#![no_std]
-#![feature(const_mut_refs)]
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{parse_macro_input, ItemEnum};
 
-use core::{
-    fmt,
-    ops::{BitAnd, BitOr, BitXor},
-};
-
-pub trait BitFlag: Sized + Clone + Copy + PartialEq {
-    type Repr: fmt::LowerHex
-        + BitAnd<Output = Self::Repr>
-        + BitOr<Output = Self::Repr>
-        + BitXor<Output = Self::Repr>
-        + Default
-        + PartialEq
-        + Clone
-        + Copy;
-    const ZERO: Self::Repr;
-    #[inline(always)]
-    fn bits(self) -> Self::Repr {
-        unsafe { *(&self as *const Self as *const Self::Repr) }
-    }
-    #[inline(always)]
-    fn flags(self) -> BitFlags<Self> {
-        BitFlags::from_flag(self)
-    }
-}
-
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy)]
-pub struct BitFlags<F: BitFlag>(F::Repr);
-
-impl<F: BitFlag> fmt::LowerHex for BitFlags<F> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "BitFlags({:#x})", self.0)
-    }
-}
-
-impl<F: BitFlag> BitFlags<F> {
-    pub fn from_flag(flag: F) -> Self {
-        Self(unsafe { *(&flag as *const F as *const F::Repr) })
+#[proc_macro_attribute]
+pub fn bitflags(attr: TokenStream, item: TokenStream) -> TokenStream {
+    // Parse representation type
+    let attr: TokenStream = (!attr.is_empty())
+        .then_some(attr)
+        .unwrap_or_else(|| quote!(usize).into());
+    let ty = parse_macro_input!(attr as syn::Type);
+    // Parse enum name and visibility
+    let item = parse_macro_input!(item as ItemEnum);
+    let vis = item.vis.clone();
+    let name = item.ident;
+    // Parse variants
+    let mut variants = Vec::with_capacity(item.variants.len());
+    let mut names = Vec::with_capacity(item.variants.len());
+    let mut all_values = Vec::with_capacity(item.variants.len());
+    for variant in &item.variants {
+        let variant_name = variant.ident.clone();
+        // TODO: default value?
+        let expr = variant.discriminant.clone().unwrap().1;
+        variants.push(quote!(pub const #variant_name: #name = Self { value: #expr };));
+        names.push(quote!(stringify!(#variant_name)));
+        all_values.push(quote!(Self::#variant_name));
     }
 
-    pub fn from_flags(flags: &[F]) -> Self {
-        let mut flagset = Self(F::ZERO);
-        for f in flags {
-            flagset = flagset | *f;
+    quote! {
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #vis struct #name {
+            pub value: #ty,
         }
-        flagset
+
+        #[allow(non_upper_case_globals)]
+        impl #name {
+            #(#variants)*
+
+            pub const fn names() -> &'static [&'static str] {
+                &[#(#names,)*]
+            }
+
+            pub const fn values() -> &'static [Self] {
+                &[#(#all_values,)*]
+            }
+
+            #[inline(always)]
+            pub const fn contains(&self, flags: Self) -> bool {
+                (self.value & flags.value) == flags.value
+            }
+        }
+
+        impl const core::ops::Not for #name {
+            type Output = Self;
+            #[inline(always)]
+            fn not(self) -> Self::Output {
+                Self { value: !self.value }
+            }
+        }
+
+        impl const core::ops::BitAnd for #name {
+            type Output = Self;
+            #[inline(always)]
+            fn bitand(self, x: Self) -> Self::Output {
+                Self { value: self.value & x.value }
+            }
+        }
+
+        impl const core::ops::BitAndAssign for #name {
+            #[inline(always)]
+            fn bitand_assign(&mut self, x: Self) {
+                self.value &= x.value;
+            }
+        }
+
+        impl const core::ops::BitOr for #name {
+            type Output = Self;
+            #[inline(always)]
+            fn bitor(self, x: Self) -> Self::Output {
+                Self { value: self.value | x.value }
+            }
+        }
+
+        impl const core::ops::BitOrAssign for #name {
+            #[inline(always)]
+            fn bitor_assign(&mut self, x: Self) {
+                self.value |= x.value;
+            }
+        }
+
+        impl const core::ops::BitXor for #name {
+            type Output = Self;
+            #[inline(always)]
+            fn bitxor(self, x: Self) -> Self::Output {
+                Self { value: self.value ^ x.value }
+            }
+        }
+
+        impl const core::ops::BitXorAssign for #name {
+            #[inline(always)]
+            fn bitxor_assign(&mut self, x: Self) {
+                self.value ^= x.value;
+            }
+        }
+
+        impl const From<#ty> for #name {
+            #[inline(always)]
+            fn from(value: #ty) -> Self {
+                Self { value }
+            }
+        }
+
+        impl const From<#name> for #ty {
+            #[inline(always)]
+            fn from(x: #name) -> #ty {
+                x.value
+            }
+        }
+
+        impl core::fmt::Debug for #name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                let names = Self::names();
+                let values = Self::values();
+                let mut first = true;
+                for i in 0..names.len() {
+                    if self.contains(values[i]) {
+                        if first {
+                            first = false;
+                        } else {
+                            write!(f, " | ")?;
+                        }
+                        write!(f, "{}", names[i])?;
+                    }
+                }
+                if first {
+                    write!(f, "0")?;
+                }
+                Ok(())
+            }
+        }
+
+        impl core::fmt::Binary for #name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::Binary::fmt(&self.value, f)
+            }
+        }
+
+        impl core::fmt::LowerHex for #name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::LowerHex::fmt(&self.value, f)
+            }
+        }
+
+        impl core::fmt::UpperHex for #name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::UpperHex::fmt(&self.value, f)
+            }
+        }
     }
-
-    // pub const fn from_flags(flags: &[F]) -> Self {
-    //     // if flags.len() == 0 {
-    //     //     // let
-    //     //     // Self(unsafe { ::core::mem::transmute(0) })
-    //     //     unreachable!()
-    //     // } else if flags.len() == 1 {
-    //     //     Self::from_flag(&flags[0])
-    //     // } else {
-    //     //     let mut f = Self::from_flag(&flags[0]);
-    //     //     Self(f.bits() | Self::from_flags(&flags[1..]).bits())
-    //     // }
-    //     let mut i = 0;
-    //     let mut f = F::ZERO;
-    //     while i < flags.len() {
-    //         f = f | Self::from_flag(&flags[i]).bits();
-    //         i += 1;
-    //     }
-    //     Self::from_flag(&flags[0])
-    // }
-
-    pub const fn from_bits(bits: F::Repr) -> Self {
-        Self(bits)
-    }
-
-    pub const fn set_bits(&mut self, bits: F::Repr) {
-        self.0 = bits;
-    }
-
-    // pub const fn add_flag(&mut self, flag: F) {
-    //     self.set_bits(self.bits() | Self::from_flag(flag).bits());
-    // }
-
-    pub const fn bits(&self) -> F::Repr {
-        self.0
-    }
-
-    pub fn contains(&self, flag: F) -> bool {
-        (flag.bits() & self.0) != F::Repr::default()
-    }
+    .into()
 }
-
-impl<F: BitFlag> BitAnd for BitFlags<F> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn bitand(self, rhs: Self) -> Self {
-        Self(self.bits() & rhs.bits())
-    }
-}
-
-impl<F: BitFlag> BitOr for BitFlags<F> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn bitor(self, rhs: Self) -> Self {
-        Self(self.bits() | rhs.bits())
-    }
-}
-
-impl<F: BitFlag> BitXor for BitFlags<F> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn bitxor(self, rhs: Self) -> Self {
-        Self(self.bits() ^ rhs.bits())
-    }
-}
-
-impl<F: BitFlag> BitAnd<F> for BitFlags<F> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn bitand(self, rhs: F) -> Self {
-        Self(self.bits() & rhs.bits())
-    }
-}
-
-impl<F: BitFlag> BitOr<F> for BitFlags<F> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn bitor(self, rhs: F) -> Self {
-        Self(self.bits() | rhs.bits())
-    }
-}
-
-impl<F: BitFlag> BitXor<F> for BitFlags<F> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn bitxor(self, rhs: F) -> Self {
-        Self(self.bits() ^ rhs.bits())
-    }
-}
-
-// #[macro_export]
-// macro_rules! const_bitflags {
-//     ($($flag: expr),*) => {{
-//         let mut flags = BitFlags::from_bits(0);
-//         $({
-//             flags.add_flag($flag);
-//         });*
-//         flags
-//     }};
-// }

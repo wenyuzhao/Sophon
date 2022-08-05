@@ -16,7 +16,7 @@ use core::arch::asm;
 use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, slice};
 use cortex_a::registers::*;
-use devtree::DeviceTree;
+use device_tree::DeviceTree;
 use memory::address::*;
 use memory::page::*;
 use memory::page_table::*;

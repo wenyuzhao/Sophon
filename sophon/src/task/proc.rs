@@ -15,7 +15,7 @@ use core::sync::atomic::AtomicUsize;
 use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
-use memory::page_table::{PageFlags, PageFlagsExt, PageTable, L4};
+use memory::page_table::{PageFlags, PageTable, L4};
 use mutex::AbstractMonitor;
 use spin::Mutex;
 use vfs::VFSRequest;

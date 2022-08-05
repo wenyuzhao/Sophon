@@ -13,7 +13,7 @@ use core::ptr::copy_nonoverlapping;
 use interrupt::UninterruptibleMutex;
 use memory::address::*;
 use memory::page::*;
-use memory::page_table::{PageFlags, PageFlagsExt, PageTable};
+use memory::page_table::{PageFlags, PageTable};
 
 /// Holds the execution code for a kernel task.
 ///

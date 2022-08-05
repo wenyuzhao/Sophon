@@ -35,7 +35,7 @@ use crate::task::runnable::Idle;
 use crate::task::Proc;
 use alloc::boxed::Box;
 use boot::BootInfo;
-use devtree::DeviceTree;
+use device_tree::DeviceTree;
 use vfs::ramfs::RamFS;
 
 #[global_allocator]

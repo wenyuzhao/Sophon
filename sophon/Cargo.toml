@@ -22,11 +22,11 @@ memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
 log = { path = "../libs/log" }
 boot = { path = "../libs/boot" }
-kernel_module = { path = "../libs/kernel_module" }
-elf_loader = { path = "../libs/elf_loader" }
+kernel-module = { path = "../libs/kernel-module" }
+elf-loader = { path = "../libs/elf-loader" }
 vfs = { path = "../libs/vfs" }
 proc = { path = "../libs/proc" }
-devtree = { path = "../libs/devtree" }
+device-tree = { path = "../libs/device-tree" }
 mutex = { path = "../libs/mutex" }
 
 [build-dependencies]

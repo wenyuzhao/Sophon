@@ -4,14 +4,12 @@ pub use page_table::*;
 
 use crate::address::*;
 use crate::page::*;
-use bitflags::{BitFlag, BitFlags};
+use bitflags::bitflags;
 use core::fmt::Debug;
-use core::ops::BitOr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u64)]
 #[allow(unused, non_camel_case_types)]
-pub enum PageFlag {
+#[bitflags(u64)]
+pub enum PageFlags {
     PRESENT = 0b01,          // map a 4k page
     SMALL_PAGE = 0b10,       // map a 4k page
     USER = 1 << 6,           // enable EL0 Access
@@ -26,86 +24,68 @@ pub enum PageFlag {
     NO_CACHE = 0b10 << 2,
 }
 
-impl BitFlag for PageFlag {
-    type Repr = u64;
-    const ZERO: Self::Repr = 0;
-}
-
-impl BitOr for PageFlag {
-    type Output = BitFlags<Self>;
-
-    #[inline(always)]
-    fn bitor(self, rhs: Self) -> Self::Output {
-        PageFlags::from_flags(&[self, rhs])
+impl PageFlags {
+    pub fn page_table_flags() -> PageFlags {
+        PageFlags::NORMAL_MEMORY
+            | PageFlags::PRESENT
+            | PageFlags::SMALL_PAGE
+            | PageFlags::OUTER_SHARE
+            | PageFlags::ACCESSED
+            | PageFlags::USER
     }
-}
-
-pub type PageFlags = BitFlags<PageFlag>;
-
-pub trait PageFlagsExt {
-    fn page_table_flags() -> PageFlags {
-        PageFlag::NORMAL_MEMORY
-            | PageFlag::PRESENT
-            | PageFlag::SMALL_PAGE
-            | PageFlag::OUTER_SHARE
-            | PageFlag::ACCESSED
-            | PageFlag::USER
-    }
-    fn kernel_data_flags<S: PageSize>() -> PageFlags {
-        let mut flags = PageFlag::NORMAL_MEMORY
-            | PageFlag::PRESENT
-            | PageFlag::ACCESSED
-            | PageFlag::OUTER_SHARE;
+    pub fn kernel_data_flags<S: PageSize>() -> PageFlags {
+        let mut flags = PageFlags::NORMAL_MEMORY
+            | PageFlags::PRESENT
+            | PageFlags::ACCESSED
+            | PageFlags::OUTER_SHARE;
         if S::BYTES == Size4K::BYTES {
-            flags = flags | PageFlag::SMALL_PAGE;
+            flags = flags | PageFlags::SMALL_PAGE;
         }
         flags
     }
-    fn kernel_data_flags_1g() -> PageFlags {
+    pub fn kernel_data_flags_1g() -> PageFlags {
         Self::kernel_data_flags::<Size1G>()
     }
-    fn kernel_data_flags_2m() -> PageFlags {
+    pub fn kernel_data_flags_2m() -> PageFlags {
         Self::kernel_data_flags::<Size2M>()
     }
-    fn kernel_data_flags_4k() -> PageFlags {
+    pub fn kernel_data_flags_4k() -> PageFlags {
         Self::kernel_data_flags::<Size4K>()
     }
-    fn kernel_code_flags_1g() -> PageFlags {
+    pub fn kernel_code_flags_1g() -> PageFlags {
         Self::kernel_code_flags_2m()
     }
-    fn kernel_code_flags_2m() -> PageFlags {
-        PageFlag::NORMAL_MEMORY | PageFlag::PRESENT | PageFlag::ACCESSED | PageFlag::OUTER_SHARE
+    pub fn kernel_code_flags_2m() -> PageFlags {
+        PageFlags::NORMAL_MEMORY | PageFlags::PRESENT | PageFlags::ACCESSED | PageFlags::OUTER_SHARE
     }
-    fn kernel_code_flags_4k() -> PageFlags {
-        Self::kernel_code_flags_2m() | PageFlag::SMALL_PAGE
+    pub fn kernel_code_flags_4k() -> PageFlags {
+        Self::kernel_code_flags_2m() | PageFlags::SMALL_PAGE
     }
-    fn user_code_flags_2m() -> PageFlags {
-        Self::kernel_code_flags_2m() | PageFlag::USER
+    pub fn user_code_flags_2m() -> PageFlags {
+        Self::kernel_code_flags_2m() | PageFlags::USER
     }
-    fn user_code_flags_4k() -> PageFlags {
-        Self::kernel_code_flags_4k() | PageFlag::USER
+    pub fn user_code_flags_4k() -> PageFlags {
+        Self::kernel_code_flags_4k() | PageFlags::USER
     }
-    fn user_data_flags_4k() -> PageFlags {
-        Self::kernel_data_flags_4k() | PageFlag::USER
+    pub fn user_data_flags_4k() -> PageFlags {
+        Self::kernel_data_flags_4k() | PageFlags::USER
     }
-    fn user_stack_flags() -> PageFlags {
-        PageFlag::NORMAL_MEMORY
-            | PageFlag::PRESENT
-            | PageFlag::SMALL_PAGE
-            | PageFlag::OUTER_SHARE
-            | PageFlag::ACCESSED
-            | PageFlag::USER
+    pub fn user_stack_flags() -> PageFlags {
+        PageFlags::NORMAL_MEMORY
+            | PageFlags::PRESENT
+            | PageFlags::SMALL_PAGE
+            | PageFlags::OUTER_SHARE
+            | PageFlags::ACCESSED
+            | PageFlags::USER
     }
-    fn device() -> PageFlags {
-        PageFlag::DEVICE_MEMORY
-            | PageFlag::PRESENT
-            | PageFlag::SMALL_PAGE
-            | PageFlag::OUTER_SHARE
-            | PageFlag::ACCESSED
+    pub fn device() -> PageFlags {
+        PageFlags::DEVICE_MEMORY
+            | PageFlags::PRESENT
+            | PageFlags::SMALL_PAGE
+            | PageFlags::OUTER_SHARE
+            | PageFlags::ACCESSED
     }
 }
-
-impl PageFlagsExt for PageFlags {}
 
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("Only supports 64bit machines");
@@ -115,9 +95,9 @@ compile_error!("Only supports 64bit machines");
 pub struct PageTableEntry(pub(crate) u64);
 
 impl core::fmt::Debug for PageTableEntry {
-    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if self.0 != 0 {
-            write!(f, "{:#x?} {:#x}", self.address(), self.flags())
+            write!(f, "{:#x?} {:?}", self.address(), self.flags())
         } else {
             write!(f, "{:#x?}", self.0)
         }
@@ -137,10 +117,10 @@ impl PageTableEntry {
         self.0 == 0
     }
     pub fn present(&self) -> bool {
-        self.flags().contains(PageFlag::PRESENT)
+        self.flags().contains(PageFlags::PRESENT)
     }
     pub fn is_block(&self) -> bool {
-        !self.flags().contains(PageFlag::SMALL_PAGE)
+        !self.flags().contains(PageFlags::SMALL_PAGE)
     }
     pub fn address(&self) -> Address<P> {
         ((unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::ADDRESS_MASK) as usize)
@@ -148,23 +128,23 @@ impl PageTableEntry {
     }
     pub fn flags(&self) -> PageFlags {
         let v = unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::FLAGS_MASK;
-        PageFlags::from_bits(v as _)
+        PageFlags::from(v)
     }
     pub fn update_flags(&mut self, new_flags: PageFlags) {
-        let v = self.address().as_usize() as u64 | new_flags.bits();
+        let v = self.address().as_usize() as u64 | new_flags.value;
         unsafe {
             ::core::intrinsics::volatile_store(&mut self.0, v);
         }
     }
     pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) {
         if S::BYTES != Size4K::BYTES {
-            debug_assert!(flags.bits() & 0b10 == 0);
+            debug_assert!(flags.value & 0b10 == 0);
         } else {
-            debug_assert!(flags.bits() & 0b10 == 0b10);
+            debug_assert!(flags.value & 0b10 == 0b10);
         }
         let mut a = frame.start().as_usize();
         a &= !(0xffff_0000_0000_0000);
-        let v = a as u64 | flags.bits();
+        let v = a as u64 | flags.value;
         unsafe {
             ::core::intrinsics::volatile_store(&mut self.0, v);
         }

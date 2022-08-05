@@ -230,7 +230,7 @@ impl PageTable<L4> {
         }
         let table = table.get_next_table(index).unwrap();
         table.entries[PageTable::<L1>::get_index(page.start())]
-            .set(frame, flags | PageFlag::SMALL_PAGE);
+            .set(frame, flags | PageFlags::SMALL_PAGE);
         page
     }
 

@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::ops::Deref;
-use devtree::DeviceTree;
+use device_tree::DeviceTree;
 use interrupt::InterruptController;
 use log::Logger;
 use memory::address::Address;

@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 log = { path = "../../libs/log" }
-kernel_module = { path = "../../libs/kernel_module" }
+kernel-module = { path = "../../libs/kernel-module" }
 anyhow = { workspace = true }
 
 [features]

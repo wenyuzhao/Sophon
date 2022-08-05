@@ -1,11 +1,10 @@
 use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
-use devtree::DeviceTree;
+use device_tree::DeviceTree;
 use kernel_module::ModuleCallHandler;
 use log::Logger;
 use memory::page::Frame;
 use memory::page_table::PageFlags;
-use memory::page_table::PageFlagsExt;
 use memory::{
     address::Address,
     page::{Page, Size4K},

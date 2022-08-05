@@ -14,12 +14,12 @@ members = [
     "libs/bitflags",
     "libs/boot",
     "libs/dev",
-    "libs/devtree",
-    "libs/elf_loader",
+    "libs/device-tree",
+    "libs/elf-loader",
     "libs/vfs",
     "libs/interrupt",
-    "libs/kernel_module",
-    "libs/kernel_module/macros",
+    "libs/kernel-module",
+    "libs/kernel-module/macros",
     "libs/mutex",
     "libs/proc",
     "libs/syscall",
@@ -69,3 +69,4 @@ xmas-elf = "0.8.0"
 anyhow = { version = "1.0", default-features = false }
 quote = "1.0.20"
 syn = { version = "1.0.98", features = ["full"] }
+bitmask-enum = "2.0.0"

@@ -1,7 +1,7 @@
 cargo-features = ["workspace-inheritance"]
 
 [package]
-name = "kernel_module"
+name = "kernel-module"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -11,10 +11,10 @@ edition = { workspace = true }
 [dependencies]
 log = { path = "../log" }
 memory = { path = "../memory" }
-kernel_module_macros = { path = "./macros" }
+kernel-module-macros = { path = "./macros" }
 syscall = { path = "../syscall" }
 proc = { path = "../proc" }
-devtree = { path = "../devtree" }
+device-tree = { path = "../device-tree" }
 mutex = { path = "../mutex" }
 interrupt = { path = "../interrupt" }
 anyhow = { workspace = true }

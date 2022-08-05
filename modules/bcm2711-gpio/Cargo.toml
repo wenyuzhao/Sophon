@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 log = { path = "../../libs/log" }
-kernel_module = { path = "../../libs/kernel_module" }
+kernel-module = { path = "../../libs/kernel-module" }
 memory = { path = "../../libs/memory" }
 interrupt = { path = "../../libs/interrupt" }
 dev = { path = "../../libs/dev" }
