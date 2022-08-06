@@ -12,6 +12,11 @@ impl<T: Copy> Volatile<T> {
     }
 
     #[inline(always)]
+    pub unsafe fn force_set(&self, v: T) {
+        volatile_store(&mut *(&self.0 as *const T as *mut T), v)
+    }
+
+    #[inline(always)]
     pub fn set(&mut self, v: T) {
         unsafe { volatile_store(&mut self.0, v) }
     }

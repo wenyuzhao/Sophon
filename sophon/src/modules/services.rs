@@ -1,5 +1,7 @@
 use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
+use core::iter::Step;
+use core::ops::Range;
 use device_tree::DeviceTree;
 use kernel_module::ModuleCallHandler;
 use log::Logger;
@@ -73,6 +75,17 @@ impl kernel_module::KernelService for KernelService {
         let page = KERNEL_HEAP.virtual_allocate::<Size4K>(1).start;
         KERNEL_MEMORY_MAPPER.map(page, frame, PageFlags::device());
         page
+    }
+
+    fn map_device_pages(&self, frames: Range<Frame>) -> Range<Page> {
+        let num_pages = Step::steps_between(&frames.start, &frames.end).unwrap();
+        let pages = KERNEL_HEAP.virtual_allocate::<Size4K>(num_pages);
+        for i in 0..num_pages {
+            let frame = Step::forward(frames.start, i);
+            let page = Step::forward(pages.start, i);
+            KERNEL_MEMORY_MAPPER.map(page, frame, PageFlags::device());
+        }
+        pages
     }
 
     fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>) {

@@ -12,8 +12,9 @@ pub fn kernel_module(_attr: TokenStream, item: TokenStream) -> TokenStream {
         static ALLOCATOR: kernel_module::KernelModuleAllocator = kernel_module::KernelModuleAllocator;
 
         #[no_mangle]
+        #[allow(unused)]
         pub extern "C" fn _start(service: kernel_module::KernelServiceWrapper) -> isize {
-            if kernel_module::init_kernel_module(service, &#name).is_err() {
+            if kernel_module::init_kernel_module(service, unsafe { &#name }).is_err() {
                 return -1;
             }
             0
