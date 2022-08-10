@@ -1,5 +1,3 @@
-cargo-features = ["workspace-inheritance"]
-
 [package]
 name = "bcm2711-gpio"
 version = { workspace = true }
