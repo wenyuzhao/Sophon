@@ -1,13 +1,12 @@
 on: [push, pull_request]
 name: Style Check
 jobs:
-  format:
-    name: Format Check
+  cargo-fmt:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Install Rust Toolchain
-        uses: oxidecomputer/actions-rs_toolchain@v1
-      - name: Format Check
+      - name: Install Rust toolchain
+        uses: codota/toolchain@v1
+      - name: Cargo format check
         run: cargo fmt --all --check
