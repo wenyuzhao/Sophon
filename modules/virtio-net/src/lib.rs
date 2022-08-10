@@ -165,7 +165,7 @@ impl KernelModule for VirtIONet {
                     let status = net.header.interrupt_status.get();
                     net.header.interrupt_ack.set(status);
                     println!("Net IRQ status: {:x}", status);
-                    let arp = net.recv_one::<Arp>();
+                    let arp = net.recv_one::<Ether<IpV4<UDP<DHCP>>>>();
                     println!("{:?}", arp);
                     0
                 });
@@ -250,10 +250,18 @@ impl VirtIONet {
         println!("dhcp sending");
         self.net.as_mut().unwrap().send(eth);
         println!("dhcp sent");
-        let mut p: Ether<IpV4<UDP<DHCP>>> =
-            unsafe { MaybeUninit::<Ether<IpV4<UDP<DHCP>>>>::zeroed().assume_init() };
-        self.net.as_mut().unwrap().revc_sync(&mut p);
-        println!("dhcp received {:x?}", p);
+        let page = SERVICE.alloc_pages(1).unwrap().start;
+        unsafe {
+            page.zero();
+        }
+        let p: &mut Ether<IpV4<UDP<DHCP>>> = unsafe { page.start().as_mut() };
+        self.net
+            .as_mut()
+            .unwrap()
+            .revc_sync::<[u8; 4096]>(unsafe { page.start().as_mut() });
+        println!("dhcp received {:x?} {:?}", p, unsafe {
+            page.start().as_mut::<[u8; 4096]>()
+        });
     }
 
     fn arp_ask(&mut self, ip: IpAddress) -> MacAddress {
