@@ -1,3 +1,4 @@
+#![feature(never_type)]
 #![no_std]
 
 use core::ops::Range;
@@ -9,4 +10,5 @@ pub struct BootInfo {
     pub device_tree: &'static [u8],
     pub init_fs: &'static [u8],
     pub uart: Option<Address>,
+    pub shutdown: Option<extern "C" fn() -> !>,
 }

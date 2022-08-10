@@ -13,6 +13,7 @@ pub enum Syscall {
     Sbrk,
     Exec,
     Exit,
+    Halt,
 }
 
 #[inline]
@@ -72,5 +73,11 @@ pub fn exec(path: &str, args: &[&str]) -> isize {
 #[inline]
 pub fn exit() -> ! {
     syscall(Syscall::Exit, &[]);
+    unreachable!()
+}
+
+#[inline]
+pub fn halt(code: usize) -> ! {
+    syscall(Syscall::Halt, &[code]);
     unreachable!()
 }

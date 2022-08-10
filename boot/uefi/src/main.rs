@@ -24,6 +24,7 @@ use memory::page_table::*;
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::*;
+use uefi::table::runtime::ResetType;
 use uefi::{prelude::*, table::boot::*};
 use uefi::{CStr16, Guid};
 
@@ -32,6 +33,7 @@ use crate::uefi_logger::UEFILogger;
 mod uefi_logger;
 
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
+static mut RUNTIME_SERVICES: Option<&'static RuntimeServices> = None;
 static mut IMAGE: Option<Handle> = None;
 
 unsafe fn establish_el1_page_table() {
@@ -264,6 +266,7 @@ fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo
         device_tree,
         uart,
         init_fs,
+        shutdown: Some(shutdown),
     }
 }
 
@@ -461,12 +464,23 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     device_tree: &[],
     init_fs: &[],
     uart: None,
+    shutdown: None,
 };
+
+extern "C" fn shutdown() -> ! {
+    unsafe {
+        RUNTIME_SERVICES
+            .as_ref()
+            .unwrap()
+            .reset(ResetType::Shutdown, Status::SUCCESS, None);
+    }
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> Status {
     uefi_services::init(&mut st).expect("Failed to initialize utilities");
     BOOT_SYSTEM_TABLE = Some(st.unsafe_clone());
+    RUNTIME_SERVICES = Some(BOOT_SYSTEM_TABLE.as_ref().unwrap().runtime_services());
     IMAGE = Some(image);
     UEFILogger::init();
     log!("Hello, UEFI!");

@@ -1,4 +1,5 @@
 use super::{Arch, ArchContext, TargetArch};
+use boot::BootInfo;
 use memory::{address::Address, page_table::PageTable};
 
 #[repr(C)]
@@ -36,11 +37,15 @@ pub struct X64;
 impl Arch for X64 {
     type Context = X64Context;
 
-    fn init() {
+    fn init(_boot_info: &'static BootInfo) {
         unimplemented!()
     }
 
     fn setup_interrupt_table() {
+        unimplemented!()
+    }
+
+    fn halt(_code: i32) -> ! {
         unimplemented!()
     }
 }

@@ -55,7 +55,7 @@ fn main() {
     );
     let opts: Opts = Opts::parse();
     match opts.sub_command {
-        SubCommand::Build(t) => t.run(&shell),
+        SubCommand::Build(t) => t.run(&shell, false),
         SubCommand::Run(t) => t.run(&shell),
         SubCommand::BuildInitFS(t) => t.run(&shell),
         SubCommand::Clean(t) => t.run(&shell),

@@ -1,3 +1,4 @@
+use boot::BootInfo;
 use interrupt::InterruptController;
 use memory::address::*;
 use memory::page_table::PageTable;
@@ -33,7 +34,7 @@ static mut INTERRUPT_CONTROLLER: Option<&'static dyn InterruptController> = None
 pub trait Arch {
     type Context: ArchContext;
 
-    fn init();
+    fn init(boot_info: &'static BootInfo);
 
     fn interrupt() -> &'static dyn InterruptController {
         unsafe { &**INTERRUPT_CONTROLLER.as_ref().unwrap() }
@@ -45,6 +46,8 @@ pub trait Arch {
     }
 
     fn setup_interrupt_table();
+
+    fn halt(code: i32) -> !;
 }
 
 pub type TargetArch = impl Arch;

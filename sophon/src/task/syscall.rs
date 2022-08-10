@@ -1,4 +1,8 @@
-use crate::scheduler::{AbstractScheduler, SCHEDULER};
+use crate::arch::Arch;
+use crate::{
+    arch::TargetArch,
+    scheduler::{AbstractScheduler, SCHEDULER},
+};
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
 use mutex::AbstractMonitor;
@@ -33,6 +37,7 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
             .unwrap_or(-1),
         Syscall::Exec => exec(a, b, c, d, e),
         Syscall::Exit => exit(a, b, c, d, e),
+        Syscall::Halt => halt(a, b, c, d, e),
     }
 }
 
@@ -83,4 +88,8 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
 fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     Proc::current().exit();
     SCHEDULER.schedule()
+}
+
+fn halt(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    TargetArch::halt(a as _)
 }

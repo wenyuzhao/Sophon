@@ -15,13 +15,21 @@ pub struct Build {
 }
 
 impl Build {
-    pub fn run(&self, shell: &Shell) {
+    pub fn run(&self, shell: &Shell, qemu: bool) {
         assert_eq!(self.boot, Boot::Uefi);
         assert_eq!(self.cargo.arch, Arch::AArch64);
         // Build kernel
+        let features = if qemu {
+            match self.cargo.features.clone() {
+                Some(features) => Some(format!("{},qemu", features)),
+                _ => Some("qemu".to_owned()),
+            }
+        } else {
+            self.cargo.features.clone()
+        };
         shell.build_package(
             "sophon",
-            self.cargo.features.clone(),
+            features,
             self.cargo.release,
             Some(&self.cargo.kernel_target()),
         );

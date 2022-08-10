@@ -64,7 +64,7 @@ impl TTY {
         match cmd {
             "exit" => {
                 println!("Sophon TTY exited.");
-                user::sys::exit();
+                user::sys::halt(0);
             }
             "cd" => {
                 if args.len() == 1 {

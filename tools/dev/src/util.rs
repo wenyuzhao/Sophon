@@ -1,6 +1,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    process::Command,
     str::FromStr,
 };
 
@@ -127,7 +128,7 @@ pub trait ShellExt {
         release: bool,
         target: Option<&str>,
         args: &[String],
-    );
+    ) -> i32;
 }
 
 impl ShellExt for Shell {
@@ -166,7 +167,7 @@ impl ShellExt for Shell {
         release: bool,
         target: Option<&str>,
         args: &[String],
-    ) {
+    ) -> i32 {
         let path = path.as_ref();
         let _p = self.push_dir(path);
         let mut cmd = cmd!(self, "cargo run").quiet();
@@ -175,7 +176,18 @@ impl ShellExt for Shell {
             cmd = cmd.arg("--").args(args);
         }
         eprintln!("$ cd {} && {}", path.to_str().unwrap(), cmd);
-        cmd.run().unwrap();
+        let mut cmd: Command = cmd.into();
+        let code = match cmd.status() {
+            Ok(status) => {
+                if status.success() || status.code() == Some(1) {
+                    0
+                } else {
+                    status.code().unwrap_or(-1)
+                }
+            }
+            Err(_) => -1,
+        };
+        code
     }
 }
 

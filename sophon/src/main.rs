@@ -92,7 +92,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
         DEV_TREE = DeviceTree::new(boot_info.device_tree);
     }
     log!("[kernel] arch-specific initialization");
-    TargetArch::init();
+    TargetArch::init(boot_info);
 
     log!("[kernel] load init-fs");
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
@@ -123,7 +123,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
 #[panic_handler]
 fn panic(info: &PanicInfo<'_>) -> ! {
     log!("{}", info);
-    loop {}
+    TargetArch::halt(-1)
 }
 
 #[no_mangle]

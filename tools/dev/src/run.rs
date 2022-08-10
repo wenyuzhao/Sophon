@@ -25,14 +25,15 @@ impl Run {
             boot: self.boot,
             cargo: self.cargo.clone(),
         };
-        build.run(shell);
+        build.run(shell, true);
         // Run
-        shell.run_package(
+        let code = shell.run_package(
             "boot/uefi",
             self.cargo.features.clone(),
             self.cargo.release,
             Some(self.cargo.uefi_target()),
             &self.args,
         );
+        std::process::exit(code);
     }
 }

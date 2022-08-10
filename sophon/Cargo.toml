@@ -36,3 +36,4 @@ yaml-rust = { workspace = true }
 [features]
 default = []
 disable_log = ["log/disable"]
+qemu = []
