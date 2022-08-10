@@ -73,7 +73,7 @@ Make the kernel as simple and small as possible. Instead of following the micro-
 - [ ] File system modules like fat32
 - [ ] Process management module
 - [ ] Process and multi-threading
-- [ ] Driver interface based on modules
+- [x] Driver interface based on modules
 - [ ] SMP support
 
 ### User Space
@@ -81,7 +81,7 @@ Make the kernel as simple and small as possible. Instead of following the micro-
 - [ ] Properly trap and handle Stack-overflow exception
 - [x] Launch init process in privileged mode
 - [x] Launch init process in user mode
-- [ ] TTY
+- [x] TTY
 - [ ] Update/release ref-counted pages after process exit
 - [ ] Port gcc/libc/rustc
 
@@ -95,7 +95,7 @@ Make the kernel as simple and small as possible. Instead of following the micro-
 ### Others
 
 - [ ] Unit / integration tests
-- [ ] Continuous integration
+- [x] Continuous integration (based on GitHub Actions)
 
 # References
 
