@@ -373,26 +373,26 @@ impl VirtIONetDevice {
             rx,
         };
 
-        me.init_rx();
+        // me.init_rx();
 
         me
     }
 
-    fn init_rx(&mut self) {
-        for i in 0..self.rx.size() / 2 {
-            let header = Box::leak(Box::new(VirtIONetHeader::default()));
-            let data = Box::leak(Box::new([0u8; 4096]));
-            let d1 = self
-                .rx
-                .push(header, VirtQueueDescFlags::Write | VirtQueueDescFlags::Next);
-            let d2 = self.rx.push(&data, VirtQueueDescFlags::Write);
-            self.rx.desc[d1].next = d2 as _;
-            self.rx.desc_virtual_ptrs[d1] = Address::from(header);
-            self.rx.desc_virtual_ptrs[d2] = Address::from(data);
-            self.rx.update_avail(i as _);
-        }
-        self.header.notify(0);
-    }
+    // fn init_rx(&mut self) {
+    //     for i in 0..self.rx.size() / 2 {
+    //         let header = Box::leak(Box::new(VirtIONetHeader::default()));
+    //         let data = Box::leak(Box::new([0u8; 4096]));
+    //         let d1 = self
+    //             .rx
+    //             .push(header, VirtQueueDescFlags::Write | VirtQueueDescFlags::Next);
+    //         let d2 = self.rx.push(&data, VirtQueueDescFlags::Write);
+    //         self.rx.desc[d1].next = d2 as _;
+    //         self.rx.desc_virtual_ptrs[d1] = Address::from(header);
+    //         self.rx.desc_virtual_ptrs[d2] = Address::from(data);
+    //         self.rx.update_avail(i as _);
+    //     }
+    //     self.header.notify(0);
+    // }
 
     pub fn recv_one<T>(&mut self) -> &'static T {
         println!("used {:?}", self.rx.used.index);
@@ -405,13 +405,29 @@ impl VirtIONetDevice {
         unsafe { addr.as_ref() }
     }
 
-    pub fn revc_sync(&mut self) {
-        for i in 0..100 {
+    pub fn revc_sync<T>(&mut self, data: &mut T) {
+        let header = VirtIONetHeader::default();
+        let d1 = self.rx.push(
+            &header,
+            VirtQueueDescFlags::Next | VirtQueueDescFlags::Write,
+        );
+        let d2 = self.rx.push(data, VirtQueueDescFlags::Write);
+        self.rx.desc[d1].next = d2 as _;
+
+        core::sync::atomic::fence(Ordering::SeqCst);
+        self.rx.update_avail(d1 as _);
+        core::sync::atomic::fence(Ordering::SeqCst);
+        self.header.notify(0);
+        core::sync::atomic::fence(Ordering::SeqCst);
+        loop {
             core::hint::spin_loop();
             unsafe {
                 let used_index = read_volatile(&self.rx.used.index);
                 let avail_index = read_volatile(&self.rx.avail.index);
-                println!("#{} used {:?} avail {:?}", i, used_index, avail_index);
+                println!("used {:?} avail {:?}", used_index, avail_index);
+                if used_index == avail_index {
+                    break;
+                }
             }
         }
     }

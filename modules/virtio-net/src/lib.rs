@@ -16,6 +16,8 @@ extern crate alloc;
 pub mod queue;
 pub mod virtio_mmio;
 
+use core::mem::MaybeUninit;
+
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use memory::page::{Frame, Size4K};
 use syscall::NetRequest;
@@ -51,7 +53,7 @@ struct ICMP<T: Default> {
 }
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct IpV4<T> {
     version_ihl: u8,
     dscp_ecn: u8,
@@ -96,7 +98,7 @@ struct Arp {
 }
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct Ether<T> {
     destination: MacAddress,
     source: MacAddress,
@@ -105,7 +107,7 @@ struct Ether<T> {
 }
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct UDP<T> {
     pub source_port: u16,
     pub destination_port: u16,
@@ -115,6 +117,7 @@ struct UDP<T> {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 struct DHCP {
     pub op: u8,
     pub htype: u8,
@@ -247,7 +250,10 @@ impl VirtIONet {
         println!("dhcp sending");
         self.net.as_mut().unwrap().send(eth);
         println!("dhcp sent");
-        self.net.as_mut().unwrap().revc_sync();
+        let mut p: Ether<IpV4<UDP<DHCP>>> =
+            unsafe { MaybeUninit::<Ether<IpV4<UDP<DHCP>>>>::zeroed().assume_init() };
+        self.net.as_mut().unwrap().revc_sync(&mut p);
+        println!("dhcp received {:x?}", p);
     }
 
     fn arp_ask(&mut self, ip: IpAddress) -> MacAddress {
