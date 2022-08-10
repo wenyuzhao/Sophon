@@ -12,7 +12,8 @@ machine_args="-M virt -machine virtualization=on -cpu cortex-a72 -smp 4 -m 1G"
 # machine_args="-M virt,dumpdtb=$outdir/device-tree.dtb -cpu cortex-a72 -smp 1 -m 1G"
 shift
 set -ex
-$qemu $machine_args -s -bios $bios -drive index=0,format=raw,file=fat:rw:$boot_dir -net none -monitor none -nographic -serial stdio $@
+net="-global virtio-mmio.force-legacy=false -device virtio-net-device,netdev=net0 -netdev user,id=net0"
+$qemu $machine_args -s -bios $bios -drive index=0,format=raw,file=fat:rw:$boot_dir $net -monitor none -nographic -serial stdio $@
 
 
 # Launch qemu

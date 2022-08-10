@@ -4,7 +4,7 @@ use core::ops::{Deref, Range};
 use device_tree::DeviceTree;
 use interrupt::InterruptController;
 use log::Logger;
-use memory::address::Address;
+use memory::address::{Address, P, V};
 use memory::page::{Frame, Page};
 use mutex::Monitor;
 use proc::{ProcId, TaskId};
@@ -20,6 +20,8 @@ pub trait KernelService: Send + Sync + 'static {
     // Heap
     fn alloc(&self, layout: Layout) -> Option<Address>;
     fn dealloc(&self, address: Address, layout: Layout);
+    fn alloc_pages(&self, pages: usize) -> Option<Range<Page>>;
+    fn translate(&self, v: Address<V>) -> Option<Address<P>>;
     // Process
     fn current_process(&self) -> Option<ProcId>;
     fn current_task(&self) -> Option<TaskId>;
@@ -31,6 +33,7 @@ pub trait KernelService: Send + Sync + 'static {
     fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>);
     fn enable_irq(&self, irq: usize);
     fn disable_irq(&self, irq: usize);
+    fn notify_end_of_interrupt(&self);
     // Scheduler
     fn schedule(&self) -> !;
     fn new_monitor(&self) -> Monitor;

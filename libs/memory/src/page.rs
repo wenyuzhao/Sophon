@@ -58,6 +58,10 @@ impl<S: PageSize, K: MemoryKind> Page<S, K> {
         Address::new(a.as_usize() & !Self::MASK)
     }
 
+    pub const fn align_up(a: Address<K>) -> Address<K> {
+        a.align_up(Self::BYTES)
+    }
+
     pub const fn is_aligned(a: Address<K>) -> bool {
         (a.as_usize() & Self::MASK) == 0
     }

@@ -130,3 +130,21 @@ impl<'a> ModuleRequest<'a> for ! {
         unimplemented!()
     }
 }
+
+pub enum NetRequest {
+    Test,
+}
+
+impl<'a> ModuleRequest<'a> for NetRequest {
+    fn as_raw(&'a self) -> RawModuleRequest<'a> {
+        match self {
+            Self::Test => RawModuleRequest::new(0, &(), &(), &()),
+        }
+    }
+    fn from_raw(raw: RawModuleRequest<'a>) -> Self {
+        match raw.id() {
+            0 => Self::Test,
+            _ => panic!("Unknown request"),
+        }
+    }
+}

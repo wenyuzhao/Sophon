@@ -1036,6 +1036,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "virtio-net"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "bitflags 0.0.3",
+ "dev",
+ "interrupt",
+ "kernel-module",
+ "log 0.0.3",
+ "memory",
+ "mutex",
+ "spin",
+ "syscall",
+]
+
+[[package]]
 name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

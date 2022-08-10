@@ -52,6 +52,23 @@ impl<'a, 'b> DeviceTree<'a, 'b> {
         }
         None
     }
+
+    pub fn iter_compatible<'x>(&'x self, name: &'x str) -> impl Iterator<Item = Node> + 'x {
+        self.index
+            .nodes()
+            .filter(move |n| {
+                if let Some(compatible) = n.props().find(|p| p.name() == Ok("compatible")) {
+                    let mut strs = compatible.iter_str();
+                    while let Ok(Some(s)) = strs.next() {
+                        if s == name {
+                            return true;
+                        }
+                    }
+                }
+                false
+            })
+            .map(|node| Node { node })
+    }
 }
 
 #[derive(Clone)]

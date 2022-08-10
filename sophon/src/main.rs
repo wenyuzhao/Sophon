@@ -62,6 +62,7 @@ const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
     ("vfs", "/etc/modules/libvfs.so"),
     ("dev", "/etc/modules/libdev.so"),
     ("pl011", "/etc/modules/libpl011.so"),
+    ("virtio-net", "/etc/modules/libvirtio_net.so"),
 ];
 
 #[no_mangle]

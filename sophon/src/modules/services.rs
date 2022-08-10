@@ -5,7 +5,8 @@ use core::ops::Range;
 use device_tree::DeviceTree;
 use kernel_module::ModuleCallHandler;
 use log::Logger;
-use memory::page::Frame;
+use memory::address::{P, V};
+use memory::page::{Frame, PageResource};
 use memory::page_table::PageFlags;
 use memory::{
     address::Address,
@@ -46,6 +47,14 @@ impl kernel_module::KernelService for KernelService {
 
     fn dealloc(&self, ptr: Address, layout: core::alloc::Layout) {
         unsafe { crate::ALLOCATOR.dealloc(ptr.as_mut_ptr(), layout) }
+    }
+
+    fn alloc_pages(&self, pages: usize) -> Option<Range<Page>> {
+        KERNEL_HEAP.acquire_pages(pages)
+    }
+
+    fn translate(&self, v: Address<V>) -> Option<Address<P>> {
+        KERNEL_MEMORY_MAPPER.translate(v)
     }
 
     fn register_module_call_handler(&self, handler: &'static dyn ModuleCallHandler) {
@@ -98,6 +107,10 @@ impl kernel_module::KernelService for KernelService {
 
     fn disable_irq(&self, irq: usize) {
         TargetArch::interrupt().disable_irq(irq);
+    }
+
+    fn notify_end_of_interrupt(&self) {
+        TargetArch::interrupt().notify_end_of_interrupt();
     }
 
     fn set_interrupt_controller(&self, controller: &'static dyn interrupt::InterruptController) {
