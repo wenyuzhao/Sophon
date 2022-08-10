@@ -1,0 +1,21 @@
+on: [push, pull_request]
+name: Compile Checks
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: codota/toolchain@v1
+      - name: Build Test (Debug)
+        run: cargo x build
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: codota/toolchain@v1
+      - name: Build Test (Release)
+        run: cargo x build --release
