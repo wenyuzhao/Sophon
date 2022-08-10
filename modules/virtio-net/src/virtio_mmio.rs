@@ -405,6 +405,17 @@ impl VirtIONetDevice {
         unsafe { addr.as_ref() }
     }
 
+    pub fn revc_sync(&mut self) {
+        for i in 0..100 {
+            core::hint::spin_loop();
+            unsafe {
+                let used_index = read_volatile(&self.rx.used.index);
+                let avail_index = read_volatile(&self.rx.avail.index);
+                println!("#{} used {:?} avail {:?}", i, used_index, avail_index);
+            }
+        }
+    }
+
     pub fn send<T>(&mut self, data: T) {
         let header = VirtIONetHeader::default();
         let d1 = self.tx.push(&header, VirtQueueDescFlags::Next);

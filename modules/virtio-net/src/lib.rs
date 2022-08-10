@@ -214,22 +214,22 @@ impl VirtIONet {
         for i in 0..6 {
             dhcp.chaddr[i] = self.mac[i];
         }
-        for (i, v) in [53, 1, 1, 55, 3, 1, 3, 6, 255].iter().enumerate() {
+        for (i, v) in [99, 130, 83, 88, 53, 1, 3].iter().enumerate() {
             dhcp.options[i] = *v;
         }
         let udp = UDP {
-            source_port: 68u16.to_be(),
-            destination_port: 67u16.to_be(),
-            length: (core::mem::size_of::<UDP<DHCP>>() as u16).to_be(),
+            source_port: 0x44u16.to_be(),
+            destination_port: 0x43u16.to_be(),
+            length: (core::mem::size_of::<UDP<DHCP>>() as u16 - 32 + 7).to_be(),
             checksum: 0,
             payload: dhcp,
         };
         let mut ipv4 = IpV4 {
             version_ihl: (0x4 << 4) | (0x5 << 0),
             dscp_ecn: 0,
-            length: (core::mem::size_of::<IpV4<UDP<DHCP>>>() as u16).to_be(),
+            length: (core::mem::size_of::<IpV4<UDP<DHCP>>>() as u16 - 32 + 7).to_be(),
             ident: 1u16.to_be(),
-            flags_fragment: 0,
+            flags_fragment: 0x0040,
             ttl: 0x40,
             protocol: 17, // udp
             checksum: 0u16.to_be(),
@@ -247,6 +247,7 @@ impl VirtIONet {
         println!("dhcp sending");
         self.net.as_mut().unwrap().send(eth);
         println!("dhcp sent");
+        self.net.as_mut().unwrap().revc_sync();
     }
 
     fn arp_ask(&mut self, ip: IpAddress) -> MacAddress {
