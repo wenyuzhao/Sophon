@@ -224,7 +224,7 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
         Ok(())
     }
 
-    fn do_load(&mut self) -> Result<ELFEntry, &'static str> {
+    fn do_load(&mut self) -> Result<ELFEntry<'a>, &'static str> {
         self.map_memory()?;
         for ph in self
             .elf
@@ -260,7 +260,7 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
     pub fn load(
         data: &'a [u8],
         map_pages: &'b mut dyn FnMut(Range<Page>) -> Range<Page>,
-    ) -> Result<ELFEntry, &'static str> {
+    ) -> Result<ELFEntry<'a>, &'static str> {
         ELFLoader::new(data, map_pages, None).do_load()
     }
 
@@ -268,12 +268,12 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
         data: &'a [u8],
         map_pages: &'b mut dyn FnMut(Range<Page>) -> Range<Page>,
         translate: &'c dyn Fn(Address) -> Address,
-    ) -> Result<ELFEntry, &'static str> {
+    ) -> Result<ELFEntry<'a>, &'static str> {
         ELFLoader::new(data, map_pages, Some(translate)).do_load()
     }
 }
 
-pub struct ELFEntry {
+pub struct ELFEntry<'a> {
     pub entry: Address,
-    pub init_array: Option<&'static [Address]>,
+    pub init_array: Option<&'a [Address]>,
 }

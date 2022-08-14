@@ -27,6 +27,7 @@ proc = { path = "../libs/proc" }
 device-tree = { path = "../libs/device-tree" }
 mutex = { path = "../libs/mutex" }
 sophon-macros = { path = "./macros" }
+testing = { path = "../libs/testing" }
 
 [build-dependencies]
 spin = { workspace = true }

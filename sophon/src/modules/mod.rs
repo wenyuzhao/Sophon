@@ -29,7 +29,12 @@ static MODULES: RwLock<[Option<Box<KernelModule>>; MAX_MODULES]> = {
 };
 static MODULE_NAMES: RwLock<BTreeMap<String, usize>> = RwLock::new(BTreeMap::new());
 
-fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrapper) -> usize {
+fn load_elf(
+    elf_data: &[u8],
+) -> (
+    extern "C" fn(kernel_module::KernelServiceWrapper) -> usize,
+    &[extern "C" fn()],
+) {
     let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
         let range = KERNEL_HEAP
             .acquire_pages::<Size4K>(Page::steps_between(&pages.start, &pages.end).unwrap())
@@ -38,20 +43,25 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrappe
         range
     })
     .unwrap();
-    unsafe { core::mem::transmute(entry.entry) }
+    let init_array = unsafe { core::mem::transmute(entry.init_array) };
+    let entry = unsafe { core::mem::transmute(entry.entry) };
+    (entry, init_array)
 }
 
 pub fn register(name: &str, elf: Vec<u8>) {
-    let (init, service_ptr) = {
+    let (start, service_ptr) = {
         let mut names = MODULE_NAMES.write();
         let mut modules = MODULES.write();
         if names.contains_key(name) {
             return;
         }
         let id = names.len();
-        let init = load_elf(&elf);
+        let (start, init_array) = load_elf(&elf);
         let service = box KernelService(id);
         let service_ptr = service.as_ref() as *const KernelService;
+        for init in init_array {
+            init()
+        }
         modules[id] = Some(box KernelModule {
             _name: name.to_owned(),
             _service: service,
@@ -60,9 +70,9 @@ pub fn register(name: &str, elf: Vec<u8>) {
             _elf: elf,
         });
         names.insert(name.to_owned(), id);
-        (init, service_ptr)
+        (start, service_ptr)
     };
-    init(KernelServiceWrapper::from_service(unsafe { &*service_ptr }));
+    start(KernelServiceWrapper::from_service(unsafe { &*service_ptr }));
 }
 
 pub fn raw_module_call(module: &str, privileged: bool, args: [usize; 4]) -> isize {

@@ -13,12 +13,15 @@ mod heap;
 mod log;
 mod service;
 
-pub use ::log::log;
+pub use ::log::*;
 pub use call::ModuleCallHandler;
 pub use heap::KernelModuleAllocator;
-pub use kernel_module_macros::kernel_module;
+pub use kernel_module_macros::{kernel_module, test};
 pub use service::{KernelService, KernelServiceWrapper};
+pub use testing;
+
 use syscall::ModuleRequest;
+use testing::Tests;
 
 static mut SERVICE_OPT: Option<&'static dyn KernelService> = None;
 
@@ -44,7 +47,16 @@ pub fn init_kernel_module<T: KernelModule>(
     init_kernel_service(service);
     call::register_module_call::<T>(instance);
     let instance_mut = unsafe { &mut *(instance as *const T as *mut T) };
-    instance_mut.init()
+    // Initialize the module
+    let result = instance_mut.init()?;
+    // Register any tests
+    if cfg!(sophon_test) {
+        let mut guard = testing::TESTS.write();
+        let mut tests = Tests::new(guard.name);
+        core::mem::swap(&mut tests, &mut guard);
+        SERVICE.register_tests(tests);
+    }
+    Ok(result)
 }
 
 pub trait KernelModule: 'static + Send + Sync {
@@ -64,5 +76,5 @@ pub trait KernelModule: 'static + Send + Sync {
 }
 
 pub fn handle_panic() -> ! {
-    syscall::exit()
+    SERVICE.handle_panic()
 }

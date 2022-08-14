@@ -29,3 +29,26 @@ pub fn kernel_module(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
     result.into()
 }
+
+#[proc_macro_attribute]
+pub fn test(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(item as syn::ItemFn);
+    let name = &input.sig.ident;
+    let result = quote! {
+        #[cfg(sophon_test)]
+        #[used]
+        #[allow(non_upper_case_globals)]
+        #[doc(hidden)]
+        #[link_section = ".init_array"]
+        pub static #name: extern "C" fn() = {
+            #input
+
+            extern "C" fn __test_function_wrapper() {
+                ::kernel_module::testing::register_test(&#name);
+            }
+
+            __test_function_wrapper
+        };
+    };
+    result.into()
+}

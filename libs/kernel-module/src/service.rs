@@ -9,11 +9,14 @@ use memory::page::{Frame, Page};
 use mutex::Monitor;
 use proc::{ProcId, TaskId};
 use syscall::RawModuleRequest;
+use testing::Tests;
 
 pub trait KernelService: Send + Sync + 'static {
     // Logging
     fn log(&self, s: &str);
     fn set_sys_logger(&self, logger: &'static dyn Logger);
+    // Testing
+    fn register_tests(&self, tests: Tests);
     // Module calls
     fn register_module_call_handler(&self, handler: &'static dyn super::ModuleCallHandler);
     fn module_call<'a>(&self, module: &str, request: RawModuleRequest<'a>) -> isize;
@@ -23,6 +26,7 @@ pub trait KernelService: Send + Sync + 'static {
     // Process
     fn current_process(&self) -> Option<ProcId>;
     fn current_task(&self) -> Option<TaskId>;
+    fn handle_panic(&self) -> !;
     // Devices
     fn set_interrupt_controller(&self, controller: &'static dyn InterruptController);
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
