@@ -10,6 +10,7 @@ use core::ops::Range;
 
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
+use xmas_elf::sections::ShType;
 use xmas_elf::{
     dynamic,
     program::{ProgramHeader, SegmentData, Type},
@@ -223,7 +224,7 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
         Ok(())
     }
 
-    fn do_load(&mut self) -> Result<Address, &'static str> {
+    fn do_load(&mut self) -> Result<ELFEntry, &'static str> {
         self.map_memory()?;
         for ph in self
             .elf
@@ -241,13 +242,25 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
             // log!("Relo {:?}", ph);
             self.apply_relocation(ph)?;
         }
-        Ok(Address::from(self.elf.header.pt2.entry_point() as usize) + self.vaddr_offset)
+        let entry = Address::from(self.elf.header.pt2.entry_point() as usize) + self.vaddr_offset;
+        let init_array = self.elf.section_iter().find_map(|x| {
+            if x.get_type() == Ok(ShType::InitArray) {
+                let len = x.size() as usize >> Address::<V>::LOG_BYTES;
+                let ptr = (Address::<V>::from(x.address() as usize) + self.vaddr_offset)
+                    .as_ptr::<Address>();
+                let array = unsafe { core::slice::from_raw_parts(ptr, len) };
+                Some(array)
+            } else {
+                None
+            }
+        });
+        Ok(ELFEntry { entry, init_array })
     }
 
     pub fn load(
         data: &'a [u8],
         map_pages: &'b mut dyn FnMut(Range<Page>) -> Range<Page>,
-    ) -> Result<Address, &'static str> {
+    ) -> Result<ELFEntry, &'static str> {
         ELFLoader::new(data, map_pages, None).do_load()
     }
 
@@ -255,7 +268,12 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
         data: &'a [u8],
         map_pages: &'b mut dyn FnMut(Range<Page>) -> Range<Page>,
         translate: &'c dyn Fn(Address) -> Address,
-    ) -> Result<Address, &'static str> {
+    ) -> Result<ELFEntry, &'static str> {
         ELFLoader::new(data, map_pages, Some(translate)).do_load()
     }
+}
+
+pub struct ELFEntry {
+    pub entry: Address,
+    pub init_array: Option<&'static [Address]>,
 }

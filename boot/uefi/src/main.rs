@@ -17,6 +17,7 @@ use core::iter::Step;
 use core::{intrinsics::transmute, mem, ops::Range, slice};
 use cortex_a::registers::*;
 use device_tree::DeviceTree;
+use elf_loader::ELFEntry;
 use memory::address::*;
 use memory::page::*;
 use memory::page_table::*;
@@ -181,7 +182,7 @@ fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
     }
 }
 
-fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
+fn load_elf(elf_data: &[u8]) -> ELFEntry {
     log!("Load kernel ELF");
     let kernel_base = Address::<V>::from(0xff0000000000usize);
     let entry = elf_loader::ELFLoader::load_with_address_translation(
@@ -204,8 +205,8 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(&mut BootInfo) -> isize {
         },
     )
     .unwrap();
-    log!("Load kernel ELF done. entry @ {:?}", entry);
-    unsafe { core::mem::transmute(entry) }
+    log!("Load kernel ELF done. entry @ {:?}", entry.entry);
+    entry
 }
 
 fn gen_available_physical_memory() -> &'static [Range<Frame>] {
@@ -377,6 +378,20 @@ extern "C" fn launch_kernel(
     unimplemented!()
 }
 
+#[allow(unused)]
+unsafe extern "C" fn kernel_entry(
+    start: extern "C" fn(&mut BootInfo) -> isize,
+    boot_info: &'static mut BootInfo,
+) -> ! {
+    if let Some(init_array) = INIT_ARRAY {
+        for init in init_array {
+            init();
+        }
+    }
+    start(boot_info);
+    loop {}
+}
+
 #[cfg(target_arch = "aarch64")]
 extern "C" fn launch_kernel(
     start: extern "C" fn(&mut BootInfo) -> isize,
@@ -450,10 +465,11 @@ extern "C" fn launch_kernel(
             in("x0") 0,
             in("x1") 0,
         }
-        ELR_EL2.set(start as *const () as u64);
+        ELR_EL2.set(kernel_entry as *const () as u64);
         asm! {
             "eret",
-            in("x0") boot_info,
+            in("x0") start,
+            in("x1") boot_info,
         }
     }
     unreachable!();
@@ -466,6 +482,8 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     uart: None,
     shutdown: None,
 };
+
+static mut INIT_ARRAY: Option<&'static [extern "C" fn()]> = None;
 
 extern "C" fn shutdown() -> ! {
     unsafe {
@@ -501,15 +519,16 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
     let kernel_elf = read_file(image, "sophon");
     let init_fs = read_file(image, "init.fs").leak();
     let dtb = read_dtb(image);
-    let start = load_elf(&kernel_elf);
+    let entry = load_elf(&kernel_elf);
 
     log!("Starting kernel...");
 
     log!("DTB @ {:?}", dtb.as_ptr_range());
 
     BOOT_INFO = gen_boot_info(dtb, init_fs);
+    INIT_ARRAY = mem::transmute(entry.init_array);
 
-    launch_kernel(start, &mut BOOT_INFO);
+    launch_kernel(mem::transmute(entry.entry), &mut BOOT_INFO);
 }
 
 #[no_mangle]

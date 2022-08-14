@@ -825,6 +825,7 @@ dependencies = [
  "postcard",
  "proc",
  "serde",
+ "sophon-macros",
  "spin",
  "syscall",
  "tock-registers",
@@ -860,6 +861,14 @@ dependencies = [
  "vfs",
  "xshell",
  "yaml-rust",
+]
+
+[[package]]
+name = "sophon-macros"
+version = "0.0.3"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

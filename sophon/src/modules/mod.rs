@@ -38,7 +38,7 @@ fn load_elf(elf_data: &[u8]) -> extern "C" fn(kernel_module::KernelServiceWrappe
         range
     })
     .unwrap();
-    unsafe { core::mem::transmute(entry) }
+    unsafe { core::mem::transmute(entry.entry) }
 }
 
 pub fn register(name: &str, elf: Vec<u8>) {

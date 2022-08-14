@@ -1,6 +1,7 @@
 [workspace]
 members = [
 # Kernel
+    "sophon/macros",
     "sophon",
 # Kernel Modules,
     "modules/dev",

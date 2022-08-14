@@ -11,6 +11,7 @@ mod build_initfs;
 mod clean;
 mod dis;
 mod run;
+mod test;
 mod util;
 
 use clap::{AppSettings, Parser};
@@ -33,6 +34,9 @@ enum SubCommand {
     /// Run with QEMU
     #[clap(name = "run")]
     Run(run::Run),
+    /// Test with QEMU
+    #[clap(name = "test")]
+    Test(test::Test),
     /// Build init.fs image
     #[clap(name = "build-initfs")]
     BuildInitFS(build_initfs::BuildInitFS),
@@ -57,6 +61,7 @@ fn main() {
     match opts.sub_command {
         SubCommand::Build(t) => t.run(&shell, false),
         SubCommand::Run(t) => t.run(&shell),
+        SubCommand::Test(t) => t.run(&shell),
         SubCommand::BuildInitFS(t) => t.run(&shell),
         SubCommand::Clean(t) => t.run(&shell),
         SubCommand::Disassemble(t) => t.run(&shell),

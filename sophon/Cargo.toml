@@ -26,6 +26,7 @@ vfs = { path = "../libs/vfs" }
 proc = { path = "../libs/proc" }
 device-tree = { path = "../libs/device-tree" }
 mutex = { path = "../libs/mutex" }
+sophon-macros = { path = "./macros" }
 
 [build-dependencies]
 spin = { workspace = true }
