@@ -1,21 +1,28 @@
-on: [push, pull_request]
+on:
+  pull_request: {}
+  push:
+    branches:
+      - "main"
 name: Unit Tests
 jobs:
-  test-debug:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install Rust Toolchain
         uses: codota/toolchain@v1
-      - name: Run Unit Tests
+      - name: Install QEMU
+        run: sudo apt-get install -y qemu-system
+  test-debug:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Unit Tests (Debug)
         run: cargo x test
   test-release:
+    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install Rust Toolchain
-        uses: codota/toolchain@v1
-      - name: Run Unit Tests
+      - name: Run Unit Tests (Release)
         run: cargo x test --release
