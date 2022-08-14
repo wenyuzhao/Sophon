@@ -28,18 +28,9 @@ pub fn register_kernel_tests(tests: Tests) {
     KERNEL_TESTS.write().merge(tests)
 }
 
-fn run_tests(kind: TestKind) {
-    assert!(cfg!(sophon_test));
-    let tests = match kind {
-        TestKind::Boot => BOOT_TESTS.read(),
-        TestKind::Kernel => KERNEL_TESTS.read(),
-    };
-    tests.run_tests();
-}
-
 pub fn run_boot_tests() {
     assert!(cfg!(sophon_test));
-    run_tests(TestKind::Boot);
+    BOOT_TESTS.read().run();
 }
 
 pub fn start_kernel_test_runner() {
@@ -52,7 +43,7 @@ pub struct KernelTestRunner;
 impl Runnable for KernelTestRunner {
     fn run(&mut self) -> ! {
         assert!(cfg!(sophon_test));
-        run_tests(TestKind::Kernel);
+        KERNEL_TESTS.read().run();
         TargetArch::halt(0)
     }
 }

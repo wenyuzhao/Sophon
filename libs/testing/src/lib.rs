@@ -23,8 +23,8 @@ const MAX_TESTS: usize = 128;
 
 pub struct Tests {
     pub name: &'static str,
-    pub tests: [Option<&'static dyn Test>; MAX_TESTS],
-    pub len: usize,
+    tests: [Option<&'static dyn Test>; MAX_TESTS],
+    len: usize,
 }
 
 impl Tests {
@@ -42,7 +42,7 @@ impl Tests {
         self.len += 1;
     }
 
-    pub fn run_tests(&self) {
+    pub fn run(&self) {
         assert!(cfg!(sophon_test));
         println!("\n--- Running {} {} tests ---", self.len, self.name);
         for i in 0..self.len {

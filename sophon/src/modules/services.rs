@@ -37,7 +37,6 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn register_tests(&self, tests: Tests) {
-        log!("register_tests");
         crate::utils::testing::register_kernel_tests(tests);
     }
 
