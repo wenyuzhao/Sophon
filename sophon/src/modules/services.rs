@@ -21,6 +21,7 @@ use crate::scheduler::AbstractScheduler;
 use crate::scheduler::SCHEDULER;
 use crate::task::Proc;
 use crate::task::Task;
+use crate::utils::testing::Tests;
 
 use super::raw_module_call;
 use super::MODULES;
@@ -33,6 +34,10 @@ impl kernel_module::KernelService for KernelService {
 
     fn set_sys_logger(&self, logger: &'static dyn Logger) {
         log::init(logger)
+    }
+
+    fn register_tests(&self, tests: Tests) {
+        crate::utils::testing::register_kernel_tests(tests);
     }
 
     fn alloc(&self, layout: core::alloc::Layout) -> Option<Address> {
@@ -65,6 +70,13 @@ impl kernel_module::KernelService for KernelService {
 
     fn current_task(&self) -> Option<proc::TaskId> {
         Some(Task::current().id)
+    }
+
+    fn handle_panic(&self) -> ! {
+        if cfg!(sophon_test) {
+            TargetArch::halt(-1)
+        }
+        syscall::exit();
     }
 
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {

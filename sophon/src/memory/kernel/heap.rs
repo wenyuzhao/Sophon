@@ -116,3 +116,13 @@ unsafe impl GlobalAlloc for KernelHeapAllocator {
         }
     }
 }
+
+#[test]
+fn alloc_test() {
+    let mut array = alloc::vec![0usize; 0];
+    for v in 1..=100 {
+        array.push(v);
+    }
+    let sum: usize = array.iter().sum();
+    assert_eq!(sum, (1 + 100) * 100 / 2);
+}

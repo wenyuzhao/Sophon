@@ -6,7 +6,7 @@
 #![no_std]
 
 #[macro_use]
-extern crate log;
+extern crate kernel_module;
 extern crate alloc;
 mod fs;
 mod mount;

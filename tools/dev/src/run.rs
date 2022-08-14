@@ -9,11 +9,11 @@ use crate::{
 pub struct Run {
     /// Boot option.
     #[clap(long, default_value = "uefi")]
-    boot: Boot,
+    pub boot: Boot,
     #[clap(flatten)]
     pub cargo: CargoFlags,
     #[clap(multiple = true)]
-    args: Vec<String>,
+    pub args: Vec<String>,
 }
 
 impl Run {

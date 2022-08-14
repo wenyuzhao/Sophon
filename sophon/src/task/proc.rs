@@ -94,7 +94,7 @@ impl Proc {
         })
         .unwrap();
         // log!("Entry: {:?}", entry);
-        unsafe { core::mem::transmute(entry) }
+        unsafe { core::mem::transmute(entry.entry) }
     }
 
     pub fn initialize_user_space(&self) -> extern "C" fn(isize, *const *const u8) {

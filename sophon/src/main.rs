@@ -18,6 +18,9 @@ extern crate alloc;
 extern crate log;
 
 #[macro_use]
+extern crate sophon_macros;
+
+#[macro_use]
 pub mod utils;
 pub mod arch;
 pub mod memory;
@@ -116,6 +119,13 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
     let _proc = Proc::spawn_user(init.to_vec(), &[]);
 
+    if cfg!(sophon_test) {
+        log!("[kernel] start boot tests");
+        crate::utils::testing::run_boot_tests();
+        log!("[kernel] start kernel test runner");
+        crate::utils::testing::start_kernel_test_runner();
+    }
+
     log!("[kernel] start scheduler");
     SCHEDULER.schedule();
 }
@@ -132,4 +142,14 @@ pub extern "C" fn __chkstk() {}
 #[alloc_error_handler]
 fn alloc_error_handler(layout: ::alloc::alloc::Layout) -> ! {
     panic!("Allocation error: {:?}", layout)
+}
+
+#[test(boot)]
+fn boot_alloc_test() {
+    let mut array = alloc::vec![0usize; 0];
+    for v in 1..=100 {
+        array.push(v);
+    }
+    let sum: usize = array.iter().sum();
+    assert_eq!(sum, (1 + 100) * 100 / 2);
 }

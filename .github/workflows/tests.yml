@@ -1,0 +1,33 @@
+on:
+  pull_request: {}
+  push:
+    branches:
+      - "main"
+name: Unit Tests
+jobs:
+  test-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Packages
+        run: sudo apt-get update && sudo apt-get upgrade -y
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: codota/toolchain@v1
+      - name: Install QEMU
+        run: sudo apt-get install -y qemu-system
+      - name: Run Unit Tests (Debug)
+        run: cargo x test
+  test-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Packages
+        run: sudo apt-get update && sudo apt-get upgrade -y
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: codota/toolchain@v1
+      - name: Install QEMU
+        run: sudo apt-get install -y qemu-system
+      - name: Run Unit Tests (Release)
+        run: cargo x test --release

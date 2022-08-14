@@ -136,3 +136,11 @@ impl FileSystem for RootFS {
         })
     }
 }
+
+#[test]
+fn root_ramfs_read_text_file() {
+    let fs = ROOT_FS.ramfs.read();
+    let file = fs.get("/etc/hello.txt").unwrap().as_file().unwrap();
+    let s = core::str::from_utf8(file).unwrap();
+    assert_eq!(s, "Hello world from file!");
+}
