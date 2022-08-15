@@ -72,3 +72,4 @@ anyhow = { version = "1.0", default-features = false }
 quote = "1.0.20"
 syn = { version = "1.0.98", features = ["full"] }
 bitmask-enum = "2.0.0"
+psci = { version = "0.1.0" }

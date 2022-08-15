@@ -14,6 +14,7 @@ cortex-a = { workspace = true }
 tock-registers = { workspace = true }
 uefi = { workspace = true }
 uefi-services = { workspace = true }
+psci = { version = "0.1.0", default-features = false, features = ["smc"] }
 device-tree = { path = "../../libs/device-tree" }
 memory = { path = "../../libs/memory" }
 boot = { path = "../../libs/boot" }

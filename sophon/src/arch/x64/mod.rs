@@ -48,6 +48,14 @@ impl Arch for X64 {
     fn halt(_code: i32) -> ! {
         unimplemented!()
     }
+
+    fn current_cpu() -> usize {
+        unimplemented!()
+    }
+
+    fn num_cpus() -> usize {
+        unimplemented!()
+    }
 }
 
 #[allow(unused)]

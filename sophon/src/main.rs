@@ -68,7 +68,10 @@ const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
 ];
 
 #[no_mangle]
-pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
+pub extern "C" fn _start(boot_info: &'static BootInfo, core: usize) -> isize {
+    if core != 0 {
+        _start_ap(core);
+    }
     if let Some(uart) = boot_info.uart {
         utils::boot_logger::init(uart);
     }
@@ -126,8 +129,19 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
         crate::utils::testing::start_kernel_test_runner();
     }
 
+    if let Some(start_ap) = boot_info.start_ap {
+        log!("[kernel] start ap");
+        start_ap();
+    }
+
     log!("[kernel] start scheduler");
     SCHEDULER.schedule();
+}
+
+fn _start_ap(core: usize) -> ! {
+    log!("AP #{}", core);
+    // TODO: Start scheduling
+    loop {}
 }
 
 #[panic_handler]

@@ -19,6 +19,7 @@
       "-debug"
     ]
   },
+  "features": "+el3",
   "target-c-int-width": "32",
   "target-endian": "little",
   "target-pointer-width": "64"

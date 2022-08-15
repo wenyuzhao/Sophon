@@ -31,13 +31,14 @@ use uefi::{CStr16, Guid};
 
 use crate::uefi_logger::UEFILogger;
 
+mod smp;
 mod uefi_logger;
 
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 static mut RUNTIME_SERVICES: Option<&'static RuntimeServices> = None;
 static mut IMAGE: Option<Handle> = None;
 
-unsafe fn establish_el1_page_table() {
+unsafe fn establish_el1_page_table() -> &'static mut PageTable {
     let p4 = new_page4k().start().as_mut::<PageTable<L4>>();
     TTBR0_EL1.set(p4 as *const _ as u64);
     // Get physical address limit
@@ -70,6 +71,7 @@ unsafe fn establish_el1_page_table() {
         );
         cursor += Size1G::BYTES;
     }
+    p4
 }
 
 fn boot_system_table() -> &'static mut SystemTable<Boot> {
@@ -249,8 +251,8 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
 }
 
 fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo {
+    let devtree = DeviceTree::new(device_tree).unwrap();
     let uart = {
-        let devtree = DeviceTree::new(device_tree).unwrap();
         let node = devtree.compatible("arm,pl011").unwrap();
         let addr = node.translate(node.regs().unwrap().next().unwrap().start);
         const UART: Address = Address::new(0xdead_0000_0000);
@@ -262,12 +264,15 @@ fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo
         );
         Some(UART)
     };
+    let num_cpus = devtree.cpus().count();
     BootInfo {
         available_physical_memory: gen_available_physical_memory(),
         device_tree,
         uart,
         init_fs,
         shutdown: Some(shutdown),
+        start_ap: Some(smp::start_ap),
+        num_cpus,
     }
 }
 
@@ -370,109 +375,21 @@ fn read_dtb(handle: Handle) -> &'static mut [u8] {
     panic!("Device tree not specified");
 }
 
-#[cfg(target_arch = "x86_64")]
-extern "C" fn launch_kernel(
-    _start: extern "C" fn(&mut BootInfo) -> isize,
-    _boot_info: &mut BootInfo,
-) -> ! {
-    unimplemented!()
-}
-
 #[allow(unused)]
 unsafe extern "C" fn kernel_entry(
-    start: extern "C" fn(&mut BootInfo) -> isize,
+    start: extern "C" fn(&mut BootInfo, usize) -> isize,
     boot_info: &'static mut BootInfo,
+    core: usize,
 ) -> ! {
-    if let Some(init_array) = INIT_ARRAY {
-        for init in init_array {
-            init();
+    if core == 0 {
+        if let Some(init_array) = INIT_ARRAY {
+            for init in init_array {
+                init();
+            }
         }
     }
-    start(boot_info);
+    start(boot_info, core);
     loop {}
-}
-
-#[cfg(target_arch = "aarch64")]
-extern "C" fn launch_kernel(
-    start: extern "C" fn(&mut BootInfo) -> isize,
-    boot_info: &mut BootInfo,
-) -> ! {
-    CNTHCTL_EL2.write(CNTHCTL_EL2::EL1PCEN::SET + CNTHCTL_EL2::EL1PCTEN::SET);
-    CNTVOFF_EL2.set(0);
-    HCR_EL2.write(HCR_EL2::RW::EL1IsAarch64);
-
-    MAIR_EL1.write(
-        // Attribute 1 - Cacheable normal DRAM.
-        MAIR_EL1::Attr1_Normal_Outer::WriteBack_NonTransient_ReadWriteAlloc +
-        MAIR_EL1::Attr1_Normal_Inner::WriteBack_NonTransient_ReadWriteAlloc +
-        // Attribute 0 - Device.
-        MAIR_EL1::Attr0_Device::nonGathering_nonReordering_EarlyWriteAck,
-    );
-
-    TCR_EL1.write(
-        //   TCR_EL1::IPS.val(0b101)
-        TCR_EL1::TG0::KiB_4
-            + TCR_EL1::TG1::KiB_4
-            + TCR_EL1::SH0::Inner
-            + TCR_EL1::SH1::Inner
-            + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::ORGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::IRGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::EPD0::EnableTTBR0Walks
-            + TCR_EL1::EPD1::EnableTTBR1Walks, // + TCR_EL1::T0SZ.val(0x10)
-                                               // + TCR_EL1::T1SZ.val(0x10)
-    );
-    TCR_EL1.set(TCR_EL1.get() | 0b101 << 32); // Intermediate Physical Address Size (IPS) = 0b101
-    TCR_EL1.set(TCR_EL1.get() | 0x10 << 0); // TTBR0_EL1 memory size (T0SZ) = 0x10 ==> 2^(64 - T0SZ)
-    TCR_EL1.set(TCR_EL1.get() | 0x10 << 16); // TTBR1_EL1 memory size (T1SZ) = 0x10 ==> 2^(64 - T1SZ)
-
-    SCTLR_EL1.set((3 << 28) | (3 << 22) | (1 << 20) | (1 << 11)); // Disable MMU
-    SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
-    SPSR_EL2.write(
-        SPSR_EL2::D::Masked
-            + SPSR_EL2::A::Masked
-            + SPSR_EL2::I::Masked
-            + SPSR_EL2::F::Masked
-            + SPSR_EL2::M::EL1h,
-    );
-
-    log!("boot_info @ {:?}", boot_info as *const _);
-    log!(
-        "device_tree @ {:?}",
-        (*boot_info).device_tree.as_ptr_range()
-    );
-    log!(
-        "available_physical_memory @ {:?}",
-        (*boot_info).available_physical_memory.as_ptr_range()
-    );
-
-    unsafe {
-        {
-            let buffer = &mut [0; 4096];
-            boot_system_table()
-                .unsafe_clone()
-                .exit_boot_services(IMAGE.unwrap(), buffer)
-                .unwrap();
-        }
-        asm! {
-            "
-                mov x0, #0xfffffff
-                msr cpacr_el1, x0
-                mov x0, sp
-                msr sp_el1, x0
-            ",
-            in("x0") 0,
-            in("x1") 0,
-        }
-        ELR_EL2.set(kernel_entry as *const () as u64);
-        asm! {
-            "eret",
-            in("x0") start,
-            in("x1") boot_info,
-        }
-    }
-    unreachable!();
 }
 
 static mut BOOT_INFO: BootInfo = BootInfo {
@@ -481,6 +398,8 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     init_fs: &[],
     uart: None,
     shutdown: None,
+    start_ap: None,
+    num_cpus: 0,
 };
 
 static mut INIT_ARRAY: Option<&'static [extern "C" fn()]> = None;
@@ -514,7 +433,7 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
     //     .map(|entry| entry.address);
     // log!("RSDP @ {:?}", rsdp_addr);
 
-    establish_el1_page_table();
+    let p4 = establish_el1_page_table();
 
     let kernel_elf = read_file(image, "sophon");
     let init_fs = read_file(image, "init.fs").leak();
@@ -528,7 +447,9 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
     BOOT_INFO = gen_boot_info(dtb, init_fs);
     INIT_ARRAY = mem::transmute(entry.init_array);
 
-    launch_kernel(mem::transmute(entry.entry), &mut BOOT_INFO);
+    smp::boot_and_prepare_ap(4, p4.into(), mem::transmute(entry.entry));
+
+    smp::start_core(0, mem::transmute(entry.entry), &mut BOOT_INFO);
 }
 
 #[no_mangle]

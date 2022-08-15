@@ -48,6 +48,10 @@ pub trait Arch {
     fn setup_interrupt_table();
 
     fn halt(code: i32) -> !;
+
+    fn current_cpu() -> usize;
+
+    fn num_cpus() -> usize;
 }
 
 pub type TargetArch = impl Arch;

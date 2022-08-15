@@ -6,8 +6,11 @@ use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use boot::BootInfo;
 use context::AArch64Context;
 use core::arch::asm;
+use cortex_a::registers::MPIDR_EL1;
+use tock_registers::interfaces::Readable;
 
 static mut SHUTDOWN: Option<extern "C" fn() -> !> = None;
+static mut NUM_CPUS: usize = 0;
 
 pub struct AArch64;
 
@@ -15,7 +18,10 @@ impl Arch for AArch64 {
     type Context = AArch64Context;
 
     fn init(boot_info: &'static BootInfo) {
-        unsafe { SHUTDOWN = boot_info.shutdown };
+        unsafe {
+            SHUTDOWN = boot_info.shutdown;
+            NUM_CPUS = boot_info.num_cpus;
+        };
         interrupt::disable();
     }
 
@@ -54,6 +60,16 @@ impl Arch for AArch64 {
         loop {
             unsafe { asm!("wfe") };
         }
+    }
+
+    fn current_cpu() -> usize {
+        let way = 1;
+        let v = MPIDR_EL1.get() as usize;
+        ((v >> 8) & 0xf) * way + (v & 0xff)
+    }
+
+    fn num_cpus() -> usize {
+        unsafe { NUM_CPUS }
     }
 }
 
