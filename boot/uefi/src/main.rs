@@ -34,7 +34,7 @@ use crate::uefi_logger::UEFILogger;
 mod smp;
 mod uefi_logger;
 
-const FORCE_NUM_CPUS: Option<usize> = Some(2);
+const FORCE_NUM_CPUS: Option<usize> = None;
 
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 static mut RUNTIME_SERVICES: Option<&'static RuntimeServices> = None;

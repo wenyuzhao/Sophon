@@ -126,23 +126,21 @@ impl GIC {
         value &= !(0xff << shift);
         value |= (1 << core) << shift;
         self.gicd().ITARGETSR.set(index as usize, value);
-        // let v = 1 << core;
-        // for n in 0..(IRQ_LINES / 4) {
-        //     self.gicd().ITARGETSR[n].set(v | v << 8 | v << 16 | v << 24);
-        // }
     }
 
-    fn init_gic(&self) {
+    fn init_gic(&self, bsp: bool) {
         #[allow(non_snake_case)]
         let (GICD, GICC) = (self.gicd(), self.gicc());
         unsafe { barrier::dsb(barrier::SY) };
         unsafe {
             // Disable all interrupts
             GICD.CTLR.set(GICD::CTLR_DISABLE);
-            for n in 0..(IRQ_LINES / 32) {
-                GICD.ICENABLER[n].set(!0);
-                GICD.ICPENDR[n].set(!0);
-                GICD.ICACTIVER[n].set(!0);
+            if bsp {
+                for n in 0..(IRQ_LINES / 32) {
+                    GICD.ICENABLER[n].set(!0);
+                    GICD.ICPENDR[n].set(!0);
+                    GICD.ICACTIVER[n].set(!0);
+                }
             }
             // Set priority
             for n in 0..(IRQ_LINES / 4) {
@@ -187,7 +185,7 @@ impl KernelModule for GIC {
             *self.GICD.get() = gicd_page.start().as_mut_ptr();
             *self.GICC.get() = gicc_page.start().as_mut_ptr();
         }
-        self.init_gic();
+        self.init_gic(true);
         SERVICE.set_interrupt_controller(self);
         Ok(())
     }
@@ -200,7 +198,7 @@ static mut IRQ_HANDLERS: [Option<IRQHandler>; IRQ_LINES] = {
 
 impl InterruptController for GIC {
     fn init(&self) {
-        self.init_gic();
+        self.init_gic(false);
     }
 
     fn get_active_irq(&self) -> usize {
@@ -220,7 +218,6 @@ impl InterruptController for GIC {
                 ((v >> 8) & 0xf) * way + (v & 0xff)
             };
             GIC.set_core(irq as _, core as _);
-            println!("Enable IRQ #{} for core {}", irq, core);
             GIC.gicd().ISENABLER[irq / 32].set(1 << (irq & (32 - 1)));
             asm!("dmb SY");
         }
