@@ -35,7 +35,7 @@ pub fn run_boot_tests() {
 
 pub fn start_kernel_test_runner() {
     assert!(cfg!(sophon_test));
-    let _proc = Proc::spawn(box KernelTestRunner);
+    let _proc = Proc::spawn(box KernelTestRunner, Some(0));
 }
 
 pub struct KernelTestRunner;

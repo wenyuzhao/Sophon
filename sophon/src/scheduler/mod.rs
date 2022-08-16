@@ -1,12 +1,16 @@
 pub mod monitor;
 mod round_robin;
 
-use alloc::sync::Arc;
+use crate::arch::Arch;
+use alloc::{sync::Arc, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::fmt::Debug;
 use core::ops::Deref;
 
-use crate::task::{Task, TaskId};
+use crate::{
+    arch::TargetArch,
+    task::{Task, TaskId},
+};
 
 /**
  *                        ___________
@@ -31,7 +35,7 @@ pub trait AbstractSchedulerState: Default + Debug + Deref<Target = Atomic<RunSta
 pub trait AbstractScheduler: Sized + 'static {
     type State: AbstractSchedulerState;
 
-    fn register_new_task(&self, task: Arc<Task>) -> Arc<Task>;
+    fn register_new_task(&self, task: Arc<Task>, affinity: Option<usize>) -> Arc<Task>;
     fn remove_task(&self, id: TaskId);
     fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>>;
     fn get_current_task_id(&self) -> Option<TaskId>;
@@ -60,3 +64,27 @@ pub type Scheduler = impl AbstractScheduler;
 static SCHEDULER_IMPL: round_robin::RoundRobinScheduler = round_robin::create();
 
 pub static SCHEDULER: &'static Scheduler = &SCHEDULER_IMPL;
+
+struct ProcessorLocalStorage<T: Default> {
+    data: Vec<T>,
+}
+
+impl<T: Default> ProcessorLocalStorage<T> {
+    pub fn new() -> Self {
+        let len = TargetArch::num_cpus();
+        Self {
+            data: (0..len).map(|_| T::default()).collect(),
+        }
+    }
+
+    pub fn get(&self, index: usize) -> &T {
+        &self.data[index]
+    }
+}
+
+impl<T: Default> Deref for ProcessorLocalStorage<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.data[TargetArch::current_cpu()]
+    }
+}

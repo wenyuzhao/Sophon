@@ -27,3 +27,21 @@ impl<'a> ModuleRequest<'a> for DevRequest<'a> {
         }
     }
 }
+
+pub enum TimerRequest {
+    StartAPTimer,
+}
+
+impl<'a> ModuleRequest<'a> for TimerRequest {
+    fn as_raw(&'a self) -> RawModuleRequest<'a> {
+        match self {
+            Self::StartAPTimer => RawModuleRequest::new(0, &(), &(), &()),
+        }
+    }
+    fn from_raw(raw: RawModuleRequest<'a>) -> Self {
+        match raw.id() {
+            0 => Self::StartAPTimer,
+            _ => panic!("Unknown request"),
+        }
+    }
+}

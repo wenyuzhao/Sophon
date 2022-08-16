@@ -84,6 +84,7 @@ impl PageFlags {
             | PageFlags::SMALL_PAGE
             | PageFlags::OUTER_SHARE
             | PageFlags::ACCESSED
+            | PageFlags::NO_CACHE
     }
 }
 

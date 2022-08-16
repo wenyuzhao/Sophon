@@ -35,7 +35,11 @@ unsafe impl Send for Proc {}
 unsafe impl Sync for Proc {}
 
 impl Proc {
-    fn create(t: Box<dyn Runnable>, user_elf: Option<Vec<u8>>) -> Arc<Proc> {
+    fn create(
+        t: Box<dyn Runnable>,
+        user_elf: Option<Vec<u8>>,
+        affinity: Option<usize>,
+    ) -> Arc<Proc> {
         // Assign an id
         static COUNTER: AtomicUsize = AtomicUsize::new(1);
         let proc_id = ProcId(COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -68,7 +72,7 @@ impl Proc {
             },
         );
         // Spawn
-        SCHEDULER.register_new_task(task);
+        SCHEDULER.register_new_task(task, affinity);
         proc
     }
 
@@ -116,8 +120,8 @@ impl Proc {
         entry
     }
 
-    pub fn spawn(t: Box<dyn Runnable>) -> Arc<Proc> {
-        Self::create(t, None)
+    pub fn spawn(t: Box<dyn Runnable>, affinity: Option<usize>) -> Arc<Proc> {
+        Self::create(t, None, affinity)
     }
 
     pub fn spawn_user(elf: Vec<u8>, args: &[&str]) -> Arc<Proc> {
@@ -127,6 +131,7 @@ impl Proc {
                 Some(args.iter().map(|s| CString::new(*s).unwrap()).collect()),
             ),
             Some(elf),
+            None,
         )
     }
 
@@ -150,10 +155,14 @@ impl Proc {
         Task::current_opt().map(|t| t.proc.clone())
     }
 
-    pub fn spawn_task(self: Arc<Self>, f: *const extern "C" fn()) -> Arc<Task> {
+    pub fn spawn_task(
+        self: Arc<Self>,
+        f: *const extern "C" fn(),
+        affinity: Option<usize>,
+    ) -> Arc<Task> {
         let task = Task::create(self.clone(), box UserTask::new(Some(f), None));
         self.threads.lock_uninterruptible().push(task.id);
-        SCHEDULER.register_new_task(task)
+        SCHEDULER.register_new_task(task, affinity)
     }
 
     pub fn sbrk(&self, num_pages: usize) -> Option<Range<Page<Size4K>>> {

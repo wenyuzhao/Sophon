@@ -821,6 +821,7 @@ dependencies = [
  "boot",
  "cortex-a",
  "crossbeam",
+ "dev",
  "device-tree",
  "elf-loader",
  "hashbrown",

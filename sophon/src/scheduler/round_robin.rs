@@ -7,7 +7,7 @@ use alloc::collections::BTreeMap;
 use core::ops::Deref;
 use core::sync::atomic::AtomicUsize;
 use crossbeam::queue::SegQueue;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 
 const UNIT_TIME_SLICE: usize = 1;
 
@@ -15,6 +15,7 @@ const UNIT_TIME_SLICE: usize = 1;
 pub struct State {
     run_state: Atomic<RunState>,
     time_slice_units: AtomicUsize,
+    affinity: AtomicUsize,
 }
 
 impl State {
@@ -22,6 +23,7 @@ impl State {
         Self {
             run_state: Atomic::new(RunState::Ready),
             time_slice_units: AtomicUsize::new(0),
+            affinity: AtomicUsize::new(usize::MAX),
         }
     }
 }
@@ -44,21 +46,40 @@ impl Default for State {
 pub struct RoundRobinScheduler {
     current_task: [Atomic<Option<TaskId>>; 4],
     tasks: Mutex<BTreeMap<TaskId, Arc<Task>>>,
-    task_queue: SegQueue<TaskId>,
+    per_core_task_queue: Lazy<ProcessorLocalStorage<SegQueue<TaskId>>>,
 }
 
 impl AbstractScheduler for RoundRobinScheduler {
     type State = State;
 
     #[inline]
-    fn register_new_task(&self, task: Arc<Task>) -> Arc<Task> {
+    fn register_new_task(&self, task: Arc<Task>, affinity: Option<usize>) -> Arc<Task> {
         let _guard = interrupt::uninterruptible();
         let id = task.id;
         self.tasks.lock().insert(id, task.clone());
+        let affinity = if let Some(affinity) = affinity {
+            affinity
+        } else {
+            let mut size = self.per_core_task_queue.get(0).len();
+            let mut affinity = 0;
+            for i in 1..TargetArch::num_cpus() {
+                let s = self.per_core_task_queue.get(i).len();
+                if s < size {
+                    affinity = i;
+                    size = s;
+                }
+            }
+            affinity
+        };
+        task.scheduler_state::<Self>()
+            .affinity
+            .store(affinity, Ordering::SeqCst);
+
         if task.scheduler_state::<Self>().load(Ordering::SeqCst) == RunState::Ready {
             debug_assert!(!interrupt::is_enabled());
-            self.task_queue.push(id);
+            self.per_core_task_queue.get(affinity).push(id);
         }
+        // println!("register_new_task: {:?} affinity={}", task.id, affinity);
         task
     }
 
@@ -67,13 +88,17 @@ impl AbstractScheduler for RoundRobinScheduler {
         let _task = self.get_task_by_id(id).unwrap();
         self.tasks.lock().remove(&id);
         debug_assert!(!interrupt::is_enabled());
-        let _ = self.current_task[0].fetch_update(Ordering::SeqCst, Ordering::SeqCst, |curr| {
-            if curr == Some(id) {
-                Some(None)
-            } else {
-                None
-            }
-        });
+        let _ = self.current_task[TargetArch::current_cpu()].fetch_update(
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+            |curr| {
+                if curr == Some(id) {
+                    Some(None)
+                } else {
+                    None
+                }
+            },
+        );
     }
 
     #[inline]
@@ -86,7 +111,7 @@ impl AbstractScheduler for RoundRobinScheduler {
 
     #[inline]
     fn get_current_task_id(&self) -> Option<TaskId> {
-        self.current_task[0].load(Ordering::SeqCst)
+        self.current_task[TargetArch::current_cpu()].load(Ordering::SeqCst)
     }
 
     #[inline]
@@ -110,7 +135,11 @@ impl AbstractScheduler for RoundRobinScheduler {
             },
         );
         if old == Ok(RunState::Sleeping) {
-            self.task_queue.push(task.id);
+            let affinity = task
+                .scheduler_state::<Self>()
+                .affinity
+                .load(Ordering::SeqCst);
+            self.per_core_task_queue.get(affinity).push(task.id);
         }
     }
 
@@ -141,8 +170,11 @@ impl AbstractScheduler for RoundRobinScheduler {
                 RunState::Ready
             );
             // if current_task.as_ref().map(|t| t.id) != Some(next_task.id) {
+            //     static SYNC: Mutex<()> = Mutex::new(());
+            //     let _guard = SYNC.lock();
             //     log!(
-            //         "Switch: {:?} -> {:?}",
+            //         "Switch(#{}): {:?} -> {:?}",
+            //         TargetArch::current_cpu(),
             //         current_task.as_ref().map(|t| t.id),
             //         next_task.id
             //     );
@@ -207,13 +239,13 @@ impl RoundRobinScheduler {
                 Atomic::new(None),
             ],
             tasks: Mutex::new(BTreeMap::new()),
-            task_queue: SegQueue::new(),
+            per_core_task_queue: Lazy::new(|| ProcessorLocalStorage::new()),
         }
     }
 
     #[inline]
     pub fn set_current_task_id(&self, id: TaskId) {
-        self.current_task[0].store(Some(id), Ordering::SeqCst);
+        self.current_task[TargetArch::current_cpu()].store(Some(id), Ordering::SeqCst);
     }
 
     #[inline]
@@ -226,14 +258,18 @@ impl RoundRobinScheduler {
         );
         task.scheduler_state::<Self>()
             .store(RunState::Ready, Ordering::SeqCst);
-        self.task_queue.push(task.id);
+        let affinity = task
+            .scheduler_state::<Self>()
+            .affinity
+            .load(Ordering::SeqCst);
+        self.per_core_task_queue.get(affinity).push(task.id);
     }
 
     #[inline]
     fn get_next_schedulable_task(&self) -> Arc<Task> {
         debug_assert!(!interrupt::is_enabled());
-        if let Some(next_runnable_task) = self.task_queue.pop() {
-            Task::by_id(next_runnable_task).expect("task not found")
+        if let Some(next_runnable_task) = self.per_core_task_queue.pop() {
+            return Task::by_id(next_runnable_task).expect("task not found");
         } else {
             // We should at least have an `idle` task that is runnable
             panic!("No more tasks to run!");

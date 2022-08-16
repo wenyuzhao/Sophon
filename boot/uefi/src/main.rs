@@ -34,6 +34,8 @@ use crate::uefi_logger::UEFILogger;
 mod smp;
 mod uefi_logger;
 
+const FORCE_NUM_CPUS: Option<usize> = Some(2);
+
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 static mut RUNTIME_SERVICES: Option<&'static RuntimeServices> = None;
 static mut IMAGE: Option<Handle> = None;
@@ -264,7 +266,11 @@ fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo
         );
         Some(UART)
     };
-    let num_cpus = devtree.cpus().count();
+    let num_cpus = if let Some(num_cpus) = FORCE_NUM_CPUS {
+        num_cpus
+    } else {
+        devtree.cpus().count()
+    };
     BootInfo {
         available_physical_memory: gen_available_physical_memory(),
         device_tree,
@@ -447,7 +453,7 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
     BOOT_INFO = gen_boot_info(dtb, init_fs);
     INIT_ARRAY = mem::transmute(entry.init_array);
 
-    smp::boot_and_prepare_ap(4, p4.into(), mem::transmute(entry.entry));
+    smp::boot_and_prepare_ap(BOOT_INFO.num_cpus, p4.into(), mem::transmute(entry.entry));
 
     smp::start_core(0, mem::transmute(entry.entry), &mut BOOT_INFO);
 }

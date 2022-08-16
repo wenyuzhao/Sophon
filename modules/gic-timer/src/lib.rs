@@ -1,6 +1,7 @@
 #![feature(format_args_nl)]
 #![feature(default_alloc_error_handler)]
 #![feature(box_syntax)]
+#![feature(generic_associated_types)]
 #![no_std]
 
 #[allow(unused)]
@@ -10,15 +11,18 @@ extern crate alloc;
 
 use core::arch::asm;
 use cortex_a::registers::*;
+use dev::TimerRequest;
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use tock_registers::interfaces::{Readable, Writeable};
 
 const TIMER_INTERRUPT_FREQUENCY: usize = 60; // Hz
 
 #[kernel_module]
-pub static GIC_TIMER: GICTimer = GICTimer;
+pub static mut GIC_TIMER: GICTimer = GICTimer { irq: 0 };
 
-pub struct GICTimer;
+pub struct GICTimer {
+    irq: usize,
+}
 
 impl GICTimer {
     fn get_timer_irq(&self) -> usize {
@@ -49,13 +53,29 @@ impl GICTimer {
             asm!("dmb SY");
         }
     }
+
+    fn start_timer_ap(&self, irq: usize) {
+        self.start_timer(irq);
+    }
 }
 
 impl KernelModule for GICTimer {
+    type ModuleRequest<'a> = TimerRequest;
+
     fn init(&mut self) -> anyhow::Result<()> {
         let irq = self.get_timer_irq();
+        self.irq = irq;
         self.set_timer_handler(irq);
         self.start_timer(irq);
         Ok(())
+    }
+
+    fn handle_module_call<'a>(
+        &self,
+        _privileged: bool,
+        _request: Self::ModuleRequest<'a>,
+    ) -> isize {
+        self.start_timer_ap(self.irq);
+        0
     }
 }

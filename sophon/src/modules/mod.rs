@@ -1,5 +1,6 @@
 use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 use core::iter::Step;
+use dev::TimerRequest;
 use kernel_module::KernelServiceWrapper;
 use kernel_module::ModuleCallHandler;
 use memory::page::{Page, PageResource, Size4K};
@@ -99,4 +100,9 @@ pub fn module_call<'a>(
 
 pub fn init_vfs(ramfs: *mut RamFS) {
     module_call("vfs", true, &VFSRequest::Init(unsafe { &mut *ramfs }));
+}
+
+pub fn start_ap_timer() {
+    // FIXME
+    module_call("gic-timer", true, &TimerRequest::StartAPTimer);
 }

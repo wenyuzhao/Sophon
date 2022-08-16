@@ -116,14 +116,16 @@ pub extern "C" fn _start(boot_info: &'static BootInfo, core: usize) -> isize {
     log!("[kernel] kernel modules loaded");
 
     log!("[kernel] start idle process");
-    let _proc = Proc::spawn(box Idle);
+    for core in 0..TargetArch::num_cpus() {
+        let _proc = Proc::spawn(box Idle, Some(core));
+    }
 
     log!("[kernel] start init process");
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
     let _proc = Proc::spawn_user(init.to_vec(), &[]);
 
     if cfg!(sophon_test) {
-        log!("[kernel] start boot tests");
+        log!("[kernel] run boot tests");
         crate::utils::testing::run_boot_tests();
         log!("[kernel] start kernel test runner");
         crate::utils::testing::start_kernel_test_runner();
@@ -140,8 +142,10 @@ pub extern "C" fn _start(boot_info: &'static BootInfo, core: usize) -> isize {
 
 fn _start_ap(core: usize) -> ! {
     log!("AP #{}", core);
-    // TODO: Start scheduling
-    loop {}
+    TargetArch::setup_interrupt_table();
+    TargetArch::interrupt().init();
+    crate::modules::start_ap_timer();
+    SCHEDULER.schedule();
 }
 
 #[panic_handler]
