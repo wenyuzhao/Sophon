@@ -140,8 +140,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo, core: usize) -> isize {
     SCHEDULER.schedule();
 }
 
-fn _start_ap(core: usize) -> ! {
-    log!("AP #{}", core);
+fn _start_ap(_core: usize) -> ! {
     TargetArch::setup_interrupt_table();
     TargetArch::interrupt().init();
     crate::modules::start_ap_timer();

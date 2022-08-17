@@ -10,8 +10,8 @@ use alloc::sync::Arc;
 use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::iter::Step;
-use core::ops::Range;
-use core::sync::atomic::AtomicUsize;
+use core::ops::{Deref, Range};
+use core::sync::atomic::{AtomicBool, AtomicUsize};
 use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
@@ -28,6 +28,7 @@ pub struct Proc {
     page_table: Atomic<*mut PageTable>,
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
+    pub dead: AtomicBool,
     pub monitor: Arc<SysMonitor>,
 }
 
@@ -55,6 +56,7 @@ impl Proc {
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
             monitor: SysMonitor::new(),
+            dead: AtomicBool::new(false),
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);
@@ -203,13 +205,17 @@ impl Proc {
         // Release file handles
         crate::modules::module_call("vfs", true, &VFSRequest::ProcExit(self.id));
         // Release memory
-        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
-        crate::memory::utils::release_user_page_table(self.get_page_table());
+        let guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+        let user_page_table = self.get_page_table();
+        if guard.deref() as *const PageTable != user_page_table as *const PageTable {
+            crate::memory::utils::release_user_page_table(self.get_page_table());
+        }
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {
             SCHEDULER.remove_task(*t)
         }
+        self.dead.store(true, Ordering::SeqCst);
         self.monitor.notify();
     }
 }

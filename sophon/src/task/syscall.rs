@@ -4,6 +4,7 @@ use crate::{
     scheduler::{AbstractScheduler, SCHEDULER},
 };
 use alloc::vec;
+use atomic::Ordering;
 use memory::page::{PageSize, Size4K};
 use mutex::AbstractMonitor;
 use syscall::Syscall;
@@ -82,7 +83,9 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
     }
     crate::modules::module_call("vfs", false, &VFSRequest::Close(Fd(fd as _)));
     let proc = Proc::spawn_user(elf, args);
-    proc.monitor.wait();
+    while !proc.dead.load(Ordering::SeqCst) {
+        proc.monitor.wait();
+    }
     proc.id.0 as _
 }
 

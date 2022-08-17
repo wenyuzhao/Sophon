@@ -110,6 +110,7 @@ impl KernelModule for VFS {
     }
 
     fn handle_module_call<'a>(&self, privileged: bool, request: Self::ModuleRequest<'a>) -> isize {
+        debug_assert!(!interrupt::is_enabled());
         match request {
             VFSRequest::Init(ramfs) => {
                 assert!(privileged);
@@ -163,16 +164,28 @@ impl KernelModule for VFS {
             VFSRequest::Read(fd, buf) => {
                 assert!(!privileged);
                 let mut open_files = OPEN_FILES.lock();
-                let fd = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
+                let fdesc = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
                     Some(proc_data) => match proc_data.nodes[fd.0 as usize].as_mut() {
                         Some(fd) => fd,
                         None => return -1,
                     },
                     None => return -1,
                 };
-                match fd.node.fs.read(&fd.node, fd.offset, buf) {
+                let fs = fdesc.node.fs;
+                let node = fdesc.node.clone();
+                let offset = fdesc.offset;
+                drop(open_files);
+                match fs.read(&node, offset, buf) {
                     None => -1,
                     Some(v) => {
+                        let mut open_files = OPEN_FILES.lock();
+                        let fd = match open_files.get_mut(&SERVICE.current_process().unwrap()) {
+                            Some(proc_data) => match proc_data.nodes[fd.0 as usize].as_mut() {
+                                Some(fd) => fd,
+                                None => return -1,
+                            },
+                            None => return -1,
+                        };
                         fd.offset += v;
                         v as _
                     }

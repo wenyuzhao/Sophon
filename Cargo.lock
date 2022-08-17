@@ -1057,6 +1057,7 @@ name = "vfs-module"
 version = "0.0.3"
 dependencies = [
  "anyhow",
+ "interrupt",
  "kernel-module",
  "log 0.0.3",
  "proc",

@@ -78,6 +78,7 @@ pub fn register(name: &str, elf: Vec<u8>) {
 
 pub fn raw_module_call(module: &str, privileged: bool, args: [usize; 4]) -> isize {
     // log!("module call #{} {:x?}", module, args);
+    let _guard = interrupt::uninterruptible();
     let id = *MODULE_NAMES.read().get(module).unwrap();
     MODULES.read()[id]
         .as_ref()
