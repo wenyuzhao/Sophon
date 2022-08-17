@@ -80,6 +80,7 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
             break;
         }
     }
+    crate::modules::module_call("vfs", false, &VFSRequest::Close(Fd(fd as _)));
     let proc = Proc::spawn_user(elf, args);
     proc.monitor.wait();
     proc.id.0 as _
