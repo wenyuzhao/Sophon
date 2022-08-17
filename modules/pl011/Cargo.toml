@@ -17,6 +17,7 @@ mutex = { path = "../../libs/mutex" }
 interrupt = { path = "../../libs/interrupt" }
 anyhow = { workspace = true }
 spin = { workspace = true }
+crossbeam = { workspace = true }
 
 [features]
 default = []

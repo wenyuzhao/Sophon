@@ -9,20 +9,18 @@ extern crate log;
 extern crate alloc;
 
 use core::fmt;
-
-use alloc::vec::Vec;
+use crossbeam::queue::SegQueue;
 use dev::{DevRequest, Device};
-use log::Logger;
-use mutex::Monitor;
-use spin::{Lazy, Mutex, RwLock};
-
 use kernel_module::{kernel_module, KernelModule, SERVICE};
+use log::Logger;
 use memory::{page::Frame, volatile::Volatile};
+use mutex::Monitor;
+use spin::{Lazy, RwLock};
 
 #[kernel_module]
 pub static PL011: PL011 = PL011 {
     uart: RwLock::new(core::ptr::null_mut()),
-    buffer: Mutex::new(Vec::new()),
+    buffer: SegQueue::new(),
     monitor: Lazy::new(|| SERVICE.new_monitor()),
 };
 
@@ -31,7 +29,7 @@ unsafe impl Sync for PL011 {}
 
 pub struct PL011 {
     pub uart: RwLock<*mut UART0>,
-    pub buffer: Mutex<Vec<u8>>,
+    pub buffer: SegQueue<u8>,
     monitor: Lazy<Monitor>,
 }
 
@@ -56,7 +54,7 @@ impl KernelModule for PL011 {
         SERVICE.set_irq_handler(irq, box || {
             while !self.uart().receive_fifo_empty() {
                 let c = self.uart().dr.get() as u8;
-                self.buffer.lock().push(c);
+                self.buffer.push(c);
             }
             PL011.monitor.notify();
             0
@@ -120,19 +118,16 @@ impl UART0 {
     }
 
     fn getchar(&mut self, block: bool) -> Option<char> {
-        let mut buf = PL011.buffer.lock();
-        if buf.is_empty() {
+        if PL011.buffer.is_empty() {
             if !block {
                 return None;
             } else {
-                while buf.is_empty() {
-                    drop(buf);
+                while PL011.buffer.is_empty() {
                     PL011.monitor.wait();
-                    buf = PL011.buffer.lock();
                 }
             }
         }
-        let mut c = buf.remove(0) as char;
+        let mut c = PL011.buffer.pop().unwrap() as char;
         if c == '\r' {
             c = '\n';
         }
@@ -143,7 +138,9 @@ impl UART0 {
     }
 
     fn putchar(&mut self, c: char) {
-        while self.transmit_fifo_full() {}
+        while self.transmit_fifo_full() {
+            core::hint::spin_loop();
+        }
         self.dr.set(c as u8 as u32);
     }
 
@@ -152,9 +149,9 @@ impl UART0 {
         self.icr.set(0);
         self.ibrd.set(26);
         self.fbrd.set(3);
-        self.lcrh.set(0b11 << 5);
-        self.imsc.set(1 << 4);
+        self.lcrh.set((0b11 << 5) | (1 << 4));
         self.cr.set((1 << 0) | (1 << 8) | (1 << 9));
+        self.imsc.set(1 << 4);
     }
 }
 
