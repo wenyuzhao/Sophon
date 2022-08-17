@@ -353,6 +353,7 @@ version = "0.0.3"
 dependencies = [
  "anyhow",
  "cortex-a",
+ "crossbeam",
  "dev",
  "interrupt",
  "kernel-module",
@@ -634,6 +635,7 @@ name = "pl011"
 version = "0.0.3"
 dependencies = [
  "anyhow",
+ "crossbeam",
  "dev",
  "interrupt",
  "kernel-module",
