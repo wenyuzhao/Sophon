@@ -220,12 +220,15 @@ impl Proc {
         if guard.deref() as *const PageTable != user_page_table as *const PageTable {
             crate::memory::utils::release_user_page_table(self.get_page_table());
         }
+        // Mark as dead
+        self.monitor.lock();
+        self.dead.store(true, Ordering::SeqCst);
+        self.monitor.notify();
+        self.monitor.unlock();
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {
             SCHEDULER.remove_task(*t)
         }
-        self.dead.store(true, Ordering::SeqCst);
-        self.monitor.notify();
     }
 }

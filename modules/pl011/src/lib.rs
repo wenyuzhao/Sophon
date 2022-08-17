@@ -52,11 +52,13 @@ impl KernelModule for PL011 {
         // Initialize interrupts
         let irq = node.interrupts().unwrap().next().unwrap().0;
         SERVICE.set_irq_handler(irq, box || {
+            PL011.monitor.lock();
             while !self.uart().receive_fifo_empty() {
                 let c = self.uart().dr.get() as u8;
                 self.buffer.push(c);
             }
             PL011.monitor.notify();
+            PL011.monitor.unlock();
             0
         });
         SERVICE.enable_irq(irq);
@@ -122,9 +124,11 @@ impl UART0 {
             if !block {
                 return None;
             } else {
+                PL011.monitor.lock();
                 while PL011.buffer.is_empty() {
                     PL011.monitor.wait();
                 }
+                PL011.monitor.unlock();
             }
         }
         let mut c = PL011.buffer.pop().unwrap() as char;

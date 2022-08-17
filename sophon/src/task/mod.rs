@@ -37,9 +37,11 @@ fn smp_test() {
     }
     // Wait for all processes to finish
     for proc in procs {
+        proc.monitor.lock();
         while !proc.dead.load(Ordering::SeqCst) {
             proc.monitor.wait();
         }
+        proc.monitor.unlock();
     }
     // Get result
     assert_eq!(
@@ -51,17 +53,13 @@ fn smp_test() {
 #[test]
 fn thread_test() {
     use crate::arch::{Arch, TargetArch};
-    use crate::scheduler::monitor::SysMonitor;
     use crate::task::runnable::Runnable;
-    use alloc::sync::Arc;
+    use alloc::vec;
     use atomic::Ordering;
     use core::sync::atomic::AtomicUsize;
     use mutex::AbstractMonitor;
-    use spin::Lazy;
 
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
-    static COMPLETED_THREADS: AtomicUsize = AtomicUsize::new(0);
-    static MONITOR: Lazy<Arc<SysMonitor>> = Lazy::new(|| SysMonitor::new());
 
     pub struct TestThread;
     impl Runnable for TestThread {
@@ -70,20 +68,24 @@ fn thread_test() {
             for _ in 0..100 {
                 COUNTER.fetch_add(core, Ordering::SeqCst);
             }
-            COMPLETED_THREADS.fetch_add(1, Ordering::SeqCst);
-            MONITOR.notify();
             ::syscall::thread_exit()
         }
     }
     // Spawn and distribute worker threads to different cores
     let num_cpus = TargetArch::num_cpus();
     let proc = Proc::current();
+    let mut tasks = vec![];
     for i in 0..num_cpus {
-        let _task = proc.spawn_kernel_task(box TestThread, Some(i));
+        let task = proc.spawn_kernel_task(box TestThread, Some(i));
+        tasks.push(task);
     }
     // Wait for all threads to finish
-    while COMPLETED_THREADS.load(Ordering::SeqCst) != num_cpus {
-        MONITOR.wait();
+    for task in tasks {
+        task.monitor.lock();
+        while !task.dead.load(Ordering::SeqCst) {
+            task.monitor.wait();
+        }
+        task.monitor.unlock();
     }
     // Get result
     assert_eq!(
