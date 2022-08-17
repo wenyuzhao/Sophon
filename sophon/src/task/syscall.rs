@@ -1,9 +1,6 @@
 use crate::arch::Arch;
 use crate::scheduler::locks::{RawCondvar, RawMutex};
-use crate::{
-    arch::TargetArch,
-    scheduler::{AbstractScheduler, SCHEDULER},
-};
+use crate::{arch::TargetArch, scheduler::SCHEDULER};
 use alloc::boxed::Box;
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
@@ -29,7 +26,7 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
         Syscall::Log => log(a, b, c, d, e),
         Syscall::ModuleCall => module_request::<PRIVILEGED>(a, b, c, d, e),
         Syscall::Wait => {
-            SCHEDULER.freeze_current_task();
+            SCHEDULER.sleep();
             0
         }
         Syscall::Sbrk => Proc::current()

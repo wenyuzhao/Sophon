@@ -1,4 +1,4 @@
-use super::{AbstractScheduler, SCHEDULER};
+use super::SCHEDULER;
 use alloc::vec::Vec;
 use atomic::Ordering;
 use core::sync::atomic::AtomicBool;
@@ -36,8 +36,8 @@ impl RawMutex {
         self.is_locked.store(false, Ordering::SeqCst);
         let mut waiters = self.waiters.lock();
         for t in &*waiters {
-            if let Some(task) = SCHEDULER.get_task_by_id(*t) {
-                SCHEDULER.wake_up(task)
+            if SCHEDULER.get_task_by_id(*t).is_some() {
+                SCHEDULER.wake_up(*t)
             }
         }
         waiters.clear()
@@ -72,8 +72,8 @@ impl RawCondvar {
         let _guard = interrupt::uninterruptible();
         let mut waiters = self.waiters.lock();
         for t in &*waiters {
-            if let Some(task) = SCHEDULER.get_task_by_id(*t) {
-                SCHEDULER.wake_up(task)
+            if SCHEDULER.get_task_by_id(*t).is_some() {
+                SCHEDULER.wake_up(*t)
             }
         }
         waiters.clear()

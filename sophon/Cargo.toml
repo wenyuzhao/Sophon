@@ -29,6 +29,7 @@ sync = { path = "../libs/sync" }
 sophon-macros = { path = "./macros" }
 testing = { path = "../libs/testing" }
 dev = { path = "../libs/dev" }
+sched = { path = "../libs/sched" }
 
 [build-dependencies]
 spin = { workspace = true }

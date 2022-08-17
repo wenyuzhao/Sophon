@@ -1,90 +1,110 @@
 pub mod locks;
-mod round_robin;
 
-use crate::arch::Arch;
-use alloc::{sync::Arc, vec::Vec};
-use atomic::{Atomic, Ordering};
-use core::fmt::Debug;
-use core::ops::Deref;
+use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
+use core::any::Any;
+pub use sched::RunState;
+use spin::Mutex;
 
-use crate::{
-    arch::TargetArch,
-    task::{Task, TaskId},
-};
+use crate::task::{Task, TaskId};
 
-/**
- *                        ___________
- *                       |           |
- *                       v           |
- * [CreateProcess] --> Ready ---> Running
- *                       ^           |
- *                       |           v
- *                       |___ Sending/Receiving
- *
- */
-#[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
-#[repr(u8)]
-pub enum RunState {
-    Ready,
-    Running,
-    Sleeping,
+static mut SCHEDULER_IMPL: &'static dyn sched::Scheduler = &UnimplementedScheduler;
+
+pub static SCHEDULER: Scheduler = Scheduler::new();
+
+pub struct Scheduler {
+    tasks: Mutex<BTreeMap<TaskId, Arc<Task>>>,
 }
 
-pub trait AbstractSchedulerState: Default + Debug + Deref<Target = Atomic<RunState>> {}
-
-pub trait AbstractScheduler: Sized + 'static {
-    type State: AbstractSchedulerState;
-
-    fn register_new_task(&self, task: Arc<Task>, affinity: Option<usize>) -> Arc<Task>;
-    fn remove_task(&self, id: TaskId);
-    fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>>;
-    fn get_current_task_id(&self) -> Option<TaskId>;
-    fn get_current_task(&self) -> Option<Arc<Task>>;
-
-    fn freeze_current_task(&self) {
-        let _guard = interrupt::uninterruptible();
-        let task = self.get_current_task().unwrap();
-        assert_eq!(
-            task.scheduler_state::<Self>().load(Ordering::SeqCst),
-            RunState::Running
-        );
-        task.scheduler_state::<Self>()
-            .store(RunState::Sleeping, Ordering::SeqCst);
-        self.schedule();
-    }
-
-    fn wake_up(&self, t: Arc<Task>);
-
-    fn schedule(&self) -> !;
-    fn timer_tick(&self);
-}
-
-pub type Scheduler = impl AbstractScheduler;
-
-static SCHEDULER_IMPL: round_robin::RoundRobinScheduler = round_robin::create();
-
-pub static SCHEDULER: &'static Scheduler = &SCHEDULER_IMPL;
-
-struct ProcessorLocalStorage<T: Default> {
-    data: Vec<T>,
-}
-
-impl<T: Default> ProcessorLocalStorage<T> {
-    pub fn new() -> Self {
-        let len = TargetArch::num_cpus();
+impl Scheduler {
+    pub const fn new() -> Self {
         Self {
-            data: (0..len).map(|_| T::default()).collect(),
+            tasks: Mutex::new(BTreeMap::new()),
         }
     }
 
-    pub fn get(&self, index: usize) -> &T {
-        &self.data[index]
+    #[inline(always)]
+    fn sched(&self) -> &'static dyn sched::Scheduler {
+        unsafe { &*SCHEDULER_IMPL }
+    }
+
+    pub fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
+        unsafe {
+            SCHEDULER_IMPL = scheduler;
+        }
+    }
+
+    pub fn new_state(&self) -> Box<dyn Any> {
+        self.sched().new_state()
+    }
+
+    pub fn get_current_task_id(&self) -> Option<TaskId> {
+        self.sched().get_current_task_id()
+    }
+
+    pub fn register_new_task(&self, task: Arc<Task>, affinity: Option<usize>) -> Arc<Task> {
+        self.tasks.lock().insert(task.id, task.clone());
+        self.sched().register_new_task(task.id, affinity);
+        task
+    }
+
+    pub fn remove_task(&self, task: TaskId) {
+        self.sched().remove_task(task)
+    }
+
+    pub fn sleep(&self) {
+        self.sched().sleep()
+    }
+
+    pub fn wake_up(&self, task: TaskId) {
+        self.sched().wake_up(task)
+    }
+
+    pub fn schedule(&self) -> ! {
+        self.sched().schedule()
+    }
+
+    pub fn timer_tick(&self) {
+        self.sched().timer_tick()
+    }
+
+    pub fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>> {
+        let _guard = interrupt::uninterruptible();
+        let tasks = self.tasks.lock();
+        let task = tasks.get(&id)?;
+        Some(task.clone())
+    }
+
+    pub fn get_current_task(&self) -> Option<Arc<Task>> {
+        let _guard = interrupt::uninterruptible();
+        self.get_task_by_id(self.get_current_task_id()?)
     }
 }
 
-impl<T: Default> Deref for ProcessorLocalStorage<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.data[TargetArch::current_cpu()]
+struct UnimplementedScheduler;
+
+impl sched::Scheduler for UnimplementedScheduler {
+    fn new_state(&self) -> Box<dyn Any> {
+        unimplemented!()
+    }
+    fn get_current_task_id(&self) -> Option<TaskId> {
+        unimplemented!()
+    }
+    fn register_new_task(&self, _task: TaskId, _affinity: Option<usize>) {
+        unimplemented!()
+    }
+    fn remove_task(&self, _task: TaskId) {
+        unimplemented!()
+    }
+    fn sleep(&self) {
+        unimplemented!()
+    }
+    fn wake_up(&self, _task: TaskId) {
+        unimplemented!()
+    }
+    fn schedule(&self) -> ! {
+        unimplemented!()
+    }
+    fn timer_tick(&self) {
+        unimplemented!()
     }
 }

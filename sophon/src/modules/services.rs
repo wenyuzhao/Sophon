@@ -1,5 +1,16 @@
+use super::raw_module_call;
+use super::MODULES;
+use crate::arch::ArchContext;
+use crate::arch::{Arch, TargetArch};
+use crate::memory::kernel::KERNEL_HEAP;
+use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
+use crate::scheduler::SCHEDULER;
+use crate::task::Proc;
+use crate::task::Task;
+use crate::utils::testing::Tests;
 use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
+use core::any::Any;
 use core::iter::Step;
 use core::ops::Range;
 use device_tree::DeviceTree;
@@ -11,19 +22,8 @@ use memory::{
     address::Address,
     page::{Page, Size4K},
 };
-use proc::ProcId;
+use proc::{ProcId, TaskId};
 
-use crate::arch::{Arch, TargetArch};
-use crate::memory::kernel::KERNEL_HEAP;
-use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
-use crate::scheduler::AbstractScheduler;
-use crate::scheduler::SCHEDULER;
-use crate::task::Proc;
-use crate::task::Task;
-use crate::utils::testing::Tests;
-
-use super::raw_module_call;
-use super::MODULES;
 pub struct KernelService(pub usize);
 
 impl kernel_module::KernelService for KernelService {
@@ -130,5 +130,19 @@ impl kernel_module::KernelService for KernelService {
 
     fn current_core(&self) -> usize {
         TargetArch::current_cpu()
+    }
+
+    fn get_scheduler_state(&self, task: TaskId) -> &dyn Any {
+        let task = SCHEDULER.get_task_by_id(task).unwrap();
+        unsafe { &*(task.sched.as_ref() as *const dyn Any) }
+    }
+
+    fn return_to_user(&self, task: TaskId) -> ! {
+        let task = SCHEDULER.get_task_by_id(task).unwrap();
+        unsafe { task.context.return_to_user() }
+    }
+
+    fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
+        SCHEDULER.set_scheduler(scheduler);
     }
 }

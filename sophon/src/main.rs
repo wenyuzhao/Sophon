@@ -34,7 +34,7 @@ use core::panic::PanicInfo;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::scheduler::{AbstractScheduler, SCHEDULER};
+use crate::scheduler::SCHEDULER;
 use crate::task::runnable::Idle;
 use crate::task::Proc;
 use alloc::boxed::Box;
@@ -66,6 +66,7 @@ const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
     ("vfs", "/etc/modules/libvfs.so"),
     ("dev", "/etc/modules/libdev.so"),
     ("pl011", "/etc/modules/libpl011.so"),
+    ("rr-sched", "/etc/modules/librr_sched.so"),
 ];
 
 #[no_mangle]

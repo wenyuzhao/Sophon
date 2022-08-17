@@ -3,7 +3,7 @@ use super::{runnable::Runnable, task::Task};
 use super::{ProcId, TaskId};
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::scheduler::{AbstractScheduler, SCHEDULER};
+use crate::scheduler::SCHEDULER;
 use alloc::ffi::CString;
 use alloc::sync::Arc;
 use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};

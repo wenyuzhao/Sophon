@@ -1,5 +1,7 @@
 use alloc::boxed::Box;
+use sched::Scheduler;
 use core::alloc::Layout;
+use core::any::Any;
 use core::ops::{Deref, Range};
 use device_tree::DeviceTree;
 use interrupt::InterruptController;
@@ -39,6 +41,9 @@ pub trait KernelService: Send + Sync + 'static {
     fn schedule(&self) -> !;
     fn num_cores(&self) -> usize;
     fn current_core(&self) -> usize;
+    fn get_scheduler_state(&self, task: TaskId) -> &dyn Any;
+    fn return_to_user(&self, task: TaskId) -> !;
+    fn set_scheduler(&self, scheduler: &'static dyn Scheduler);
 }
 
 #[repr(C)]

@@ -3,12 +3,11 @@ use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
-use crate::scheduler::AbstractScheduler;
-use crate::scheduler::Scheduler;
 use crate::scheduler::SCHEDULER;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use core::any::Any;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use spin::Lazy;
 use sync::Monitor;
@@ -24,28 +23,22 @@ pub enum TaskState {
 
 pub struct Task {
     pub id: TaskId,
-    scheduler_state: <Scheduler as AbstractScheduler>::State,
     pub context: <TargetArch as Arch>::Context,
     pub proc: Arc<Proc>,
     pub live: Lazy<Monitor<bool>>,
+    pub sched: Box<dyn Any>,
 }
 
 impl Task {
-    #[inline]
-    pub fn scheduler_state<S: AbstractScheduler>(&self) -> &S::State {
-        let state: &<Scheduler as AbstractScheduler>::State = &self.scheduler_state;
-        unsafe { core::mem::transmute(state) }
-    }
-
     pub(super) fn create(proc: Arc<Proc>, t: Box<dyn Runnable>) -> Arc<Self> {
         let t = Box::into_raw(box t);
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
         Arc::new(Task {
             id,
             context: <TargetArch as Arch>::Context::new(entry as _, t as *mut ()),
-            scheduler_state: Default::default(),
             proc,
             live: Lazy::new(|| Monitor::new(true)),
+            sched: SCHEDULER.new_state(),
         })
     }
 

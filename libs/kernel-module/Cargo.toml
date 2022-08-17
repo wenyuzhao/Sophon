@@ -16,6 +16,7 @@ device-tree = { path = "../device-tree" }
 sync = { path = "../sync" }
 interrupt = { path = "../interrupt" }
 testing = { path = "../testing" }
+sched = { path = "../sched" }
 anyhow = { workspace = true }
 spin = { workspace = true }
 
