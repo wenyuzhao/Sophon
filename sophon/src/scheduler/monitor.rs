@@ -38,11 +38,13 @@ impl AbstractMonitor for SysMonitor {
         syscall::wait();
     }
     fn notify(&self) {
-        for t in &*self.waiters.lock() {
+        let mut waiters = self.waiters.lock();
+        for t in &*waiters {
             if let Some(task) = SCHEDULER.get_task_by_id(*t) {
                 SCHEDULER.wake_up(task)
             }
         }
+        waiters.clear()
     }
 }
 
