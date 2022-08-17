@@ -10,7 +10,7 @@ use mutex::AbstractMonitor;
 use syscall::Syscall;
 use vfs::{Fd, VFSRequest};
 
-use super::Proc;
+use super::{Proc, Task};
 
 // =====================
 // ===   Syscalls   ===
@@ -38,6 +38,7 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
             .unwrap_or(-1),
         Syscall::Exec => exec(a, b, c, d, e),
         Syscall::Exit => exit(a, b, c, d, e),
+        Syscall::ThreadExit => thread_exit(a, b, c, d, e),
         Syscall::Halt => halt(a, b, c, d, e),
     }
 }
@@ -91,6 +92,11 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
 
 fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     Proc::current().exit();
+    SCHEDULER.schedule()
+}
+
+fn thread_exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    Task::current().exit();
     SCHEDULER.schedule()
 }
 

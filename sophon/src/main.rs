@@ -10,6 +10,7 @@
 #![feature(adt_const_params)]
 #![feature(generic_const_exprs)]
 #![feature(type_alias_impl_trait)]
+#![feature(drain_filter)]
 #![no_std]
 #![no_main]
 

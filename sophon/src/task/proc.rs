@@ -157,8 +157,18 @@ impl Proc {
         Task::current_opt().map(|t| t.proc.clone())
     }
 
+    pub fn spawn_kernel_task(
+        self: &Arc<Self>,
+        task: Box<dyn Runnable>,
+        affinity: Option<usize>,
+    ) -> Arc<Task> {
+        let task = Task::create(self.clone(), task);
+        self.threads.lock_uninterruptible().push(task.id);
+        SCHEDULER.register_new_task(task, affinity)
+    }
+
     pub fn spawn_task(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         f: *const extern "C" fn(),
         affinity: Option<usize>,
     ) -> Arc<Task> {

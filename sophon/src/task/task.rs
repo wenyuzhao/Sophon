@@ -63,7 +63,9 @@ impl Task {
     }
 
     pub fn exit(&self) {
+        assert_eq!(self.id, Task::current().id);
         SCHEDULER.remove_task(Task::current().id);
+        self.proc.threads.lock().drain_filter(|t| *t == self.id);
     }
 }
 
