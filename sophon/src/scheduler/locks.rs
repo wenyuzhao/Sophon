@@ -11,10 +11,10 @@ pub struct RawMutex {
 }
 
 impl RawMutex {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             is_locked: AtomicBool::new(false),
-            waiters: Default::default(),
+            waiters: spin::Mutex::new(Vec::new()),
         }
     }
 
@@ -50,9 +50,9 @@ pub struct RawCondvar {
 }
 
 impl RawCondvar {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            waiters: Default::default(),
+            waiters: spin::Mutex::new(Vec::new()),
         }
     }
 
