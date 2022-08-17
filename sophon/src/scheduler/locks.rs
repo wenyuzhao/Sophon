@@ -1,0 +1,81 @@
+use super::{AbstractScheduler, SCHEDULER};
+use alloc::vec::Vec;
+use atomic::Ordering;
+use core::sync::atomic::AtomicBool;
+use proc::TaskId;
+
+#[derive(Default)]
+pub struct RawMutex {
+    is_locked: AtomicBool,
+    waiters: spin::Mutex<Vec<TaskId>>,
+}
+
+impl RawMutex {
+    pub fn new() -> Self {
+        Self {
+            is_locked: AtomicBool::new(false),
+            waiters: Default::default(),
+        }
+    }
+
+    pub fn is_locked(&self) -> bool {
+        self.is_locked.load(Ordering::SeqCst)
+    }
+
+    pub fn lock(&self) {
+        let _guard = interrupt::uninterruptible();
+        let task = SCHEDULER.get_current_task_id().unwrap();
+        while self.is_locked.fetch_or(true, Ordering::SeqCst) {
+            self.waiters.lock().push(task);
+            syscall::wait();
+        }
+    }
+
+    pub fn unlock(&self) {
+        let _guard = interrupt::uninterruptible();
+        self.is_locked.store(false, Ordering::SeqCst);
+        let mut waiters = self.waiters.lock();
+        for t in &*waiters {
+            if let Some(task) = SCHEDULER.get_task_by_id(*t) {
+                SCHEDULER.wake_up(task)
+            }
+        }
+        waiters.clear()
+    }
+}
+
+#[derive(Default)]
+pub struct RawCondvar {
+    waiters: spin::Mutex<Vec<TaskId>>,
+}
+
+impl RawCondvar {
+    pub fn new() -> Self {
+        Self {
+            waiters: Default::default(),
+        }
+    }
+
+    pub fn wait(&self, lock: &RawMutex) {
+        let _guard = interrupt::uninterruptible();
+        {
+            let mut waiters = self.waiters.lock();
+            let task = SCHEDULER.get_current_task_id().unwrap();
+            lock.unlock();
+            waiters.push(task);
+        }
+        syscall::wait();
+        lock.lock();
+    }
+
+    pub fn notify_all(&self) {
+        let _guard = interrupt::uninterruptible();
+        let mut waiters = self.waiters.lock();
+        for t in &*waiters {
+            if let Some(task) = SCHEDULER.get_task_by_id(*t) {
+                SCHEDULER.wake_up(task)
+            }
+        }
+        waiters.clear()
+    }
+}

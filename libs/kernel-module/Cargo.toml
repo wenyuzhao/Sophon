@@ -13,7 +13,7 @@ kernel-module-macros = { path = "./macros" }
 syscall = { path = "../syscall" }
 proc = { path = "../proc" }
 device-tree = { path = "../device-tree" }
-mutex = { path = "../mutex" }
+sync = { path = "../sync" }
 interrupt = { path = "../interrupt" }
 testing = { path = "../testing" }
 anyhow = { workspace = true }

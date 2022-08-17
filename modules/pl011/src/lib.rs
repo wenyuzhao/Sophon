@@ -14,14 +14,14 @@ use dev::{DevRequest, Device};
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use log::Logger;
 use memory::{page::Frame, volatile::Volatile};
-use mutex::Monitor;
 use spin::{Lazy, RwLock};
+use sync::Monitor;
 
 #[kernel_module]
 pub static PL011: PL011 = PL011 {
     uart: RwLock::new(core::ptr::null_mut()),
     buffer: SegQueue::new(),
-    monitor: Lazy::new(|| SERVICE.new_monitor()),
+    monitor: Lazy::new(|| Monitor::new(())),
 };
 
 unsafe impl Send for PL011 {}
@@ -30,7 +30,7 @@ unsafe impl Sync for PL011 {}
 pub struct PL011 {
     pub uart: RwLock<*mut UART0>,
     pub buffer: SegQueue<u8>,
-    monitor: Lazy<Monitor>,
+    monitor: Lazy<Monitor<()>>,
 }
 
 impl PL011 {
@@ -52,13 +52,12 @@ impl KernelModule for PL011 {
         // Initialize interrupts
         let irq = node.interrupts().unwrap().next().unwrap().0;
         SERVICE.set_irq_handler(irq, box || {
-            PL011.monitor.lock();
+            let _guard = PL011.monitor.lock();
             while !self.uart().receive_fifo_empty() {
                 let c = self.uart().dr.get() as u8;
                 self.buffer.push(c);
             }
-            PL011.monitor.notify();
-            PL011.monitor.unlock();
+            PL011.monitor.notify_all();
             0
         });
         SERVICE.enable_irq(irq);
@@ -124,11 +123,10 @@ impl UART0 {
             if !block {
                 return None;
             } else {
-                PL011.monitor.lock();
+                let mut guard = PL011.monitor.lock();
                 while PL011.buffer.is_empty() {
-                    PL011.monitor.wait();
+                    guard = PL011.monitor.wait(guard);
                 }
-                PL011.monitor.unlock();
             }
         }
         let mut c = PL011.buffer.pop().unwrap() as char;

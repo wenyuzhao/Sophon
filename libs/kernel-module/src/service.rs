@@ -6,7 +6,6 @@ use interrupt::InterruptController;
 use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
-use mutex::Monitor;
 use proc::{ProcId, TaskId};
 use syscall::RawModuleRequest;
 use testing::Tests;
@@ -38,7 +37,6 @@ pub trait KernelService: Send + Sync + 'static {
     // Scheduler
     fn interrupt_controller(&self) -> &'static dyn InterruptController;
     fn schedule(&self) -> !;
-    fn new_monitor(&self) -> Monitor;
     fn num_cores(&self) -> usize;
     fn current_core(&self) -> usize;
 }

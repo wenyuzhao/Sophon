@@ -22,7 +22,7 @@ members = [
     "libs/kernel-module/macros",
     "libs/log",
     "libs/memory",
-    "libs/mutex",
+    "libs/sync",
     "libs/proc",
     "libs/syscall",
     "libs/testing",

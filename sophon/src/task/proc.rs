@@ -3,7 +3,6 @@ use super::{runnable::Runnable, task::Task};
 use super::{ProcId, TaskId};
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::scheduler::monitor::SysMonitor;
 use crate::scheduler::{AbstractScheduler, SCHEDULER};
 use alloc::ffi::CString;
 use alloc::sync::Arc;
@@ -11,13 +10,13 @@ use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::iter::Step;
 use core::ops::{Deref, Range};
-use core::sync::atomic::{AtomicBool, AtomicUsize};
+use core::sync::atomic::AtomicUsize;
 use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageTable, L4};
-use mutex::AbstractMonitor;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
+use sync::Monitor;
 use vfs::VFSRequest;
 
 static PROCS: Mutex<LinkedList<Arc<Proc>>> = Mutex::new(LinkedList::new());
@@ -28,8 +27,7 @@ pub struct Proc {
     page_table: Atomic<*mut PageTable>,
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
-    pub dead: AtomicBool,
-    pub monitor: Arc<SysMonitor>,
+    pub live: Lazy<Monitor<bool>>,
 }
 
 unsafe impl Send for Proc {}
@@ -55,8 +53,7 @@ impl Proc {
             },
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
-            monitor: SysMonitor::new(),
-            dead: AtomicBool::new(false),
+            live: Lazy::new(|| Monitor::new(true)),
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);
@@ -221,10 +218,11 @@ impl Proc {
             crate::memory::utils::release_user_page_table(self.get_page_table());
         }
         // Mark as dead
-        self.monitor.lock();
-        self.dead.store(true, Ordering::SeqCst);
-        self.monitor.notify();
-        self.monitor.unlock();
+        {
+            let mut live = self.live.lock();
+            *live = false;
+            self.live.notify_all();
+        }
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {

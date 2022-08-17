@@ -3,16 +3,15 @@ use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
-use crate::scheduler::monitor::SysMonitor;
 use crate::scheduler::AbstractScheduler;
 use crate::scheduler::Scheduler;
 use crate::scheduler::SCHEDULER;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::sync::atomic::AtomicBool;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use mutex::AbstractMonitor;
+use spin::Lazy;
+use sync::Monitor;
 
 static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -28,8 +27,7 @@ pub struct Task {
     scheduler_state: <Scheduler as AbstractScheduler>::State,
     pub context: <TargetArch as Arch>::Context,
     pub proc: Arc<Proc>,
-    pub monitor: Arc<SysMonitor>,
-    pub dead: AtomicBool,
+    pub live: Lazy<Monitor<bool>>,
 }
 
 impl Task {
@@ -47,8 +45,7 @@ impl Task {
             context: <TargetArch as Arch>::Context::new(entry as _, t as *mut ()),
             scheduler_state: Default::default(),
             proc,
-            monitor: SysMonitor::new(),
-            dead: AtomicBool::new(false),
+            live: Lazy::new(|| Monitor::new(true)),
         })
     }
 
@@ -73,10 +70,11 @@ impl Task {
         assert!(!interrupt::is_enabled());
         assert_eq!(self.id, Task::current().id);
         // Mark as dead
-        self.monitor.lock();
-        self.dead.store(true, Ordering::SeqCst);
-        self.monitor.notify();
-        self.monitor.unlock();
+        {
+            let mut live = self.live.lock();
+            *live = false;
+            self.live.notify_all()
+        }
         // Remove from scheduler
         SCHEDULER.remove_task(Task::current().id);
         self.proc.threads.lock().drain_filter(|t| *t == self.id);

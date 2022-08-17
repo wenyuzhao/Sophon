@@ -15,6 +15,12 @@ pub enum Syscall {
     Exit,
     ThreadExit,
     Halt,
+    MutexCreate,
+    MutexLock,
+    MutexUnlock,
+    CondvarCreate,
+    CondvarWait,
+    CondvarNotifyAll,
 }
 
 #[inline]
@@ -87,4 +93,44 @@ pub fn thread_exit() -> ! {
 pub fn halt(code: usize) -> ! {
     syscall(Syscall::Halt, &[code]);
     unreachable!()
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OpaqueMutexPointer(*mut ());
+
+#[inline]
+pub fn mutex_create() -> OpaqueMutexPointer {
+    let r = syscall(Syscall::MutexCreate, &[]);
+    OpaqueMutexPointer(r as _)
+}
+
+#[inline]
+pub fn mutex_lock(mutex: OpaqueMutexPointer) -> isize {
+    syscall(Syscall::MutexLock, &[mutex.0 as _])
+}
+
+#[inline]
+pub fn mutex_unlock(mutex: OpaqueMutexPointer) -> isize {
+    syscall(Syscall::MutexUnlock, &[mutex.0 as _])
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OpaqueCondvarPointer(*mut ());
+
+#[inline]
+pub fn condvar_create() -> OpaqueCondvarPointer {
+    let r = syscall(Syscall::CondvarCreate, &[]);
+    OpaqueCondvarPointer(r as _)
+}
+
+#[inline]
+pub fn condvar_wait(cvar: OpaqueCondvarPointer, mutex: OpaqueMutexPointer) -> isize {
+    syscall(Syscall::CondvarWait, &[cvar.0 as _, mutex.0 as _])
+}
+
+#[inline]
+pub fn condvar_notify_all(cvar: OpaqueCondvarPointer) -> isize {
+    syscall(Syscall::CondvarNotifyAll, &[cvar.0 as _])
 }

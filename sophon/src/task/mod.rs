@@ -14,7 +14,6 @@ fn smp_test() {
     use alloc::vec;
     use atomic::Ordering;
     use core::sync::atomic::AtomicUsize;
-    use mutex::AbstractMonitor;
 
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -37,11 +36,10 @@ fn smp_test() {
     }
     // Wait for all processes to finish
     for proc in procs {
-        proc.monitor.lock();
-        while !proc.dead.load(Ordering::SeqCst) {
-            proc.monitor.wait();
+        let mut live = proc.live.lock();
+        while *live {
+            live = proc.live.wait(live);
         }
-        proc.monitor.unlock();
     }
     // Get result
     assert_eq!(
@@ -57,7 +55,6 @@ fn thread_test() {
     use alloc::vec;
     use atomic::Ordering;
     use core::sync::atomic::AtomicUsize;
-    use mutex::AbstractMonitor;
 
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -81,11 +78,10 @@ fn thread_test() {
     }
     // Wait for all threads to finish
     for task in tasks {
-        task.monitor.lock();
-        while !task.dead.load(Ordering::SeqCst) {
-            task.monitor.wait();
+        let mut live = task.live.lock();
+        while *live {
+            live = task.live.wait(live);
         }
-        task.monitor.unlock();
     }
     // Get result
     assert_eq!(

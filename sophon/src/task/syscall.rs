@@ -1,12 +1,12 @@
 use crate::arch::Arch;
+use crate::scheduler::locks::{RawCondvar, RawMutex};
 use crate::{
     arch::TargetArch,
     scheduler::{AbstractScheduler, SCHEDULER},
 };
+use alloc::boxed::Box;
 use alloc::vec;
-use atomic::Ordering;
 use memory::page::{PageSize, Size4K};
-use mutex::AbstractMonitor;
 use syscall::Syscall;
 use vfs::{Fd, VFSRequest};
 
@@ -40,6 +40,12 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
         Syscall::Exit => exit(a, b, c, d, e),
         Syscall::ThreadExit => thread_exit(a, b, c, d, e),
         Syscall::Halt => halt(a, b, c, d, e),
+        Syscall::MutexCreate => mutex_create(a, b, c, d, e),
+        Syscall::MutexLock => mutex_lock(a, b, c, d, e),
+        Syscall::MutexUnlock => mutex_unlock(a, b, c, d, e),
+        Syscall::CondvarCreate => condvar_create(a, b, c, d, e),
+        Syscall::CondvarWait => condvar_wait(a, b, c, d, e),
+        Syscall::CondvarNotifyAll => condvar_notify_all(a, b, c, d, e),
     }
 }
 
@@ -84,8 +90,9 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
     }
     crate::modules::module_call("vfs", false, &VFSRequest::Close(Fd(fd as _)));
     let proc = Proc::spawn_user(elf, args);
-    while !proc.dead.load(Ordering::SeqCst) {
-        proc.monitor.wait();
+    let mut live = proc.live.lock();
+    while *live {
+        live = proc.live.wait(live);
     }
     proc.id.0 as _
 }
@@ -102,4 +109,37 @@ fn thread_exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
 
 fn halt(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     TargetArch::halt(a as _)
+}
+
+fn mutex_create(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    Box::leak(box RawMutex::new()) as *const RawMutex as _
+}
+
+fn mutex_lock(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    let mutex = unsafe { &*(a as *const RawMutex) };
+    mutex.lock();
+    0
+}
+
+fn mutex_unlock(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    let mutex = unsafe { &*(a as *const RawMutex) };
+    mutex.unlock();
+    0
+}
+
+fn condvar_create(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    Box::leak(box RawCondvar::new()) as *const RawCondvar as _
+}
+
+fn condvar_wait(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
+    let condvar = unsafe { &*(a as *const RawCondvar) };
+    let mutex = unsafe { &*(b as *const RawMutex) };
+    condvar.wait(mutex);
+    0
+}
+
+fn condvar_notify_all(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    let condvar = unsafe { &*(a as *const RawCondvar) };
+    condvar.notify_all();
+    0
 }

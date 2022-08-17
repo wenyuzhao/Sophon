@@ -16,7 +16,6 @@ use proc::ProcId;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
-use crate::scheduler::monitor::SysMonitor;
 use crate::scheduler::AbstractScheduler;
 use crate::scheduler::SCHEDULER;
 use crate::task::Proc;
@@ -123,10 +122,6 @@ impl kernel_module::KernelService for KernelService {
     fn schedule(&self) -> ! {
         SCHEDULER.timer_tick();
         unreachable!()
-    }
-
-    fn new_monitor(&self) -> mutex::Monitor {
-        mutex::Monitor::new(SysMonitor::new())
     }
 
     fn num_cores(&self) -> usize {

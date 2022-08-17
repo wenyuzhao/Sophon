@@ -13,7 +13,7 @@ log = { path = "../../libs/log" }
 kernel-module = { path = "../../libs/kernel-module" }
 memory = { path = "../../libs/memory" }
 dev = { path = "../../libs/dev" }
-mutex = { path = "../../libs/mutex" }
+sync = { path = "../../libs/sync" }
 interrupt = { path = "../../libs/interrupt" }
 anyhow = { workspace = true }
 spin = { workspace = true }
