@@ -19,6 +19,7 @@ anyhow = { workspace = true }
 spin = { workspace = true }
 cortex-a = { workspace = true }
 tock-registers = { workspace = true }
+crossbeam = { workspace = true }
 
 [features]
 default = []

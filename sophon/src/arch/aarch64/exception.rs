@@ -132,12 +132,13 @@ unsafe fn panic_for_unhandled_exception(exception_frame: *mut ExceptionFrame) ->
 
 #[no_mangle]
 pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
+    TargetArch::interrupt().interrupt_begin();
+    let irq = TargetArch::interrupt().get_active_irq().unwrap();
     Task::current()
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
-    let irq = TargetArch::interrupt().get_active_irq();
     super::super::handle_irq(irq);
-    TargetArch::interrupt().notify_end_of_interrupt();
+    TargetArch::interrupt().interrupt_end();
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     unsafe {
         Task::current().context.return_to_user();

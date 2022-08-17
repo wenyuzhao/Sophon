@@ -36,8 +36,11 @@ pub trait KernelService: Send + Sync + 'static {
     fn enable_irq(&self, irq: usize);
     fn disable_irq(&self, irq: usize);
     // Scheduler
+    fn interrupt_controller(&self) -> &'static dyn InterruptController;
     fn schedule(&self) -> !;
     fn new_monitor(&self) -> Monitor;
+    fn num_cores(&self) -> usize;
+    fn current_core(&self) -> usize;
 }
 
 #[repr(C)]

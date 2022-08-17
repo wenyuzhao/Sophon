@@ -116,13 +116,24 @@ impl kernel_module::KernelService for KernelService {
         TargetArch::set_interrupt_controller(controller);
     }
 
+    fn interrupt_controller(&self) -> &'static dyn interrupt::InterruptController {
+        TargetArch::interrupt()
+    }
+
     fn schedule(&self) -> ! {
-        TargetArch::interrupt().notify_end_of_interrupt();
         SCHEDULER.timer_tick();
         unreachable!()
     }
 
     fn new_monitor(&self) -> mutex::Monitor {
         mutex::Monitor::new(SysMonitor::new())
+    }
+
+    fn num_cores(&self) -> usize {
+        TargetArch::num_cpus()
+    }
+
+    fn current_core(&self) -> usize {
+        TargetArch::current_cpu()
     }
 }
