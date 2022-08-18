@@ -65,7 +65,7 @@ unsafe fn is_el0(frame: &ExceptionFrame) -> bool {
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
     // log!("Exception received");
-    let _privileged = !is_el0(exception_frame);
+    let privileged = !is_el0(exception_frame);
     Task::current()
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
@@ -73,7 +73,12 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
     match exception {
         ExceptionClass::SVCAArch64 => {
             // log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
-            let r = crate::task::syscall::handle_syscall::<false>(
+            let f = if privileged {
+                crate::task::syscall::handle_syscall::<true>
+            } else {
+                crate::task::syscall::handle_syscall::<false>
+            };
+            let r = f(
                 exception_frame.x0,
                 exception_frame.x1,
                 exception_frame.x2,
@@ -95,7 +100,9 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
         #[allow(unreachable_patterns)]
         _ => panic_for_unhandled_exception(exception_frame),
     }
-    Task::current().context.return_to_user();
+    // Note: `Task::current()` must be dropped before calling `return_to_user`.
+    let context = Task::current().get_context_ptr::<AArch64Context>();
+    (*context).return_to_user();
 }
 
 #[no_mangle]
@@ -131,7 +138,7 @@ unsafe fn panic_for_unhandled_exception(exception_frame: *mut ExceptionFrame) ->
 }
 
 #[no_mangle]
-pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
+pub unsafe extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     TargetArch::interrupt().interrupt_begin();
     let irq = TargetArch::interrupt().get_active_irq().unwrap();
     Task::current()
@@ -140,9 +147,9 @@ pub extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     super::super::handle_irq(irq);
     TargetArch::interrupt().interrupt_end();
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
-    unsafe {
-        Task::current().context.return_to_user();
-    }
+    // Note: `Task::current()` must be dropped before calling `return_to_user`.
+    let context = Task::current().get_context_ptr::<AArch64Context>();
+    (*context).return_to_user();
 }
 
 extern "C" {

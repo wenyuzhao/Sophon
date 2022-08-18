@@ -48,6 +48,7 @@ impl Scheduler {
     }
 
     pub fn remove_task(&self, task: TaskId) {
+        self.tasks.lock().remove(&task);
         self.sched().remove_task(task)
     }
 

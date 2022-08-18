@@ -138,8 +138,11 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn return_to_user(&self, task: TaskId) -> ! {
+        // Note: `task` must be dropped before calling `return_to_user`.
         let task = SCHEDULER.get_task_by_id(task).unwrap();
-        unsafe { task.context.return_to_user() }
+        let context_ptr = &task.context as *const <TargetArch as Arch>::Context;
+        drop(task);
+        unsafe { (*context_ptr).return_to_user() }
     }
 
     fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {

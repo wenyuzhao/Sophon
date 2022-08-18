@@ -16,7 +16,7 @@ pub(self) fn handle_irq(irq: usize) -> isize {
 
 pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
-    fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
+    fn new(entry: *const extern "C" fn(ctx: *mut ()) -> !, ctx: *mut ()) -> Self;
     fn set_response_status(&self, s: isize);
 
     unsafe extern "C" fn return_to_user(&self) -> !;

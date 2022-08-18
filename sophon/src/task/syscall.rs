@@ -37,12 +37,14 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
         Syscall::Exit => exit(a, b, c, d, e),
         Syscall::ThreadExit => thread_exit(a, b, c, d, e),
         Syscall::Halt => halt(a, b, c, d, e),
-        Syscall::MutexCreate => mutex_create(a, b, c, d, e),
+        Syscall::MutexCreate => mutex_create::<PRIVILEGED>(a, b, c, d, e),
         Syscall::MutexLock => mutex_lock(a, b, c, d, e),
         Syscall::MutexUnlock => mutex_unlock(a, b, c, d, e),
-        Syscall::CondvarCreate => condvar_create(a, b, c, d, e),
+        Syscall::MutexDestroy => mutex_destroy(a, b, c, d, e),
+        Syscall::CondvarCreate => condvar_create::<PRIVILEGED>(a, b, c, d, e),
         Syscall::CondvarWait => condvar_wait(a, b, c, d, e),
         Syscall::CondvarNotifyAll => condvar_notify_all(a, b, c, d, e),
+        Syscall::CondvarDestroy => condvar_destroy(a, b, c, d, e),
     }
 }
 
@@ -95,11 +97,13 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
 }
 
 fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    // Note: `Proc::current()` must be dropped before calling `schedule`.
     Proc::current().exit();
     SCHEDULER.schedule()
 }
 
 fn thread_exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    // Note: `Task::current()` must be dropped before calling `schedule`.
     Task::current().exit();
     SCHEDULER.schedule()
 }
@@ -108,8 +112,12 @@ fn halt(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     TargetArch::halt(a as _)
 }
 
-fn mutex_create(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
-    Box::leak(box RawMutex::new()) as *const RawMutex as _
+fn mutex_create<const PRIVILEGED: bool>(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    let mutex = Box::leak(box RawMutex::new()) as *mut RawMutex;
+    if !PRIVILEGED {
+        Proc::current().locks.lock().push(mutex);
+    }
+    mutex as _
 }
 
 fn mutex_lock(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
@@ -124,8 +132,28 @@ fn mutex_unlock(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     0
 }
 
-fn condvar_create(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
-    Box::leak(box RawCondvar::new()) as *const RawCondvar as _
+fn mutex_destroy(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    let mutex = a as *mut RawMutex;
+    let proc = Proc::current();
+    let mut locks = proc.locks.lock();
+    if locks.drain_filter(|x| *x == mutex).count() > 0 {
+        let _boxed = unsafe { Box::from_raw(mutex) };
+    }
+    0
+}
+
+fn condvar_create<const PRIVILEGED: bool>(
+    _: usize,
+    _: usize,
+    _: usize,
+    _: usize,
+    _: usize,
+) -> isize {
+    let condvar = Box::leak(box RawCondvar::new()) as *mut RawCondvar;
+    if !PRIVILEGED {
+        Proc::current().cvars.lock().push(condvar);
+    }
+    condvar as _
 }
 
 fn condvar_wait(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
@@ -138,5 +166,15 @@ fn condvar_wait(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
 fn condvar_notify_all(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     let condvar = unsafe { &*(a as *const RawCondvar) };
     condvar.notify_all();
+    0
+}
+
+fn condvar_destroy(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    let cvar = a as *mut RawCondvar;
+    let proc = Proc::current();
+    let mut cvars = proc.cvars.lock();
+    if cvars.drain_filter(|x| *x == cvar).count() > 0 {
+        let _boxed = unsafe { Box::from_raw(cvar) };
+    }
     0
 }

@@ -40,6 +40,12 @@ impl RawMutex {
     }
 }
 
+impl Drop for RawMutex {
+    fn drop(&mut self) {
+        syscall::mutex_destroy(self.raw);
+    }
+}
+
 pub struct RawCondvar {
     raw: OpaqueCondvarPointer,
 }
@@ -57,6 +63,12 @@ impl RawCondvar {
 
     pub fn notify_all(&self) {
         syscall::condvar_notify_all(self.raw);
+    }
+}
+
+impl Drop for RawCondvar {
+    fn drop(&mut self) {
+        syscall::condvar_destory(self.raw);
     }
 }
 

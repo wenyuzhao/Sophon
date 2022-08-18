@@ -3,10 +3,11 @@ use super::{runnable::Runnable, task::Task};
 use super::{ProcId, TaskId};
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
+use crate::scheduler::locks::{RawCondvar, RawMutex};
 use crate::scheduler::SCHEDULER;
 use alloc::ffi::CString;
 use alloc::sync::Arc;
-use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::iter::Step;
 use core::ops::{Deref, Range};
@@ -19,7 +20,7 @@ use spin::{Lazy, Mutex};
 use sync::Monitor;
 use vfs::VFSRequest;
 
-static PROCS: Mutex<LinkedList<Arc<Proc>>> = Mutex::new(LinkedList::new());
+static PROCS: Mutex<Vec<Arc<Proc>>> = Mutex::new(Vec::new());
 
 pub struct Proc {
     pub id: ProcId,
@@ -28,6 +29,8 @@ pub struct Proc {
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
     pub live: Lazy<Monitor<bool>>,
+    pub locks: Mutex<Vec<*mut RawMutex>>,
+    pub cvars: Mutex<Vec<*mut RawCondvar>>,
 }
 
 unsafe impl Send for Proc {}
@@ -54,12 +57,14 @@ impl Proc {
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
             live: Lazy::new(|| Monitor::new(true)),
+            locks: Mutex::default(),
+            cvars: Mutex::default(),
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);
         proc.threads.lock().push(task.id);
         // Add to list
-        PROCS.lock_uninterruptible().push_back(proc.clone());
+        PROCS.lock_uninterruptible().push(proc.clone());
         // Notify VFS
         crate::modules::module_call(
             "vfs",
@@ -146,12 +151,12 @@ impl Proc {
 
     #[inline]
     pub fn current() -> Arc<Proc> {
-        Task::current().proc.clone()
+        Task::current().proc()
     }
 
     #[inline]
     pub fn current_opt() -> Option<Arc<Proc>> {
-        Task::current_opt().map(|t| t.proc.clone())
+        Task::current_opt().map(|t| t.proc())
     }
 
     pub fn spawn_kernel_task(
@@ -223,10 +228,27 @@ impl Proc {
             *live = false;
             self.live.notify_all();
         }
+        // Release user-allocated locks
+        {
+            let mut locks = self.locks.lock();
+            for lock in locks.iter_mut() {
+                let _boxed = unsafe { Box::from_raw(*lock) };
+            }
+            locks.clear();
+        }
+        {
+            let mut cvars = self.cvars.lock();
+            for cvars in cvars.iter_mut() {
+                let _boxed = unsafe { Box::from_raw(*cvars) };
+            }
+            cvars.clear();
+        }
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {
             SCHEDULER.remove_task(*t)
         }
+        // Remove from procs
+        PROCS.lock().drain_filter(|x| x.id == self.id);
     }
 }

@@ -18,9 +18,11 @@ pub enum Syscall {
     MutexCreate,
     MutexLock,
     MutexUnlock,
+    MutexDestroy,
     CondvarCreate,
     CondvarWait,
     CondvarNotifyAll,
+    CondvarDestroy,
 }
 
 #[inline]
@@ -115,6 +117,11 @@ pub fn mutex_unlock(mutex: OpaqueMutexPointer) -> isize {
     syscall(Syscall::MutexUnlock, &[mutex.0 as _])
 }
 
+#[inline]
+pub fn mutex_destroy(mutex: OpaqueMutexPointer) -> isize {
+    syscall(Syscall::MutexDestroy, &[mutex.0 as _])
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OpaqueCondvarPointer(*mut ());
@@ -133,4 +140,9 @@ pub fn condvar_wait(cvar: OpaqueCondvarPointer, mutex: OpaqueMutexPointer) -> is
 #[inline]
 pub fn condvar_notify_all(cvar: OpaqueCondvarPointer) -> isize {
     syscall(Syscall::CondvarNotifyAll, &[cvar.0 as _])
+}
+
+#[inline]
+pub fn condvar_destory(cvar: OpaqueCondvarPointer) -> isize {
+    syscall(Syscall::CondvarDestroy, &[cvar.0 as _])
 }

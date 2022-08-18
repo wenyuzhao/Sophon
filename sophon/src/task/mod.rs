@@ -11,6 +11,7 @@ pub use task::*;
 fn smp_test() {
     use crate::arch::{Arch, TargetArch};
     use crate::task::runnable::Runnable;
+    use alloc::sync::Arc;
     use alloc::vec;
     use atomic::Ordering;
     use core::sync::atomic::AtomicUsize;
@@ -40,6 +41,7 @@ fn smp_test() {
         while *live {
             live = proc.live.wait(live);
         }
+        assert_eq!(Arc::strong_count(&proc), 1);
     }
     // Get result
     assert_eq!(
@@ -52,6 +54,7 @@ fn smp_test() {
 fn thread_test() {
     use crate::arch::{Arch, TargetArch};
     use crate::task::runnable::Runnable;
+    use alloc::sync::Arc;
     use alloc::vec;
     use atomic::Ordering;
     use core::sync::atomic::AtomicUsize;
@@ -82,6 +85,7 @@ fn thread_test() {
         while *live {
             live = task.live.wait(live);
         }
+        assert_eq!(Arc::strong_count(&task), 1);
     }
     // Get result
     assert_eq!(
