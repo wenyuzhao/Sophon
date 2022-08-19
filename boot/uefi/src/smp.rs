@@ -1,5 +1,4 @@
 use boot::BootInfo;
-use core::sync::atomic::{AtomicBool, Ordering};
 use cortex_a::registers::*;
 use memory::address::Address;
 use spin::{Barrier, Mutex, RwLock};
@@ -18,7 +17,6 @@ impl APBootInfo {
 }
 
 static AP_BOOT_INFO: Mutex<Option<APBootInfo>> = Mutex::new(None);
-pub static AP_START: AtomicBool = AtomicBool::new(false);
 pub static BARRIER: RwLock<Option<Barrier>> = RwLock::new(None);
 static SYNC: Mutex<()> = Mutex::new(());
 
@@ -34,7 +32,6 @@ pub fn boot_and_prepare_ap(
         let _ = psci::cpu_on(i as _, ap_entry_raw as _, stack_top.as_usize() as _);
     }
     BARRIER.read().as_ref().unwrap().wait();
-    BARRIER.read().as_ref().unwrap().wait();
 }
 
 fn current_core_id(way: usize) -> usize {
@@ -43,7 +40,7 @@ fn current_core_id(way: usize) -> usize {
 }
 
 pub extern "C" fn start_ap() {
-    AP_START.store(true, Ordering::SeqCst);
+    BARRIER.read().as_ref().unwrap().wait();
 }
 
 #[no_mangle]
@@ -57,9 +54,6 @@ unsafe extern "C" fn ap_entry() {
     let boot = AP_BOOT_INFO.lock().clone().unwrap();
     TTBR0_EL1.set(boot.p4.as_usize() as u64);
     BARRIER.read().as_ref().unwrap().wait();
-    while !AP_START.load(Ordering::SeqCst) {
-        core::hint::spin_loop();
-    }
     start_core(core, boot.entry, &mut crate::BOOT_INFO)
 }
 
