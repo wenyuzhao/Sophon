@@ -48,6 +48,10 @@ impl VFSManager for VFS {
     }
 
     fn deregister_process(&self, _proc: ProcId) {}
+
+    fn register_fs(&self, fs: &'static dyn FileSystem) {
+        crate::FILE_SYSTEMS.write().insert(fs.name().to_owned(), fs);
+    }
 }
 
 struct ProcData {
@@ -243,12 +247,6 @@ impl KernelModule for VFS {
                 assert!(privileged);
                 let fs = FILE_SYSTEMS.read()[fs];
                 mount::vfs_mount(&path, dev, unsafe { &*(fs as *const dyn FileSystem) }).unwrap();
-                0
-            }
-            VFSRequest::RegisterFS(fs) => {
-                crate::FILE_SYSTEMS
-                    .write()
-                    .insert(fs.name().to_owned(), fs.to_owned());
                 0
             }
             VFSRequest::GetCwd(buf) => {

@@ -3,7 +3,7 @@ use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
-use crate::scheduler::SCHEDULER;
+use crate::modules::SCHEDULER;
 use crate::*;
 use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};

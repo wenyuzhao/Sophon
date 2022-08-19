@@ -26,16 +26,14 @@ pub mod utils;
 pub mod arch;
 pub mod memory;
 pub mod modules;
-pub mod scheduler;
 pub mod task;
-pub mod vfs;
 
 use core::panic::PanicInfo;
 
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::scheduler::SCHEDULER;
+use crate::modules::SCHEDULER;
 use crate::task::runnable::Idle;
 use crate::task::Proc;
 use ::vfs::ramfs::RamFS;
@@ -48,6 +46,7 @@ use spin::Barrier;
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
 
 static mut DEV_TREE: Option<DeviceTree<'static, 'static>> = None;
+static mut INIT_FS: Option<*mut RamFS> = None;
 
 fn display_banner() {
     let ver = env!("CARGO_PKG_VERSION");
@@ -106,15 +105,13 @@ pub extern "C" fn _start(boot_info: &'static BootInfo, core: usize) -> isize {
 
     log!("[kernel] load init-fs");
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
+    unsafe { INIT_FS = Some(initfs) };
 
     log!("[kernel] load kernel modules...");
     for (name, path) in ALL_MODULES {
         log!("[kernel]  - load module '{}'", name);
         let file = initfs.get(path).unwrap().as_file().unwrap();
         crate::modules::register(name, file.to_vec());
-        if *name == "vfs" {
-            crate::vfs::VFS.init(unsafe { &mut *(initfs as *mut _) });
-        }
     }
     log!("[kernel] kernel modules loaded");
 

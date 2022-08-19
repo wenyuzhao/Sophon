@@ -11,7 +11,12 @@ use crate::memory::kernel::KERNEL_HEAP;
 
 use self::services::KernelService;
 
+mod scheduler;
 mod services;
+mod vfs;
+
+pub use self::scheduler::SCHEDULER;
+pub use self::vfs::VFS;
 
 struct KernelModule {
     _name: String,

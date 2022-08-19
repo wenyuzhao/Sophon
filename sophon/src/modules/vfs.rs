@@ -1,6 +1,6 @@
 use alloc::{boxed::Box, string::String};
 use proc::ProcId;
-use vfs::ramfs::RamFS;
+use vfs::{ramfs::RamFS, FileSystem};
 
 static mut VFS_IMPL: &'static dyn vfs::VFSManager = &UnimplementedFSManager;
 
@@ -42,6 +42,9 @@ impl vfs::VFSManager for UnimplementedFSManager {
         unimplemented!()
     }
     fn deregister_process(&self, _proc: ProcId) {
+        unimplemented!()
+    }
+    fn register_fs(&self, _fs: &'static dyn FileSystem) {
         unimplemented!()
     }
 }

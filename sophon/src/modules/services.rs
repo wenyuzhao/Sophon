@@ -4,7 +4,7 @@ use crate::arch::ArchContext;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
-use crate::scheduler::SCHEDULER;
+use crate::modules::SCHEDULER;
 use crate::task::Proc;
 use crate::task::Task;
 use crate::utils::testing::Tests;
@@ -78,7 +78,7 @@ impl kernel_module::KernelService for KernelService {
         syscall::exit();
     }
     fn vfs(&self) -> &'static dyn vfs::VFSManager {
-        crate::vfs::VFS.get_vfs_manager()
+        crate::modules::VFS.get_vfs_manager()
     }
 
     fn get_vfs_state(&self, proc: ProcId) -> &dyn Any {
@@ -87,7 +87,8 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager) {
-        crate::vfs::VFS.set_vfs_manager(vfs_manager)
+        crate::modules::VFS.set_vfs_manager(vfs_manager);
+        vfs_manager.init(unsafe { &mut *crate::INIT_FS.unwrap() });
     }
 
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {

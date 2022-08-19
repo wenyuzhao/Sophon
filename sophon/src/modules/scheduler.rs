@@ -1,11 +1,7 @@
-pub mod locks;
-
+use crate::task::{Task, TaskId};
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::any::Any;
-pub use sched::RunState;
 use spin::Mutex;
-
-use crate::task::{Task, TaskId};
 
 static mut SCHEDULER_IMPL: &'static dyn sched::Scheduler = &UnimplementedScheduler;
 

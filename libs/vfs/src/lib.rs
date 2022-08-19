@@ -70,7 +70,6 @@ pub enum VFSRequest<'a> {
         dev: usize,
         fs: &'a str,
     },
-    RegisterFS(&'a &'static dyn FileSystem),
     GetCwd(&'a mut [u8]),
     SetCwd(&'a str),
 }
@@ -84,9 +83,8 @@ impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
             Self::Write(fd, buf) => RawModuleRequest::new(4, &fd.0, buf, &()),
             Self::ReadDir(fd, i, buf) => RawModuleRequest::new(5, &fd.0, i, buf),
             Self::Mount { path, dev, fs } => RawModuleRequest::new(6, path, dev, fs),
-            Self::RegisterFS(ramfs) => RawModuleRequest::new(7, ramfs, &(), &()),
-            Self::GetCwd(buf) => RawModuleRequest::new(10, buf, &(), &()),
-            Self::SetCwd(s) => RawModuleRequest::new(11, s, &(), &()),
+            Self::GetCwd(buf) => RawModuleRequest::new(7, buf, &(), &()),
+            Self::SetCwd(s) => RawModuleRequest::new(8, s, &(), &()),
         }
     }
     fn from_raw(raw: RawModuleRequest<'a>) -> Self {
@@ -101,9 +99,8 @@ impl<'a> ModuleRequest<'a> for VFSRequest<'a> {
                 dev: raw.arg(1),
                 fs: raw.arg(2),
             },
-            7 => Self::RegisterFS(raw.arg(0)),
-            10 => Self::GetCwd(raw.arg(0)),
-            11 => Self::SetCwd(raw.arg(0)),
+            7 => Self::GetCwd(raw.arg(0)),
+            8 => Self::SetCwd(raw.arg(0)),
             _ => panic!("Unknown request"),
         }
     }
@@ -179,4 +176,5 @@ pub trait VFSManager {
     fn init(&self, ramfs: &'static mut RamFS);
     fn register_process(&self, proc: ProcId, cwd: String) -> Box<dyn core::any::Any>;
     fn deregister_process(&self, proc: ProcId);
+    fn register_fs(&self, fs: &'static dyn FileSystem);
 }

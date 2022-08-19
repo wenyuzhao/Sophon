@@ -1,4 +1,4 @@
-use super::SCHEDULER;
+use crate::modules::SCHEDULER;
 use alloc::vec::Vec;
 use atomic::Ordering;
 use core::sync::atomic::AtomicBool;
