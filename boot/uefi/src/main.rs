@@ -34,7 +34,8 @@ use crate::uefi_logger::UEFILogger;
 mod smp;
 mod uefi_logger;
 
-const FORCE_NUM_CPUS: Option<usize> = None;
+static FORCE_NUM_CPUS: spin::Lazy<Option<usize>> =
+    spin::Lazy::new(|| option_env!("SOPHON_CPUS").map(|s| s.parse().unwrap()));
 
 static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 static mut RUNTIME_SERVICES: Option<&'static RuntimeServices> = None;
@@ -266,10 +267,12 @@ fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo
         );
         Some(UART)
     };
-    let num_cpus = if let Some(num_cpus) = FORCE_NUM_CPUS {
+    let num_cpus = devtree.cpus().count();
+    let num_cpus = if let Some(n) = *FORCE_NUM_CPUS {
+        assert!(0 < n && n <= num_cpus);
         num_cpus
     } else {
-        devtree.cpus().count()
+        num_cpus
     };
     BootInfo {
         available_physical_memory: gen_available_physical_memory(),
@@ -277,7 +280,11 @@ fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo
         uart,
         init_fs,
         shutdown: Some(shutdown),
-        start_ap: Some(smp::start_ap),
+        start_ap: if num_cpus != 1 {
+            Some(smp::start_ap)
+        } else {
+            None
+        },
         num_cpus,
     }
 }
