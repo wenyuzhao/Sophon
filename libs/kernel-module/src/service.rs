@@ -3,7 +3,7 @@ use core::alloc::Layout;
 use core::any::Any;
 use core::ops::{Deref, Range};
 use device_tree::DeviceTree;
-use interrupt::InterruptController;
+use interrupt::{InterruptController, TimerController};
 use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
@@ -40,6 +40,9 @@ pub trait KernelService: Send + Sync + 'static {
     fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>);
     fn enable_irq(&self, irq: usize);
     fn disable_irq(&self, irq: usize);
+    // Timer
+    fn timer_controller(&self) -> &'static dyn TimerController;
+    fn set_timer_controller(&self, timer: &'static dyn TimerController);
     // Scheduler
     fn interrupt_controller(&self) -> &'static dyn InterruptController;
     fn schedule(&self) -> !;

@@ -147,7 +147,7 @@ static mut SMP_BARRIER: Barrier = Barrier::new(1);
 fn _start_ap(_core: usize) -> ! {
     TargetArch::setup_interrupt_table();
     TargetArch::interrupt().init();
-    crate::modules::start_ap_timer();
+    crate::modules::TIMER.init(false);
     unsafe { SMP_BARRIER.wait() };
     SCHEDULER.schedule();
 }

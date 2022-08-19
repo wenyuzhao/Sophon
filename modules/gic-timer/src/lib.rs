@@ -11,7 +11,7 @@ extern crate alloc;
 
 use core::arch::asm;
 use cortex_a::registers::*;
-use dev::TimerRequest;
+use interrupt::TimerController;
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use tock_registers::interfaces::{Readable, Writeable};
 
@@ -61,22 +61,22 @@ impl GICTimer {
 }
 
 impl KernelModule for GICTimer {
-    type ModuleRequest<'a> = TimerRequest;
-
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&'static mut self) -> anyhow::Result<()> {
         let irq = self.get_timer_irq();
         self.irq = irq;
         self.set_timer_handler(irq);
         self.start_timer(irq);
+        SERVICE.set_timer_controller(self);
         Ok(())
     }
+}
 
-    fn handle_module_call<'a>(
-        &self,
-        _privileged: bool,
-        _request: Self::ModuleRequest<'a>,
-    ) -> isize {
-        self.start_timer_ap(self.irq);
-        0
+impl TimerController for GICTimer {
+    fn init(&self, bsp: bool) {
+        if bsp {
+            // pass
+        } else {
+            self.start_timer_ap(self.irq);
+        }
     }
 }

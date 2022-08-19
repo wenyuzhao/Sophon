@@ -1,6 +1,5 @@
 use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 use core::iter::Step;
-use dev::TimerRequest;
 use kernel_module::KernelServiceWrapper;
 use kernel_module::ModuleCallHandler;
 use memory::page::{Page, PageResource, Size4K};
@@ -11,10 +10,12 @@ use crate::memory::kernel::KERNEL_HEAP;
 
 use self::services::KernelService;
 
+mod interrupt;
 mod scheduler;
 mod services;
 mod vfs;
 
+pub use self::interrupt::TIMER;
 pub use self::scheduler::SCHEDULER;
 pub use self::vfs::VFS;
 
@@ -81,7 +82,7 @@ pub fn register(name: &str, elf: Vec<u8>) {
 
 pub fn raw_module_call(module: &str, privileged: bool, args: [usize; 4]) -> isize {
     // log!("module call #{} {:x?}", module, args);
-    let _guard = interrupt::uninterruptible();
+    let _guard = ::interrupt::uninterruptible();
     let id = *MODULE_NAMES.read().get(module).unwrap();
     MODULES.read()[id]
         .as_ref()
@@ -100,9 +101,4 @@ pub fn module_call<'a>(
     request: &'a impl syscall::ModuleRequest<'a>,
 ) -> isize {
     raw_module_call(module, privileged, request.as_raw().as_buf())
-}
-
-pub fn start_ap_timer() {
-    // FIXME
-    module_call("gic-timer", true, &TimerRequest::StartAPTimer);
 }

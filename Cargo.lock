@@ -370,6 +370,7 @@ dependencies = [
  "anyhow",
  "cortex-a",
  "dev",
+ "interrupt",
  "kernel-module",
  "log 0.0.3",
  "memory",

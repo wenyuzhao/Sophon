@@ -161,4 +161,10 @@ impl kernel_module::KernelService for KernelService {
     fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
         SCHEDULER.set_scheduler(scheduler);
     }
+    fn timer_controller(&self) -> &'static dyn interrupt::TimerController {
+        crate::modules::TIMER.get_timer_controller()
+    }
+    fn set_timer_controller(&self, timer: &'static dyn interrupt::TimerController) {
+        crate::modules::TIMER.set_timer_controller(timer)
+    }
 }
