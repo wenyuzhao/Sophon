@@ -149,7 +149,7 @@ pub type IRQHandler = Box<dyn Fn() -> isize>;
 pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize) -> isize>;
 
 pub trait InterruptController {
-    fn init(&self);
+    fn init(&self, bsp: bool);
     fn get_active_irq(&self) -> Option<usize>;
     fn enable_irq(&self, irq: usize);
     fn disable_irq(&self, irq: usize);

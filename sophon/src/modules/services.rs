@@ -113,23 +113,23 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>) {
-        TargetArch::interrupt().set_irq_handler(irq, handler);
+        crate::modules::INTERRUPT.set_irq_handler(irq, handler);
     }
 
     fn enable_irq(&self, irq: usize) {
-        TargetArch::interrupt().enable_irq(irq);
+        crate::modules::INTERRUPT.enable_irq(irq);
     }
 
     fn disable_irq(&self, irq: usize) {
-        TargetArch::interrupt().disable_irq(irq);
+        crate::modules::INTERRUPT.disable_irq(irq);
     }
 
     fn set_interrupt_controller(&self, controller: &'static dyn interrupt::InterruptController) {
-        TargetArch::set_interrupt_controller(controller);
+        crate::modules::INTERRUPT.set_interrupt_controller(controller);
     }
 
     fn interrupt_controller(&self) -> &'static dyn interrupt::InterruptController {
-        TargetArch::interrupt()
+        &*crate::modules::INTERRUPT
     }
 
     fn schedule(&self) -> ! {

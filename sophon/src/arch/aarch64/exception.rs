@@ -1,6 +1,6 @@
 use crate::arch::{aarch64::context::*, *};
+use crate::modules::INTERRUPT;
 use crate::task::Task;
-use crate::TargetArch;
 use core::arch::{asm, global_asm};
 use cortex_a::{asm::barrier, registers::*};
 use tock_registers::interfaces::{Readable, Writeable};
@@ -139,13 +139,13 @@ unsafe fn panic_for_unhandled_exception(exception_frame: *mut ExceptionFrame) ->
 
 #[no_mangle]
 pub unsafe extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
-    TargetArch::interrupt().interrupt_begin();
-    let irq = TargetArch::interrupt().get_active_irq().unwrap();
+    INTERRUPT.interrupt_begin();
+    let irq = INTERRUPT.get_active_irq().unwrap();
     Task::current()
         .get_context::<AArch64Context>()
         .push_exception_frame(exception_frame);
     super::super::handle_irq(irq);
-    TargetArch::interrupt().interrupt_end();
+    INTERRUPT.interrupt_end();
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     // Note: `Task::current()` must be dropped before calling `return_to_user`.
     let context = Task::current().get_context_ptr::<AArch64Context>();

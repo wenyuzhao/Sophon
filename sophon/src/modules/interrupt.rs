@@ -1,48 +1,58 @@
-// static INTERRUPT_CONTROLLER:
+use crate::arch::{Arch, TargetArch};
+use core::ops::Deref;
+use interrupt::IRQHandler;
 
-// UnimplementedInterruptController
+static mut INTERRUPT_IMPL: &'static dyn interrupt::InterruptController =
+    &UnimplementedInterruptController;
 
-// pub struct InterruptController;
+pub static INTERRUPT: InterruptController = InterruptController;
 
-// impl InterruptController {
-//     pub fn new() -> Self {
-//         Self {}
-//     }
-// }
+pub struct InterruptController;
 
-// {
-//     fn init(&self);
-//     fn get_active_irq(&self) -> Option<usize>;
-//     fn enable_irq(&self, irq: usize);
-//     fn disable_irq(&self, irq: usize);
-//     fn interrupt_begin(&self);
-//     fn interrupt_end(&self);
-//     fn get_irq_handler(&self, irq: usize) -> Option<&IRQHandler>;
-//     fn set_irq_handler(&self, irq: usize, handler: IRQHandler);
-// }
-
-pub static mut TIMER_IMPL: &'static dyn interrupt::TimerController = &UnimplementedTimerController;
-
-pub static TIMER: TimerController = TimerController;
-
-pub struct TimerController;
-
-impl TimerController {
-    pub fn init(&self, bsp: bool) {
-        unsafe { TIMER_IMPL.init(bsp) }
-    }
-    pub fn get_timer_controller(&self) -> &'static dyn interrupt::TimerController {
-        unsafe { TIMER_IMPL }
-    }
-    pub fn set_timer_controller(&self, timer: &'static dyn interrupt::TimerController) {
-        unsafe { TIMER_IMPL = timer }
+impl InterruptController {
+    pub fn set_interrupt_controller(
+        &self,
+        interrupt_controller: &'static dyn interrupt::InterruptController,
+    ) {
+        unsafe {
+            INTERRUPT_IMPL = interrupt_controller;
+        }
+        TargetArch::setup_interrupt_table();
     }
 }
 
-struct UnimplementedTimerController;
+impl Deref for InterruptController {
+    type Target = dyn interrupt::InterruptController;
+    fn deref(&self) -> &Self::Target {
+        unsafe { INTERRUPT_IMPL }
+    }
+}
 
-impl interrupt::TimerController for UnimplementedTimerController {
+struct UnimplementedInterruptController;
+
+impl interrupt::InterruptController for UnimplementedInterruptController {
     fn init(&self, _bsp: bool) {
+        unimplemented!()
+    }
+    fn get_active_irq(&self) -> Option<usize> {
+        unimplemented!()
+    }
+    fn enable_irq(&self, _irq: usize) {
+        unimplemented!()
+    }
+    fn disable_irq(&self, _irq: usize) {
+        unimplemented!()
+    }
+    fn interrupt_begin(&self) {
+        unimplemented!()
+    }
+    fn interrupt_end(&self) {
+        unimplemented!()
+    }
+    fn get_irq_handler(&self, _irq: usize) -> Option<&IRQHandler> {
+        unimplemented!()
+    }
+    fn set_irq_handler(&self, _irq: usize, _handler: IRQHandler) {
         unimplemented!()
     }
 }

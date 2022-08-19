@@ -195,8 +195,8 @@ static mut IRQ_HANDLERS: [Option<IRQHandler>; IRQ_LINES] = {
 };
 
 impl InterruptController for GIC {
-    fn init(&self) {
-        self.init_gic(false);
+    fn init(&self, bsp: bool) {
+        self.init_gic(bsp);
     }
 
     fn get_active_irq(&self) -> Option<usize> {

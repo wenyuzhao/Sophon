@@ -13,10 +13,12 @@ use self::services::KernelService;
 mod interrupt;
 mod scheduler;
 mod services;
+mod timer;
 mod vfs;
 
-pub use self::interrupt::TIMER;
+pub use self::interrupt::INTERRUPT;
 pub use self::scheduler::SCHEDULER;
+pub use self::timer::TIMER;
 pub use self::vfs::VFS;
 
 struct KernelModule {
