@@ -78,7 +78,7 @@ impl kernel_module::KernelService for KernelService {
         syscall::exit();
     }
     fn vfs(&self) -> &'static dyn vfs::VFSManager {
-        crate::modules::VFS.get_vfs_manager()
+        &*crate::modules::VFS
     }
 
     fn get_vfs_state(&self, proc: ProcId) -> &dyn Any {
@@ -162,7 +162,7 @@ impl kernel_module::KernelService for KernelService {
         SCHEDULER.set_scheduler(scheduler);
     }
     fn timer_controller(&self) -> &'static dyn interrupt::TimerController {
-        crate::modules::TIMER.get_timer_controller()
+        &*crate::modules::TIMER
     }
     fn set_timer_controller(&self, timer: &'static dyn interrupt::TimerController) {
         crate::modules::TIMER.set_timer_controller(timer)

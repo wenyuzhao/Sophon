@@ -1,9 +1,9 @@
 use crate::task::{Task, TaskId};
-use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
-use core::any::Any;
+use alloc::{collections::BTreeMap, sync::Arc};
+use core::ops::Deref;
 use spin::Mutex;
 
-static mut SCHEDULER_IMPL: &'static dyn sched::Scheduler = &UnimplementedScheduler;
+static mut SCHEDULER_IMPL: Option<&'static dyn sched::Scheduler> = None;
 
 pub static SCHEDULER: Scheduler = Scheduler::new();
 
@@ -18,50 +18,21 @@ impl Scheduler {
         }
     }
 
-    #[inline(always)]
-    fn sched(&self) -> &'static dyn sched::Scheduler {
-        unsafe { &*SCHEDULER_IMPL }
-    }
-
     pub fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
         unsafe {
-            SCHEDULER_IMPL = scheduler;
+            SCHEDULER_IMPL = Some(scheduler);
         }
-    }
-
-    pub fn new_state(&self) -> Box<dyn Any> {
-        self.sched().new_state()
-    }
-
-    pub fn get_current_task_id(&self) -> Option<TaskId> {
-        self.sched().get_current_task_id()
     }
 
     pub fn register_new_task(&self, task: Arc<Task>, affinity: Option<usize>) -> Arc<Task> {
         self.tasks.lock().insert(task.id, task.clone());
-        self.sched().register_new_task(task.id, affinity);
+        self.deref().register_new_task(task.id, affinity);
         task
     }
 
     pub fn remove_task(&self, task: TaskId) {
         self.tasks.lock().remove(&task);
-        self.sched().remove_task(task)
-    }
-
-    pub fn sleep(&self) {
-        self.sched().sleep()
-    }
-
-    pub fn wake_up(&self, task: TaskId) {
-        self.sched().wake_up(task)
-    }
-
-    pub fn schedule(&self) -> ! {
-        self.sched().schedule()
-    }
-
-    pub fn timer_tick(&self) {
-        self.sched().timer_tick()
+        self.deref().remove_task(task)
     }
 
     pub fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>> {
@@ -77,31 +48,9 @@ impl Scheduler {
     }
 }
 
-struct UnimplementedScheduler;
-
-impl sched::Scheduler for UnimplementedScheduler {
-    fn new_state(&self) -> Box<dyn Any> {
-        unimplemented!()
-    }
-    fn get_current_task_id(&self) -> Option<TaskId> {
-        unimplemented!()
-    }
-    fn register_new_task(&self, _task: TaskId, _affinity: Option<usize>) {
-        unimplemented!()
-    }
-    fn remove_task(&self, _task: TaskId) {
-        unimplemented!()
-    }
-    fn sleep(&self) {
-        unimplemented!()
-    }
-    fn wake_up(&self, _task: TaskId) {
-        unimplemented!()
-    }
-    fn schedule(&self) -> ! {
-        unimplemented!()
-    }
-    fn timer_tick(&self) {
-        unimplemented!()
+impl Deref for Scheduler {
+    type Target = dyn sched::Scheduler;
+    fn deref(&self) -> &Self::Target {
+        unsafe { SCHEDULER_IMPL.unwrap_unchecked() }
     }
 }

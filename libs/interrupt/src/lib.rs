@@ -159,6 +159,6 @@ pub trait InterruptController {
     fn set_irq_handler(&self, irq: usize, handler: IRQHandler);
 }
 
-pub trait TimerController: Send + Sync {
+pub trait TimerController {
     fn init(&self, bsp: bool);
 }
