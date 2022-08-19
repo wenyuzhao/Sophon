@@ -1,4 +1,5 @@
-use core::ops::Range;
+use atomic::Ordering;
+use core::{ops::Range, sync::atomic::AtomicUsize};
 use memory::{address::*, page::*};
 use spin::Mutex;
 
@@ -7,12 +8,14 @@ const NUM_SIZE_CLASS: usize = LOG_MAX_ADDRESS_SPACE_SIZE - Size4K::LOG_BYTES + 1
 
 pub struct PhysicalPageResource {
     table: [Address<P>; NUM_SIZE_CLASS],
+    used: AtomicUsize,
 }
 
 impl PhysicalPageResource {
     pub const fn new() -> Self {
         Self {
             table: [Address::ZERO; NUM_SIZE_CLASS],
+            used: AtomicUsize::new(0),
         }
     }
 
@@ -128,6 +131,8 @@ impl PhysicalPageResource {
         let size = 1 << S::LOG_BYTES;
         let size_class = Self::size_class(size);
         let addr = self.allocate_cell(size_class)?;
+        let pages = 1 << (S::LOG_BYTES - Size4K::LOG_BYTES);
+        let _old = self.used.fetch_add(pages, Ordering::SeqCst);
         Some(Frame::new(addr))
     }
 
@@ -136,6 +141,8 @@ impl PhysicalPageResource {
         let size = 1 << S::LOG_BYTES;
         let size_class = Self::size_class(size);
         self.release_cell(frame.start(), size_class);
+        let pages = 1 << (S::LOG_BYTES - Size4K::LOG_BYTES);
+        let _old = self.used.fetch_sub(pages, Ordering::SeqCst);
     }
 }
 

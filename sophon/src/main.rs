@@ -28,6 +28,7 @@ pub mod memory;
 pub mod modules;
 pub mod scheduler;
 pub mod task;
+pub mod vfs;
 
 use core::panic::PanicInfo;
 
@@ -37,10 +38,11 @@ use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::scheduler::SCHEDULER;
 use crate::task::runnable::Idle;
 use crate::task::Proc;
+use ::vfs::ramfs::RamFS;
 use alloc::boxed::Box;
 use boot::BootInfo;
 use device_tree::DeviceTree;
-use vfs::ramfs::RamFS;
+use spin::Barrier;
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
@@ -104,7 +106,6 @@ pub extern "C" fn _start(boot_info: &'static BootInfo, core: usize) -> isize {
 
     log!("[kernel] load init-fs");
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
-    let initfs_ptr = initfs as *mut _;
 
     log!("[kernel] load kernel modules...");
     for (name, path) in ALL_MODULES {
@@ -112,7 +113,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo, core: usize) -> isize {
         let file = initfs.get(path).unwrap().as_file().unwrap();
         crate::modules::register(name, file.to_vec());
         if *name == "vfs" {
-            crate::modules::init_vfs(initfs_ptr);
+            crate::vfs::VFS.init(unsafe { &mut *(initfs as *mut _) });
         }
     }
     log!("[kernel] kernel modules loaded");
@@ -135,17 +136,22 @@ pub extern "C" fn _start(boot_info: &'static BootInfo, core: usize) -> isize {
 
     if let Some(start_ap) = boot_info.start_ap {
         log!("[kernel] start ap");
+        unsafe { SMP_BARRIER = Barrier::new(boot_info.num_cpus) };
         start_ap();
     }
+    unsafe { SMP_BARRIER.wait() };
 
     log!("[kernel] start scheduler");
     SCHEDULER.schedule();
 }
 
+static mut SMP_BARRIER: Barrier = Barrier::new(1);
+
 fn _start_ap(_core: usize) -> ! {
     TargetArch::setup_interrupt_table();
     TargetArch::interrupt().init();
     crate::modules::start_ap_timer();
+    unsafe { SMP_BARRIER.wait() };
     SCHEDULER.schedule();
 }
 

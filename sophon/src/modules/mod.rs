@@ -6,8 +6,6 @@ use kernel_module::ModuleCallHandler;
 use memory::page::{Page, PageResource, Size4K};
 use spin::RwLock;
 use syscall::RawModuleRequest;
-use vfs::ramfs::RamFS;
-use vfs::VFSRequest;
 
 use crate::memory::kernel::KERNEL_HEAP;
 
@@ -97,10 +95,6 @@ pub fn module_call<'a>(
     request: &'a impl syscall::ModuleRequest<'a>,
 ) -> isize {
     raw_module_call(module, privileged, request.as_raw().as_buf())
-}
-
-pub fn init_vfs(ramfs: *mut RamFS) {
-    module_call("vfs", true, &VFSRequest::Init(unsafe { &mut *ramfs }));
 }
 
 pub fn start_ap_timer() {

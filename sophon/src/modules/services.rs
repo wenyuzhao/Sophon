@@ -77,6 +77,18 @@ impl kernel_module::KernelService for KernelService {
         }
         syscall::exit();
     }
+    fn vfs(&self) -> &'static dyn vfs::VFSManager {
+        crate::vfs::VFS.get_vfs_manager()
+    }
+
+    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any {
+        let proc = Proc::by_id(proc).unwrap();
+        unsafe { &*(proc.fs.as_ref() as *const dyn Any) }
+    }
+
+    fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager) {
+        crate::vfs::VFS.set_vfs_manager(vfs_manager)
+    }
 
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {
         unsafe { crate::DEV_TREE.as_ref() }

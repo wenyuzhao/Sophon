@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use sched::Scheduler;
 use core::alloc::Layout;
 use core::any::Any;
 use core::ops::{Deref, Range};
@@ -9,6 +8,7 @@ use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
 use proc::{ProcId, TaskId};
+use sched::Scheduler;
 use syscall::RawModuleRequest;
 use testing::Tests;
 
@@ -28,6 +28,10 @@ pub trait KernelService: Send + Sync + 'static {
     fn current_process(&self) -> Option<ProcId>;
     fn current_task(&self) -> Option<TaskId>;
     fn handle_panic(&self) -> !;
+    // VFS
+    fn vfs(&self) -> &'static dyn vfs::VFSManager;
+    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any;
+    fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager);
     // Devices
     fn set_interrupt_controller(&self, controller: &'static dyn InterruptController);
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
