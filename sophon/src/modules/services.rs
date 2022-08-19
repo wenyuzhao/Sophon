@@ -132,9 +132,8 @@ impl kernel_module::KernelService for KernelService {
         &*crate::modules::INTERRUPT
     }
 
-    fn schedule(&self) -> ! {
-        SCHEDULER.timer_tick();
-        unreachable!()
+    fn scheduler(&self) -> &'static dyn sched::Scheduler {
+        &*crate::modules::SCHEDULER
     }
 
     fn num_cores(&self) -> usize {
@@ -150,12 +149,12 @@ impl kernel_module::KernelService for KernelService {
         unsafe { &*(task.sched.as_ref() as *const dyn Any) }
     }
 
-    fn return_to_user(&self, task: TaskId) -> ! {
+    unsafe fn return_to_user(&self, task: TaskId) -> ! {
         // Note: `task` must be dropped before calling `return_to_user`.
         let task = SCHEDULER.get_task_by_id(task).unwrap();
         let context_ptr = &task.context as *const <TargetArch as Arch>::Context;
         drop(task);
-        unsafe { (*context_ptr).return_to_user() }
+        (*context_ptr).return_to_user()
     }
 
     fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {

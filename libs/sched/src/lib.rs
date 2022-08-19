@@ -16,7 +16,7 @@ pub trait Scheduler: Send + Sync + 'static {
     fn sleep(&self);
     fn wake_up(&self, task: TaskId);
     fn schedule(&self) -> !;
-    fn timer_tick(&self);
+    fn timer_tick(&self) -> !;
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]

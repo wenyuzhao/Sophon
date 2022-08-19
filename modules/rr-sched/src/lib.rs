@@ -173,7 +173,7 @@ impl Scheduler for RoundRobinScheduler {
             && state.unwrap().run_state.load(Ordering::SeqCst) == RunState::Running
         {
             // Continue with this task
-            SERVICE.return_to_user(current_task.unwrap())
+            unsafe { SERVICE.return_to_user(current_task.unwrap()) }
         } else {
             // No current task or the current Task is blocked, switch to a new task.
 
@@ -202,11 +202,11 @@ impl Scheduler for RoundRobinScheduler {
             self.set_current_task_id(next_task);
             atomic::fence(Ordering::SeqCst);
             // Return to user
-            SERVICE.return_to_user(next_task)
+            unsafe { SERVICE.return_to_user(next_task) }
         }
     }
 
-    fn timer_tick(&self) {
+    fn timer_tick(&self) -> ! {
         debug_assert!(!interrupt::is_enabled());
         let current_task = self.get_current_task_id().unwrap();
         let state = self.get_state(current_task);
@@ -222,7 +222,7 @@ impl Scheduler for RoundRobinScheduler {
                 self.enqueue_current_task_as_ready();
                 self.schedule();
             } else {
-                SERVICE.return_to_user(current_task)
+                unsafe { SERVICE.return_to_user(current_task) }
             }
         }
     }

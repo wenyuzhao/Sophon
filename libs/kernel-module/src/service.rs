@@ -33,23 +33,23 @@ pub trait KernelService: Send + Sync + 'static {
     fn get_vfs_state(&self, proc: ProcId) -> &dyn Any;
     fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager);
     // Devices
-    fn set_interrupt_controller(&self, controller: &'static dyn InterruptController);
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
     fn map_device_page(&self, frame: Frame) -> Page;
     fn map_device_pages(&self, frames: Range<Frame>) -> Range<Page>;
     fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>);
     fn enable_irq(&self, irq: usize);
     fn disable_irq(&self, irq: usize);
-    // Timer
+    // Interrupt and Timer
+    fn set_interrupt_controller(&self, controller: &'static dyn InterruptController);
+    fn interrupt_controller(&self) -> &'static dyn InterruptController;
     fn timer_controller(&self) -> &'static dyn TimerController;
     fn set_timer_controller(&self, timer: &'static dyn TimerController);
     // Scheduler
-    fn interrupt_controller(&self) -> &'static dyn InterruptController;
-    fn schedule(&self) -> !;
     fn num_cores(&self) -> usize;
     fn current_core(&self) -> usize;
     fn get_scheduler_state(&self, task: TaskId) -> &dyn Any;
-    fn return_to_user(&self, task: TaskId) -> !;
+    unsafe fn return_to_user(&self, task: TaskId) -> !;
+    fn scheduler(&self) -> &'static dyn Scheduler;
     fn set_scheduler(&self, scheduler: &'static dyn Scheduler);
 }
 
