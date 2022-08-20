@@ -5,7 +5,7 @@ use memory::{
     page_table::{PageTable, L4},
 };
 use spin::{Barrier, Mutex, RwLock};
-use tock_registers::interfaces::{Readable, Writeable};
+use tock_registers::interfaces::Readable;
 
 #[derive(Clone)]
 pub struct APBootInfo {
