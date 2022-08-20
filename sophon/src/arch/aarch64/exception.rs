@@ -94,7 +94,12 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
             asm!("mrs {:x}, far_el1", out(reg) far);
             let mut elr: usize;
             asm!("mrs {:x}, elr_el1", out(reg) elr);
-            log!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
+            log!(
+                "Core#{} Data Abort: FAR={:?} ELR={:?}",
+                TargetArch::current_cpu(),
+                far as *mut (),
+                elr as *mut (),
+            );
             unreachable!()
         }
         #[allow(unreachable_patterns)]

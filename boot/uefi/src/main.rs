@@ -43,7 +43,7 @@ static mut IMAGE: Option<Handle> = None;
 
 unsafe fn establish_el1_page_table() -> &'static mut PageTable {
     let p4 = new_page4k().start().as_mut::<PageTable<L4>>();
-    TTBR0_EL1.set(p4 as *const _ as u64);
+    PageTable::<L4>::set(p4);
     // Get physical address limit
     let mut buffer = [0u8; 4096];
     let (_, descriptors) = boot_system_table()
@@ -210,6 +210,9 @@ fn load_elf(elf_data: &[u8]) -> ELFEntry {
         },
     )
     .unwrap();
+    unsafe {
+        INIT_ARRAY = mem::transmute(entry.init_array);
+    }
     log!("Load kernel ELF done. entry @ {:?}", entry.entry);
     entry
 }
@@ -253,10 +256,24 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
     return available_physical_memory_ranges;
 }
 
-fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo {
-    let devtree = DeviceTree::new(device_tree).unwrap();
+fn get_num_cpus(device_tree: &DeviceTree) -> usize {
+    let max_num_cpus = device_tree.cpus().count();
+    if let Some(num_cpus) = *FORCE_NUM_CPUS {
+        assert!(0 < num_cpus && num_cpus <= max_num_cpus);
+        num_cpus
+    } else {
+        max_num_cpus
+    }
+}
+
+fn gen_boot_info(
+    device_tree: &DeviceTree,
+    num_cpus: usize,
+    init_fs: &'static [u8],
+    dtb: &'static [u8],
+) -> BootInfo {
     let uart = {
-        let node = devtree.compatible("arm,pl011").unwrap();
+        let node = device_tree.compatible("arm,pl011").unwrap();
         let addr = node.translate(node.regs().unwrap().next().unwrap().start);
         const UART: Address = Address::new(0xdead_0000_0000);
         map_kernel_page_4k(
@@ -267,16 +284,9 @@ fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo
         );
         Some(UART)
     };
-    let num_cpus = devtree.cpus().count();
-    let num_cpus = if let Some(n) = *FORCE_NUM_CPUS {
-        assert!(0 < n && n <= num_cpus);
-        num_cpus
-    } else {
-        num_cpus
-    };
     BootInfo {
         available_physical_memory: gen_available_physical_memory(),
-        device_tree,
+        device_tree: dtb,
         uart,
         init_fs,
         shutdown: Some(shutdown),
@@ -447,7 +457,6 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
     // log!("RSDP @ {:?}", rsdp_addr);
 
     let p4 = establish_el1_page_table();
-
     let kernel_elf = read_file(image, "sophon");
     let init_fs = read_file(image, "init.fs").leak();
     let dtb = read_dtb(image);
@@ -455,13 +464,15 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
 
     log!("Starting kernel...");
 
-    log!("DTB @ {:?}", dtb.as_ptr_range());
-
-    BOOT_INFO = gen_boot_info(dtb, init_fs);
-    INIT_ARRAY = mem::transmute(entry.init_array);
-
-    smp::boot_and_prepare_ap(BOOT_INFO.num_cpus, p4.into(), mem::transmute(entry.entry));
-
+    // Prepare cores and boot-info for kernel
+    {
+        log!("Device tree @ {:?}", dtb.as_ptr_range());
+        let devtree = DeviceTree::new(dtb).unwrap();
+        let num_cpus = get_num_cpus(&devtree);
+        smp::boot_and_prepare_ap(num_cpus, p4.into(), mem::transmute(entry.entry));
+        BOOT_INFO = gen_boot_info(&devtree, num_cpus, init_fs, dtb);
+    }
+    // Start kernel
     smp::start_core(0, mem::transmute(entry.entry), &mut BOOT_INFO);
 }
 

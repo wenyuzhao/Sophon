@@ -1,18 +1,27 @@
 use boot::BootInfo;
 use cortex_a::registers::*;
-use memory::address::Address;
+use memory::{
+    address::Address,
+    page_table::{PageTable, L4},
+};
 use spin::{Barrier, Mutex, RwLock};
 use tock_registers::interfaces::{Readable, Writeable};
 
 #[derive(Clone)]
 pub struct APBootInfo {
     entry: extern "C" fn(&mut BootInfo, core: usize) -> !,
-    p4: Address,
+    p4: *mut PageTable<L4>,
 }
+
+unsafe impl Sync for APBootInfo {}
+unsafe impl Send for APBootInfo {}
 
 impl APBootInfo {
     pub fn new(entry: extern "C" fn(&mut BootInfo, core: usize) -> !, p4: Address) -> Self {
-        Self { entry, p4 }
+        Self {
+            entry,
+            p4: p4.as_mut_ptr(),
+        }
     }
 }
 
@@ -52,7 +61,7 @@ unsafe extern "C" fn ap_entry() {
         log!("Hello, AP #{}!", core);
     }
     let boot = AP_BOOT_INFO.lock().clone().unwrap();
-    TTBR0_EL1.set(boot.p4.as_usize() as u64);
+    PageTable::<L4>::set(boot.p4);
     BARRIER.read().as_ref().unwrap().wait();
     start_core(core, boot.entry, &mut crate::BOOT_INFO)
 }
@@ -113,13 +122,12 @@ pub extern "C" fn start_core(
     unsafe {
         core::arch::asm! {
             "
-                mov x0, #0xfffffff
-                msr cpacr_el1, x0
-                mov x0, sp
-                msr sp_el1, x0
+                mov {tmp}, #0xfffffff
+                msr cpacr_el1, {tmp}
+                mov {tmp}, sp
+                msr sp_el1, {tmp}
             ",
-            in("x0") 0,
-            in("x1") 0,
+            tmp = out(reg) _,
         }
         ELR_EL2.set(crate::kernel_entry as *const () as u64);
         core::arch::asm! {
