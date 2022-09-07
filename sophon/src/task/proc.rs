@@ -206,5 +206,7 @@ impl Proc {
             SCHEDULER.remove_task(*t)
         }
         self.monitor.notify();
+        // Remove from procs
+        PROCS.lock().remove(&self.id);
     }
 }
