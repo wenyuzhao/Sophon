@@ -7,6 +7,7 @@ use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::modules::SCHEDULER;
 use crate::task::Proc;
 use crate::task::Task;
+use crate::utils::monitor::SysMonitor;
 use crate::utils::testing::Tests;
 use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
@@ -24,7 +25,6 @@ use memory::{
 };
 use proc::{ProcId, TaskId};
 
-use crate::scheduler::monitor::SysMonitor;
 pub struct KernelService(pub usize);
 
 impl kernel_module::KernelService for KernelService {
@@ -65,11 +65,11 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn current_process(&self) -> Option<ProcId> {
-        Some(Proc::current().id)
+        Proc::current_opt().map(|p| p.id)
     }
 
     fn current_task(&self) -> Option<proc::TaskId> {
-        Some(Task::current().id)
+        Task::current_opt().map(|p| p.id)
     }
 
     fn handle_panic(&self) -> ! {

@@ -26,7 +26,6 @@ pub mod utils;
 pub mod arch;
 pub mod memory;
 pub mod modules;
-pub mod scheduler;
 pub mod task;
 
 use core::panic::PanicInfo;

@@ -4,7 +4,7 @@ use super::{ProcId, TaskId};
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::modules::SCHEDULER;
-use crate::scheduler::monitor::SysMonitor;
+use crate::utils::monitor::SysMonitor;
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::ffi::CString;
@@ -21,7 +21,6 @@ use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageTable, L4};
 use mutex::AbstractMonitor;
 use spin::Mutex;
-use vfs::VFSRequest;
 
 static PROCS: Mutex<BTreeMap<ProcId, Arc<Proc>>> = Mutex::new(BTreeMap::new());
 
