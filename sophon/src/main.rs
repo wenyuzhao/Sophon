@@ -66,7 +66,7 @@ const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
     ("vfs", "/etc/modules/libvfs.so"),
     ("dev", "/etc/modules/libdev.so"),
     ("pl011", "/etc/modules/libpl011.so"),
-    ("rr-sched", "/etc/modules/librr_sched.so"),
+    ("round-robin", "/etc/modules/libround_robin.so"),
 ];
 
 #[no_mangle]
