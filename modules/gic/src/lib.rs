@@ -1,6 +1,7 @@
 #![feature(format_args_nl)]
 #![feature(default_alloc_error_handler)]
 #![feature(box_syntax)]
+#![feature(generic_associated_types)]
 #![no_std]
 
 #[allow(unused)]
@@ -8,15 +9,13 @@
 extern crate log;
 extern crate alloc;
 
-use core::{
-    arch::asm,
-    cell::UnsafeCell,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use alloc::vec::Vec;
+use core::{arch::asm, cell::UnsafeCell};
 use cortex_a::asm::barrier;
 use interrupt::{IRQHandler, InterruptController};
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use memory::{page::Frame, volatile::*};
+use spin::Mutex;
 
 pub const IRQ_LINES: usize = 256;
 
@@ -94,7 +93,7 @@ impl GICC {
 pub struct GIC {
     GICD: UnsafeCell<*mut GICD>,
     GICC: UnsafeCell<*mut GICC>,
-    iar: AtomicU32,
+    iar: Vec<Mutex<Vec<u32>>>,
 }
 
 unsafe impl Send for GIC {}
@@ -105,7 +104,7 @@ impl GIC {
         Self {
             GICD: UnsafeCell::new(core::ptr::null_mut()),
             GICC: UnsafeCell::new(core::ptr::null_mut()),
-            iar: AtomicU32::new(0),
+            iar: Vec::new(),
         }
     }
 
@@ -117,31 +116,36 @@ impl GIC {
         unsafe { &mut **self.GICC.get() }
     }
 
-    fn init_gic(&self) {
+    fn set_core(&self, irq: u32, core: u32) {
+        let index = irq / 4;
+        let shift = (irq % 4) * 8;
+        let mut value = self.gicd().ITARGETSR.get(index as usize);
+        value &= !(0xff << shift);
+        value |= (1 << core) << shift;
+        self.gicd().ITARGETSR.set(index as usize, value);
+    }
+
+    fn init_gic(&self, bsp: bool) {
         #[allow(non_snake_case)]
         let (GICD, GICC) = (self.gicd(), self.gicc());
         unsafe { barrier::dsb(barrier::SY) };
         unsafe {
             // Disable all interrupts
             GICD.CTLR.set(GICD::CTLR_DISABLE);
-            for n in 0..(IRQ_LINES / 32) {
-                GICD.ICENABLER[n].set(!0);
-                GICD.ICPENDR[n].set(!0);
-                GICD.ICACTIVER[n].set(!0);
+            if bsp {
+                for n in 0..(IRQ_LINES / 32) {
+                    GICD.ICENABLER[n].set(!0);
+                    GICD.ICPENDR[n].set(!0);
+                    GICD.ICACTIVER[n].set(!0);
+                }
             }
-            // Connect interrupts to core#0
+            // Set priority
             for n in 0..(IRQ_LINES / 4) {
                 GICD.IPRIORITYR[n].set(
                     GICD::IPRIORITYRAULT
                         | GICD::IPRIORITYRAULT << 8
                         | GICD::IPRIORITYRAULT << 16
                         | GICD::IPRIORITYRAULT << 24,
-                );
-                GICD.ITARGETSR[n].set(
-                    GICD::ITARGETSR_CORE0
-                        | GICD::ITARGETSR_CORE0 << 8
-                        | GICD::ITARGETSR_CORE0 << 16
-                        | GICD::ITARGETSR_CORE0 << 24,
                 );
             }
             // set all interrupts to level triggered
@@ -158,7 +162,7 @@ impl GIC {
 }
 
 #[kernel_module]
-pub static GIC: GIC = GIC::new();
+pub static mut GIC: GIC = GIC::new();
 
 impl KernelModule for GIC {
     fn init(&'static mut self) -> anyhow::Result<()> {
@@ -178,7 +182,8 @@ impl KernelModule for GIC {
             *self.GICD.get() = gicd_page.start().as_mut_ptr();
             *self.GICC.get() = gicc_page.start().as_mut_ptr();
         }
-        self.init_gic();
+        self.iar.resize_with(SERVICE.num_cores(), Default::default);
+        self.init_gic(true);
         SERVICE.set_interrupt_controller(self);
         Ok(())
     }
@@ -190,17 +195,21 @@ static mut IRQ_HANDLERS: [Option<IRQHandler>; IRQ_LINES] = {
 };
 
 impl InterruptController for GIC {
-    fn get_active_irq(&self) -> usize {
-        let gicc = GIC.gicc();
-        let iar = gicc.IAR.get();
-        self.iar.store(iar, Ordering::SeqCst);
+    fn init(&self, bsp: bool) {
+        self.init_gic(bsp);
+    }
+
+    fn get_active_irq(&self) -> Option<usize> {
+        let iar = self.iar[SERVICE.current_core()].lock().last().cloned()?;
         let irq = iar & GICC::IAR_INTERRUPT_ID__MASK;
-        irq as _
+        Some(irq as _)
     }
 
     fn enable_irq(&self, irq: usize) {
         unsafe {
             asm!("dsb SY");
+            let core = SERVICE.current_core();
+            GIC.set_core(irq as _, core as _);
             GIC.gicd().ISENABLER[irq / 32].set(1 << (irq & (32 - 1)));
             asm!("dmb SY");
         }
@@ -210,8 +219,15 @@ impl InterruptController for GIC {
         unimplemented!()
     }
 
-    fn notify_end_of_interrupt(&self) {
-        GIC.gicc().EOIR.set(self.iar.load(Ordering::SeqCst));
+    fn interrupt_begin(&self) {
+        let gicc = self.gicc();
+        let iar = gicc.IAR.get();
+        self.iar[SERVICE.current_core()].lock().push(iar);
+    }
+
+    fn interrupt_end(&self) {
+        let iar = self.iar[SERVICE.current_core()].lock().pop().unwrap();
+        self.gicc().EOIR.set(iar);
     }
 
     fn get_irq_handler(&self, irq: usize) -> Option<&IRQHandler> {

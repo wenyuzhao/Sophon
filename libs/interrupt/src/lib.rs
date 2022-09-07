@@ -149,10 +149,16 @@ pub type IRQHandler = Box<dyn Fn() -> isize>;
 pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize) -> isize>;
 
 pub trait InterruptController {
-    fn get_active_irq(&self) -> usize;
+    fn init(&self, bsp: bool);
+    fn get_active_irq(&self) -> Option<usize>;
     fn enable_irq(&self, irq: usize);
     fn disable_irq(&self, irq: usize);
-    fn notify_end_of_interrupt(&self);
+    fn interrupt_begin(&self);
+    fn interrupt_end(&self);
     fn get_irq_handler(&self, irq: usize) -> Option<&IRQHandler>;
     fn set_irq_handler(&self, irq: usize, handler: IRQHandler);
+}
+
+pub trait TimerController {
+    fn init(&self, bsp: bool);
 }

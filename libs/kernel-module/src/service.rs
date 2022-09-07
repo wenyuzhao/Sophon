@@ -1,13 +1,15 @@
 use alloc::boxed::Box;
 use core::alloc::Layout;
+use core::any::Any;
 use core::ops::{Deref, Range};
 use device_tree::DeviceTree;
-use interrupt::InterruptController;
+use interrupt::{InterruptController, TimerController};
 use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
 use mutex::Monitor;
 use proc::{ProcId, TaskId};
+use sched::Scheduler;
 use syscall::RawModuleRequest;
 use testing::Tests;
 
@@ -27,16 +29,29 @@ pub trait KernelService: Send + Sync + 'static {
     fn current_process(&self) -> Option<ProcId>;
     fn current_task(&self) -> Option<TaskId>;
     fn handle_panic(&self) -> !;
+    // VFS
+    fn vfs(&self) -> &'static dyn vfs::VFSManager;
+    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any;
+    fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager);
     // Devices
-    fn set_interrupt_controller(&self, controller: &'static dyn InterruptController);
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
     fn map_device_page(&self, frame: Frame) -> Page;
     fn map_device_pages(&self, frames: Range<Frame>) -> Range<Page>;
     fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>);
     fn enable_irq(&self, irq: usize);
     fn disable_irq(&self, irq: usize);
+    // Interrupt and Timer
+    fn set_interrupt_controller(&self, controller: &'static dyn InterruptController);
+    fn interrupt_controller(&self) -> &'static dyn InterruptController;
+    fn timer_controller(&self) -> &'static dyn TimerController;
+    fn set_timer_controller(&self, timer: &'static dyn TimerController);
     // Scheduler
-    fn schedule(&self) -> !;
+    fn num_cores(&self) -> usize;
+    fn current_core(&self) -> usize;
+    fn get_scheduler_state(&self, task: TaskId) -> &dyn Any;
+    unsafe fn return_to_user(&self, task: TaskId) -> !;
+    fn scheduler(&self) -> &'static dyn Scheduler;
+    fn set_scheduler(&self, scheduler: &'static dyn Scheduler);
     fn new_monitor(&self) -> Monitor;
 }
 

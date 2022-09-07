@@ -3,14 +3,17 @@ use super::{runnable::Runnable, task::Task};
 use super::{ProcId, TaskId};
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
+use crate::modules::SCHEDULER;
 use crate::scheduler::monitor::SysMonitor;
-use crate::scheduler::{AbstractScheduler, SCHEDULER};
+use alloc::borrow::ToOwned;
+use alloc::collections::BTreeMap;
 use alloc::ffi::CString;
 use alloc::sync::Arc;
-use alloc::{boxed::Box, collections::LinkedList, vec, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 use atomic::{Atomic, Ordering};
+use core::any::Any;
 use core::iter::Step;
-use core::ops::Range;
+use core::ops::{Deref, Range};
 use core::sync::atomic::AtomicUsize;
 use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
@@ -20,7 +23,7 @@ use mutex::AbstractMonitor;
 use spin::Mutex;
 use vfs::VFSRequest;
 
-static PROCS: Mutex<LinkedList<Arc<Proc>>> = Mutex::new(LinkedList::new());
+static PROCS: Mutex<BTreeMap<ProcId, Arc<Proc>>> = Mutex::new(BTreeMap::new());
 
 pub struct Proc {
     pub id: ProcId,
@@ -29,6 +32,7 @@ pub struct Proc {
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
     pub monitor: Arc<SysMonitor>,
+    pub fs: Box<dyn Any>,
 }
 
 unsafe impl Send for Proc {}
@@ -40,6 +44,7 @@ impl Proc {
         static COUNTER: AtomicUsize = AtomicUsize::new(1);
         let proc_id = ProcId(COUNTER.fetch_add(1, Ordering::SeqCst));
         // Allocate proc struct
+        let vfs_state = crate::modules::VFS.register_process(proc_id, "".to_owned());
         let proc = Arc::new(Proc {
             id: proc_id,
             threads: Mutex::new(vec![]),
@@ -51,22 +56,13 @@ impl Proc {
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
             monitor: SysMonitor::new(),
+            fs: vfs_state,
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);
         proc.threads.lock().push(task.id);
         // Add to list
-        PROCS.lock_uninterruptible().push_back(proc.clone());
-        // Notify VFS
-        crate::modules::module_call(
-            "vfs",
-            true,
-            &VFSRequest::ProcStart {
-                proc: proc.id,
-                parent: Proc::current_opt().map(|p| p.id).unwrap_or(ProcId::KERNEL),
-                cwd: "",
-            },
-        );
+        PROCS.lock_uninterruptible().insert(proc.id, proc.clone());
         // Spawn
         SCHEDULER.register_new_task(task);
         proc
@@ -142,13 +138,18 @@ impl Proc {
     }
 
     #[inline]
+    pub fn by_id(id: ProcId) -> Option<Arc<Proc>> {
+        PROCS.lock_uninterruptible().get(&id).cloned()
+    }
+
+    #[inline]
     pub fn current() -> Arc<Proc> {
-        Task::current().proc.clone()
+        Task::current().proc()
     }
 
     #[inline]
     pub fn current_opt() -> Option<Arc<Proc>> {
-        Task::current_opt().map(|t| t.proc.clone())
+        Task::current_opt().map(|t| t.proc())
     }
 
     pub fn spawn_task(self: Arc<Self>, f: *const extern "C" fn()) -> Arc<Task> {
@@ -193,10 +194,13 @@ impl Proc {
 
     pub fn exit(&self) {
         // Release file handles
-        crate::modules::module_call("vfs", true, &VFSRequest::ProcExit(self.id));
+        crate::modules::VFS.deregister_process(self.id);
         // Release memory
-        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
-        crate::memory::utils::release_user_page_table(self.get_page_table());
+        let guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+        let user_page_table = self.get_page_table();
+        if guard.deref() as *const PageTable != user_page_table as *const PageTable {
+            crate::memory::utils::release_user_page_table(self.get_page_table());
+        }
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {

@@ -28,6 +28,8 @@ device-tree = { path = "../libs/device-tree" }
 mutex = { path = "../libs/mutex" }
 sophon-macros = { path = "./macros" }
 testing = { path = "../libs/testing" }
+dev = { path = "../libs/dev" }
+sched = { path = "../libs/sched" }
 
 [build-dependencies]
 spin = { workspace = true }

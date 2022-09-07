@@ -10,6 +10,7 @@
 #![feature(adt_const_params)]
 #![feature(generic_const_exprs)]
 #![feature(type_alias_impl_trait)]
+#![feature(drain_filter)]
 #![no_std]
 #![no_main]
 
@@ -33,18 +34,19 @@ use core::panic::PanicInfo;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::scheduler::{AbstractScheduler, SCHEDULER};
+use crate::modules::SCHEDULER;
 use crate::task::runnable::Idle;
 use crate::task::Proc;
+use ::vfs::ramfs::RamFS;
 use alloc::boxed::Box;
 use boot::BootInfo;
 use device_tree::DeviceTree;
-use vfs::ramfs::RamFS;
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
 
 static mut DEV_TREE: Option<DeviceTree<'static, 'static>> = None;
+static mut INIT_FS: Option<*mut RamFS> = None;
 
 fn display_banner() {
     let ver = env!("CARGO_PKG_VERSION");
@@ -65,6 +67,7 @@ const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
     ("vfs", "/etc/modules/libvfs.so"),
     ("dev", "/etc/modules/libdev.so"),
     ("pl011", "/etc/modules/libpl011.so"),
+    ("rr-sched", "/etc/modules/librr_sched.so"),
 ];
 
 #[no_mangle]
@@ -99,16 +102,13 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
 
     log!("[kernel] load init-fs");
     let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
-    let initfs_ptr = initfs as *mut _;
+    unsafe { INIT_FS = Some(initfs) };
 
     log!("[kernel] load kernel modules...");
     for (name, path) in ALL_MODULES {
         log!("[kernel]  - load module '{}'", name);
         let file = initfs.get(path).unwrap().as_file().unwrap();
         crate::modules::register(name, file.to_vec());
-        if *name == "vfs" {
-            crate::modules::init_vfs(initfs_ptr);
-        }
     }
     log!("[kernel] kernel modules loaded");
 
@@ -120,7 +120,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     let _proc = Proc::spawn_user(init.to_vec(), &[]);
 
     if cfg!(sophon_test) {
-        log!("[kernel] start boot tests");
+        log!("[kernel] run boot tests");
         crate::utils::testing::run_boot_tests();
         log!("[kernel] start kernel test runner");
         crate::utils::testing::start_kernel_test_runner();

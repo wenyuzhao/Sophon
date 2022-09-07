@@ -1,12 +1,11 @@
 use boot::BootInfo;
-use interrupt::InterruptController;
 use memory::address::*;
 use memory::page_table::PageTable;
 
 #[allow(unused)]
 #[inline]
 pub(self) fn handle_irq(irq: usize) -> isize {
-    if let Some(handler) = TargetArch::interrupt().get_irq_handler(irq) {
+    if let Some(handler) = crate::modules::INTERRUPT.get_irq_handler(irq) {
         handler()
     } else {
         log!("IRQ #{:?} has no handler!", irq);
@@ -16,7 +15,7 @@ pub(self) fn handle_irq(irq: usize) -> isize {
 
 pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
-    fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx: *mut ()) -> Self;
+    fn new(entry: *const extern "C" fn(ctx: *mut ()) -> !, ctx: *mut ()) -> Self;
     fn set_response_status(&self, s: isize);
 
     unsafe extern "C" fn return_to_user(&self) -> !;
@@ -29,21 +28,10 @@ pub trait ArchContext: Sized + 'static {
     ) -> !;
 }
 
-static mut INTERRUPT_CONTROLLER: Option<&'static dyn InterruptController> = None;
-
 pub trait Arch {
     type Context: ArchContext;
 
     fn init(boot_info: &'static BootInfo);
-
-    fn interrupt() -> &'static dyn InterruptController {
-        unsafe { &**INTERRUPT_CONTROLLER.as_ref().unwrap() }
-    }
-
-    fn set_interrupt_controller(controller: &'static dyn InterruptController) {
-        unsafe { INTERRUPT_CONTROLLER = Some(controller) }
-        Self::setup_interrupt_table();
-    }
 
     fn setup_interrupt_table();
 

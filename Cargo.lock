@@ -353,6 +353,7 @@ version = "0.0.3"
 dependencies = [
  "anyhow",
  "cortex-a",
+ "crossbeam",
  "dev",
  "interrupt",
  "kernel-module",
@@ -369,6 +370,7 @@ dependencies = [
  "anyhow",
  "cortex-a",
  "dev",
+ "interrupt",
  "kernel-module",
  "log 0.0.3",
  "memory",
@@ -475,9 +477,11 @@ dependencies = [
  "memory",
  "mutex",
  "proc",
+ "sched",
  "spin",
  "syscall",
  "testing",
+ "vfs",
 ]
 
 [[package]]
@@ -743,6 +747,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rr-sched"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "atomic",
+ "crossbeam",
+ "interrupt",
+ "kernel-module",
+ "log 0.0.3",
+ "proc",
+ "sched",
+ "spin",
+ "vfs",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -758,6 +778,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
  "semver 1.0.12",
+]
+
+[[package]]
+name = "sched"
+version = "0.0.3"
+dependencies = [
+ "log 0.0.3",
+ "proc",
+ "spin",
+ "syscall",
 ]
 
 [[package]]
@@ -815,6 +845,7 @@ dependencies = [
  "boot",
  "cortex-a",
  "crossbeam",
+ "dev",
  "device-tree",
  "elf-loader",
  "hashbrown",
@@ -825,6 +856,7 @@ dependencies = [
  "mutex",
  "postcard",
  "proc",
+ "sched",
  "serde",
  "sophon-macros",
  "spin",
@@ -1047,6 +1079,7 @@ name = "vfs-module"
 version = "0.0.3"
 dependencies = [
  "anyhow",
+ "interrupt",
  "kernel-module",
  "log 0.0.3",
  "proc",

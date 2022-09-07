@@ -1,24 +1,23 @@
 [package]
-name = "gic"
+name = "rr-sched"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "gic"
 crate-type = ["cdylib"]
 
 [dependencies]
 log = { path = "../../libs/log" }
 kernel-module = { path = "../../libs/kernel-module" }
-memory = { path = "../../libs/memory" }
+vfs = { path = "../../libs/vfs" }
+proc = { path = "../../libs/proc" }
 interrupt = { path = "../../libs/interrupt" }
-dev = { path = "../../libs/dev" }
+sched = { path = "../../libs/sched" }
 anyhow = { workspace = true }
 spin = { workspace = true }
-cortex-a = { workspace = true }
-tock-registers = { workspace = true }
+atomic = { workspace = true }
 crossbeam = { workspace = true }
 
 [features]

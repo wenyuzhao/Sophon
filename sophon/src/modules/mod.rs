@@ -5,14 +5,21 @@ use kernel_module::ModuleCallHandler;
 use memory::page::{Page, PageResource, Size4K};
 use spin::RwLock;
 use syscall::RawModuleRequest;
-use vfs::ramfs::RamFS;
-use vfs::VFSRequest;
 
 use crate::memory::kernel::KERNEL_HEAP;
 
 use self::services::KernelService;
 
+mod interrupt;
+mod scheduler;
 mod services;
+mod timer;
+mod vfs;
+
+pub use self::interrupt::INTERRUPT;
+pub use self::scheduler::SCHEDULER;
+pub use self::timer::TIMER;
+pub use self::vfs::VFS;
 
 struct KernelModule {
     _name: String,
@@ -77,6 +84,7 @@ pub fn register(name: &str, elf: Vec<u8>) {
 
 pub fn raw_module_call(module: &str, privileged: bool, args: [usize; 4]) -> isize {
     // log!("module call #{} {:x?}", module, args);
+    let _guard = ::interrupt::uninterruptible();
     let id = *MODULE_NAMES.read().get(module).unwrap();
     MODULES.read()[id]
         .as_ref()
@@ -95,8 +103,4 @@ pub fn module_call<'a>(
     request: &'a impl syscall::ModuleRequest<'a>,
 ) -> isize {
     raw_module_call(module, privileged, request.as_raw().as_buf())
-}
-
-pub fn init_vfs(ramfs: *mut RamFS) {
-    module_call("vfs", true, &VFSRequest::Init(unsafe { &mut *ramfs }));
 }
