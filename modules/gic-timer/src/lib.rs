@@ -27,7 +27,10 @@ pub struct GICTimer {
 impl GICTimer {
     fn get_timer_irq(&self) -> usize {
         let devtree = SERVICE.get_device_tree().unwrap();
-        let node = devtree.compatible("arm,armv7-timer").unwrap();
+        let node = devtree
+            .compatible("arm,armv7-timer")
+            .or_else(|| devtree.compatible("arm,armv8-timer"))
+            .unwrap();
         let (irq, _) = node.interrupts().unwrap().skip(1).next().unwrap();
         irq
     }
