@@ -169,6 +169,13 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
         Ok(())
     }
 
+    fn flush_segment(&self, ph: ProgramHeader) -> Result<(), &'static str> {
+        let start: Address = Address::from(ph.virtual_addr() as usize) + self.vaddr_offset;
+        let bytes = ph.file_size() as usize;
+        self.flush(start, bytes);
+        Ok(())
+    }
+
     fn apply_relocation(&self, ph: ProgramHeader) -> Result<(), &'static str> {
         let data = match ph.get_data(&self.elf)? {
             SegmentData::Dynamic64(data) => data,
@@ -241,6 +248,13 @@ impl<'a, 'b, 'c> ELFLoader<'a, 'b, 'c> {
         {
             // log!("Relo {:?}", ph);
             self.apply_relocation(ph)?;
+        }
+        for ph in self
+            .elf
+            .program_iter()
+            .filter(|ph| ph.get_type() == Ok(Type::Load))
+        {
+            self.flush_segment(ph)?;
         }
         let entry = Address::from(self.elf.header.pt2.entry_point() as usize) + self.vaddr_offset;
         let init_array = self.elf.section_iter().find_map(|x| {

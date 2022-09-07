@@ -138,6 +138,9 @@ impl ArchContext for AArch64Context {
         let p4 = Proc::current().get_page_table();
         if p4 as *mut _ as u64 != TTBR0_EL1.get() {
             PageTable::set(p4);
+        } else {
+            // Force flush TLB.
+            asm!("tlbi vmalle1is");
         }
         // Load user frame
         let exception_frame = self.pop_exception_frame().unwrap_or_else(|| {

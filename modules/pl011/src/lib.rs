@@ -144,6 +144,10 @@ impl UART0 {
 
     fn putchar(&mut self, c: char) {
         while self.transmit_fifo_full() {}
+        if c == '\n' {
+            self.dr.set('\r' as u8 as u32);
+        }
+        while self.transmit_fifo_full() {}
         self.dr.set(c as u8 as u32);
     }
 
