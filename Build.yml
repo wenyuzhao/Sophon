@@ -36,8 +36,8 @@ init.fs:
         libbcm2711_gpio.so:
           + cargo-build: modules/bcm2711-gpio
           + copy: target/_out/libbcm2711_gpio.so
-        librr_sched.so:
-          + cargo-build: modules/rr-sched
-          + copy: target/_out/librr_sched.so
+        libround_robin.so:
+          + cargo-build: modules/round-robin
+          + copy: target/_out/libround_robin.so
       hello.txt:
         + copy-str: "Hello world from file!"
