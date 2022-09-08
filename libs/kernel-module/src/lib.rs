@@ -93,6 +93,7 @@ impl<T: Default> ProcessorLocalStorage<T> {
         }
     }
 
+    #[inline(always)]
     pub fn get(&self, index: usize) -> &T {
         &self.data[index]
     }
@@ -100,6 +101,8 @@ impl<T: Default> ProcessorLocalStorage<T> {
 
 impl<T: Default> Deref for ProcessorLocalStorage<T> {
     type Target = T;
+
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.data[SERVICE.current_core()]
     }

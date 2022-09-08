@@ -1,9 +1,9 @@
 #![no_std]
-#![feature(format_args_nl)]
+
 extern crate alloc;
-use core::any::Any;
 
 use alloc::boxed::Box;
+use core::any::Any;
 use proc::TaskId;
 
 pub trait Scheduler: Send + Sync + 'static {

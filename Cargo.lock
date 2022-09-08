@@ -353,7 +353,6 @@ version = "0.0.3"
 dependencies = [
  "anyhow",
  "cortex-a",
- "crossbeam",
  "dev",
  "interrupt",
  "kernel-module",
@@ -784,10 +783,7 @@ dependencies = [
 name = "sched"
 version = "0.0.3"
 dependencies = [
- "log 0.0.3",
  "proc",
- "spin",
- "syscall",
 ]
 
 [[package]]

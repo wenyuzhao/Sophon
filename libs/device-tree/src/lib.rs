@@ -52,17 +52,6 @@ impl<'buf, 'index> DeviceTree<'buf, 'index> {
         }
         None
     }
-
-    pub fn cpus<'x>(&'x self) -> impl Iterator<Item = Node<'x, 'index, 'buf>> {
-        self.index
-            .nodes()
-            .filter(|n| {
-                n.props()
-                    .find(|p| p.name() == Ok("device_type") && p.str() == Ok("cpu"))
-                    .is_some()
-            })
-            .map(|n| Node { node: n })
-    }
 }
 
 #[derive(Clone)]
