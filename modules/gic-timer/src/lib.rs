@@ -10,15 +10,18 @@ extern crate alloc;
 
 use core::arch::asm;
 use cortex_a::registers::*;
+use interrupt::TimerController;
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use tock_registers::interfaces::{Readable, Writeable};
 
 const TIMER_INTERRUPT_FREQUENCY: usize = 60; // Hz
 
 #[kernel_module]
-pub static GIC_TIMER: GICTimer = GICTimer;
+pub static mut GIC_TIMER: GICTimer = GICTimer { irq: 0 };
 
-pub struct GICTimer;
+pub struct GICTimer {
+    irq: usize,
+}
 
 impl GICTimer {
     fn get_timer_irq(&self) -> usize {
@@ -36,7 +39,8 @@ impl GICTimer {
             // Update compare value
             let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
             CNTP_TVAL_EL0.set(step as u64);
-            SERVICE.schedule();
+            SERVICE.interrupt_controller().interrupt_end();
+            SERVICE.scheduler().timer_tick();
         });
     }
 
@@ -55,10 +59,22 @@ impl GICTimer {
 }
 
 impl KernelModule for GICTimer {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&'static mut self) -> anyhow::Result<()> {
         let irq = self.get_timer_irq();
+        self.irq = irq;
         self.set_timer_handler(irq);
         self.start_timer(irq);
+        SERVICE.set_timer_controller(self);
         Ok(())
+    }
+}
+
+impl TimerController for GICTimer {
+    fn init(&self, bsp: bool) {
+        if bsp {
+            // pass
+        } else {
+            unimplemented!()
+        }
     }
 }

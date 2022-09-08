@@ -3,12 +3,11 @@ use super::TaskId;
 use crate::arch::Arch;
 use crate::arch::ArchContext;
 use crate::arch::TargetArch;
-use crate::scheduler::AbstractScheduler;
-use crate::scheduler::Scheduler;
-use crate::scheduler::SCHEDULER;
+use crate::modules::SCHEDULER;
 use crate::*;
 use alloc::boxed::Box;
-use alloc::sync::Arc;
+use alloc::sync::{Arc, Weak};
+use core::any::Any;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -22,26 +21,21 @@ pub enum TaskState {
 
 pub struct Task {
     pub id: TaskId,
-    scheduler_state: <Scheduler as AbstractScheduler>::State,
     pub context: <TargetArch as Arch>::Context,
-    pub proc: Arc<Proc>,
+    proc: Weak<Proc>,
+    pub sched: Box<dyn Any>,
+    runnable: Box<dyn Runnable>,
 }
 
 impl Task {
-    #[inline]
-    pub fn scheduler_state<S: AbstractScheduler>(&self) -> &S::State {
-        let state: &<Scheduler as AbstractScheduler>::State = &self.scheduler_state;
-        unsafe { core::mem::transmute(state) }
-    }
-
-    pub(super) fn create(proc: Arc<Proc>, t: Box<dyn Runnable>) -> Arc<Self> {
-        let t = Box::into_raw(box t);
+    pub(super) fn create(proc: Arc<Proc>, runnable: Box<dyn Runnable>) -> Arc<Self> {
         let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
         Arc::new(Task {
             id,
-            context: <TargetArch as Arch>::Context::new(entry as _, t as *mut ()),
-            scheduler_state: Default::default(),
-            proc,
+            context: <TargetArch as Arch>::Context::new(entry as _, 0 as _),
+            proc: Arc::downgrade(&proc),
+            sched: SCHEDULER.new_state(),
+            runnable,
         })
     }
 
@@ -57,13 +51,30 @@ impl Task {
         SCHEDULER.get_current_task()
     }
 
+    pub fn get_context_ptr<C: ArchContext>(&self) -> *const C {
+        let ptr = &self.context as *const _;
+        ptr as *const C
+    }
+
     pub fn get_context<C: ArchContext>(&self) -> &C {
         let ptr = &self.context as *const _;
         unsafe { &*(ptr as *const C) }
     }
 
+    pub fn proc(&self) -> Arc<Proc> {
+        self.proc.upgrade().unwrap()
+    }
+
     pub fn exit(&self) {
+        assert!(!interrupt::is_enabled());
+        assert_eq!(self.id, Task::current().id);
         SCHEDULER.remove_task(Task::current().id);
+        self.proc
+            .upgrade()
+            .unwrap()
+            .threads
+            .lock()
+            .drain_filter(|t| *t == self.id);
     }
 }
 
@@ -78,7 +89,9 @@ impl PartialEq for Task {
 
 impl Eq for Task {}
 
-extern "C" fn entry(t: *mut Box<dyn Runnable>) -> ! {
-    let mut t: Box<Box<dyn Runnable>> = unsafe { Box::from_raw(t) };
-    t.run()
+extern "C" fn entry(_ctx: *mut ()) -> ! {
+    let runnable = unsafe {
+        &mut *(Task::current().runnable.as_ref() as *const dyn Runnable as *mut dyn Runnable)
+    };
+    runnable.run()
 }

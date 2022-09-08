@@ -10,7 +10,7 @@ extern crate alloc;
 
 use alloc::{borrow::ToOwned, collections::BTreeMap, format, string::String, vec::Vec};
 use dev::{DevRequest, Device};
-use kernel_module::{kernel_module, KernelModule};
+use kernel_module::{kernel_module, KernelModule, SERVICE};
 use spin::{Lazy, RwLock};
 use vfs::{FileSystem, Node, Stat, VFSRequest};
 
@@ -23,10 +23,7 @@ impl KernelModule for DEV {
     type ModuleRequest<'a> = DevRequest<'a>;
 
     fn init(&mut self) -> anyhow::Result<()> {
-        kernel_module::module_call(
-            "vfs",
-            &VFSRequest::RegisterFS(&(&*DEV_FS as &'static dyn FileSystem)),
-        );
+        SERVICE.vfs().register_fs(&*DEV_FS);
         kernel_module::module_call(
             "vfs",
             &VFSRequest::Mount {

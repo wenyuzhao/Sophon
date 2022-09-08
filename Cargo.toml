@@ -10,6 +10,7 @@ members = [
     "modules/gic-timer",
     "modules/hello",
     "modules/pl011",
+    "modules/round-robin",
     "modules/vfs",
 # Libraries
     "libs/bitflags",
@@ -22,6 +23,7 @@ members = [
     "libs/kernel-module/macros",
     "libs/log",
     "libs/memory",
+    "libs/sched",
     "libs/mutex",
     "libs/proc",
     "libs/syscall",

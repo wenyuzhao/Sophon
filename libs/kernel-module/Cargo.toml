@@ -16,6 +16,8 @@ device-tree = { path = "../device-tree" }
 mutex = { path = "../mutex" }
 interrupt = { path = "../interrupt" }
 testing = { path = "../testing" }
+sched = { path = "../sched" }
+vfs = { path = "../vfs" }
 anyhow = { workspace = true }
 spin = { workspace = true }
 

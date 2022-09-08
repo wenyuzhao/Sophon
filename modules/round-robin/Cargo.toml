@@ -1,5 +1,5 @@
 [package]
-name = "gic-timer"
+name = "round-robin"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -11,13 +11,14 @@ crate-type = ["cdylib"]
 [dependencies]
 log = { path = "../../libs/log" }
 kernel-module = { path = "../../libs/kernel-module" }
-memory = { path = "../../libs/memory" }
-dev = { path = "../../libs/dev" }
+vfs = { path = "../../libs/vfs" }
+proc = { path = "../../libs/proc" }
 interrupt = { path = "../../libs/interrupt" }
+sched = { path = "../../libs/sched" }
 anyhow = { workspace = true }
 spin = { workspace = true }
-cortex-a = { workspace = true }
-tock-registers = { workspace = true }
+atomic = { workspace = true }
+crossbeam = { workspace = true }
 
 [features]
 default = []

@@ -4,7 +4,7 @@ use alloc::{sync::Arc, vec::Vec};
 use mutex::AbstractMonitor;
 use proc::TaskId;
 
-use super::{AbstractScheduler, SCHEDULER};
+use crate::modules::SCHEDULER;
 
 pub struct SysMonitor {
     _is_locked: AtomicBool,
@@ -40,7 +40,7 @@ impl AbstractMonitor for SysMonitor {
     fn notify(&self) {
         for t in &*self.waiters.lock() {
             if let Some(task) = SCHEDULER.get_task_by_id(*t) {
-                SCHEDULER.wake_up(task)
+                SCHEDULER.wake_up(task.id)
             }
         }
     }

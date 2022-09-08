@@ -1,5 +1,17 @@
+use super::raw_module_call;
+use super::MODULES;
+use crate::arch::ArchContext;
+use crate::arch::{Arch, TargetArch};
+use crate::memory::kernel::KERNEL_HEAP;
+use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
+use crate::modules::SCHEDULER;
+use crate::task::Proc;
+use crate::task::Task;
+use crate::utils::monitor::SysMonitor;
+use crate::utils::testing::Tests;
 use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
+use core::any::Any;
 use core::iter::Step;
 use core::ops::Range;
 use device_tree::DeviceTree;
@@ -11,20 +23,8 @@ use memory::{
     address::Address,
     page::{Page, Size4K},
 };
-use proc::ProcId;
+use proc::{ProcId, TaskId};
 
-use crate::arch::{Arch, TargetArch};
-use crate::memory::kernel::KERNEL_HEAP;
-use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
-use crate::scheduler::monitor::SysMonitor;
-use crate::scheduler::AbstractScheduler;
-use crate::scheduler::SCHEDULER;
-use crate::task::Proc;
-use crate::task::Task;
-use crate::utils::testing::Tests;
-
-use super::raw_module_call;
-use super::MODULES;
 pub struct KernelService(pub usize);
 
 impl kernel_module::KernelService for KernelService {
@@ -65,11 +65,11 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn current_process(&self) -> Option<ProcId> {
-        Some(Proc::current().id)
+        Proc::current_opt().map(|p| p.id)
     }
 
     fn current_task(&self) -> Option<proc::TaskId> {
-        Some(Task::current().id)
+        Task::current_opt().map(|p| p.id)
     }
 
     fn handle_panic(&self) -> ! {
@@ -77,6 +77,19 @@ impl kernel_module::KernelService for KernelService {
             TargetArch::halt(-1)
         }
         syscall::exit();
+    }
+    fn vfs(&self) -> &'static dyn vfs::VFSManager {
+        &*crate::modules::VFS
+    }
+
+    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any {
+        let proc = Proc::by_id(proc).unwrap();
+        unsafe { &*(proc.fs.as_ref() as *const dyn Any) }
+    }
+
+    fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager) {
+        crate::modules::VFS.set_vfs_manager(vfs_manager);
+        vfs_manager.init(unsafe { &mut *crate::INIT_FS.unwrap() });
     }
 
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {
@@ -101,25 +114,58 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>) {
-        TargetArch::interrupt().set_irq_handler(irq, handler);
+        crate::modules::INTERRUPT.set_irq_handler(irq, handler);
     }
 
     fn enable_irq(&self, irq: usize) {
-        TargetArch::interrupt().enable_irq(irq);
+        crate::modules::INTERRUPT.enable_irq(irq);
     }
 
     fn disable_irq(&self, irq: usize) {
-        TargetArch::interrupt().disable_irq(irq);
+        crate::modules::INTERRUPT.disable_irq(irq);
     }
 
     fn set_interrupt_controller(&self, controller: &'static dyn interrupt::InterruptController) {
-        TargetArch::set_interrupt_controller(controller);
+        crate::modules::INTERRUPT.set_interrupt_controller(controller);
     }
 
-    fn schedule(&self) -> ! {
-        TargetArch::interrupt().notify_end_of_interrupt();
-        SCHEDULER.timer_tick();
-        unreachable!()
+    fn interrupt_controller(&self) -> &'static dyn interrupt::InterruptController {
+        &*crate::modules::INTERRUPT
+    }
+
+    fn scheduler(&self) -> &'static dyn sched::Scheduler {
+        &*crate::modules::SCHEDULER
+    }
+
+    fn num_cores(&self) -> usize {
+        1
+    }
+
+    fn current_core(&self) -> usize {
+        0
+    }
+
+    fn get_scheduler_state(&self, task: TaskId) -> &dyn Any {
+        let task = SCHEDULER.get_task_by_id(task).unwrap();
+        unsafe { &*(task.sched.as_ref() as *const dyn Any) }
+    }
+
+    unsafe fn return_to_user(&self, task: TaskId) -> ! {
+        // Note: `task` must be dropped before calling `return_to_user`.
+        let task = SCHEDULER.get_task_by_id(task).unwrap();
+        let context_ptr = &task.context as *const <TargetArch as Arch>::Context;
+        drop(task);
+        (*context_ptr).return_to_user()
+    }
+
+    fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
+        SCHEDULER.set_scheduler(scheduler);
+    }
+    fn timer_controller(&self) -> &'static dyn interrupt::TimerController {
+        &*crate::modules::TIMER
+    }
+    fn set_timer_controller(&self, timer: &'static dyn interrupt::TimerController) {
+        crate::modules::TIMER.set_timer_controller(timer)
     }
 
     fn new_monitor(&self) -> mutex::Monitor {

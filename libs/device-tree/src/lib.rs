@@ -11,14 +11,14 @@ use fdt_rs::index::*;
 use fdt_rs::prelude::*;
 use memory::address::{Address, P};
 
-pub struct DeviceTree<'a, 'b> {
-    _buf: &'a [u8],
+pub struct DeviceTree<'buf, 'index> {
+    _buf: &'buf [u8],
     _index_buf: Vec<u8>,
-    index: DevTreeIndex<'b, 'a>,
+    index: DevTreeIndex<'index, 'buf>,
 }
 
-impl<'a, 'b> DeviceTree<'a, 'b> {
-    pub fn new(buf: &'a [u8]) -> Option<Self> {
+impl<'buf, 'index> DeviceTree<'buf, 'index> {
+    pub fn new(buf: &'buf [u8]) -> Option<Self> {
         let devtree = unsafe { DevTree::new(buf) }.ok()?;
         let layout = DevTreeIndex::get_layout(&devtree).ok()?;
 
@@ -55,8 +55,8 @@ impl<'a, 'b> DeviceTree<'a, 'b> {
 }
 
 #[derive(Clone)]
-pub struct Node<'a, 'i: 'a, 'dt: 'i> {
-    node: DevTreeIndexNode<'a, 'i, 'dt>,
+pub struct Node<'a, 'index: 'a, 'buf: 'index> {
+    node: DevTreeIndexNode<'a, 'index, 'buf>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -74,7 +74,7 @@ impl Default for CellSizes {
     }
 }
 
-impl<'a, 'i: 'a, 'dt: 'i> Node<'a, 'i, 'dt> {
+impl<'a, 'index: 'a, 'buf: 'index> Node<'a, 'index, 'buf> {
     fn read_u32(buf: &mut &[u8]) -> u32 {
         let v = u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]);
         *buf = &buf[4..];

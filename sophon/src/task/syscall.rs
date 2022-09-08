@@ -1,8 +1,5 @@
 use crate::arch::Arch;
-use crate::{
-    arch::TargetArch,
-    scheduler::{AbstractScheduler, SCHEDULER},
-};
+use crate::{arch::TargetArch, modules::SCHEDULER};
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
 use mutex::AbstractMonitor;
@@ -28,7 +25,7 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
         Syscall::Log => log(a, b, c, d, e),
         Syscall::ModuleCall => module_request::<PRIVILEGED>(a, b, c, d, e),
         Syscall::Wait => {
-            SCHEDULER.freeze_current_task();
+            SCHEDULER.sleep();
             0
         }
         Syscall::Sbrk => Proc::current()
@@ -80,6 +77,7 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
             break;
         }
     }
+    crate::modules::module_call("vfs", false, &VFSRequest::Close(Fd(fd as _)));
     let proc = Proc::spawn_user(elf, args);
     proc.monitor.wait();
     proc.id.0 as _

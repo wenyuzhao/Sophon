@@ -148,11 +148,29 @@ impl<T> Drop for Uninterruptible<T> {
 pub type IRQHandler = Box<dyn Fn() -> isize>;
 pub type InterruptHandler = Box<dyn Fn(usize, usize, usize, usize, usize, usize) -> isize>;
 
+/// Abstract interrupt controller.
+/// Responsible for enabling, disabling, and handling IRQs.
 pub trait InterruptController {
-    fn get_active_irq(&self) -> usize;
+    /// Initialize the per-core interrupt controller.
+    fn init(&self, bsp: bool);
+    /// Get current active IRQ.
+    fn get_active_irq(&self) -> Option<usize>;
+    /// Enable an IRQ.
     fn enable_irq(&self, irq: usize);
+    /// Disable an IRQ.
     fn disable_irq(&self, irq: usize);
-    fn notify_end_of_interrupt(&self);
+    /// Notify an interrupt handling procedure is started.
+    fn interrupt_begin(&self);
+    /// Notify an interrupt handling procedure is finished.
+    fn interrupt_end(&self);
+    /// Get the IRQ handler for a given IRQ.
     fn get_irq_handler(&self, irq: usize) -> Option<&IRQHandler>;
+    /// Register an IRQ handler.
     fn set_irq_handler(&self, irq: usize, handler: IRQHandler);
+}
+
+/// Timer controller. For initializing and handling timer interrupts.
+pub trait TimerController {
+    /// Initialize the per-core timer controller.
+    fn init(&self, bsp: bool);
 }
