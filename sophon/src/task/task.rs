@@ -9,6 +9,8 @@ use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use core::any::Any;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use spin::Lazy;
+use sync::Monitor;
 
 static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -23,6 +25,7 @@ pub struct Task {
     pub id: TaskId,
     pub context: <TargetArch as Arch>::Context,
     proc: Weak<Proc>,
+    pub live: Lazy<Monitor<bool>>,
     pub sched: Box<dyn Any>,
     runnable: Box<dyn Runnable>,
 }
@@ -34,6 +37,7 @@ impl Task {
             id,
             context: <TargetArch as Arch>::Context::new(entry as _, 0 as _),
             proc: Arc::downgrade(&proc),
+            live: Lazy::new(|| Monitor::new(true)),
             sched: SCHEDULER.new_state(),
             runnable,
         })
@@ -68,6 +72,13 @@ impl Task {
     pub fn exit(&self) {
         assert!(!interrupt::is_enabled());
         assert_eq!(self.id, Task::current().id);
+        // Mark as dead
+        {
+            let mut live = self.live.lock();
+            *live = false;
+            self.live.notify_all()
+        }
+        // Remove from scheduler
         SCHEDULER.remove_task(Task::current().id);
         self.proc
             .upgrade()

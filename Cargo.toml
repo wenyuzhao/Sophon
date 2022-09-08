@@ -24,7 +24,7 @@ members = [
     "libs/log",
     "libs/memory",
     "libs/sched",
-    "libs/mutex",
+    "libs/sync",
     "libs/proc",
     "libs/syscall",
     "libs/testing",

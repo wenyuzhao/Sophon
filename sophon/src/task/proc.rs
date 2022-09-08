@@ -4,7 +4,7 @@ use super::{ProcId, TaskId};
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::modules::SCHEDULER;
-use crate::utils::monitor::SysMonitor;
+use crate::utils::locks::{RawCondvar, RawMutex};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::ffi::CString;
@@ -19,8 +19,8 @@ use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageTable, L4};
-use mutex::AbstractMonitor;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
+use sync::Monitor;
 
 static PROCS: Mutex<BTreeMap<ProcId, Arc<Proc>>> = Mutex::new(BTreeMap::new());
 
@@ -30,7 +30,9 @@ pub struct Proc {
     page_table: Atomic<*mut PageTable>,
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
-    pub monitor: Arc<SysMonitor>,
+    pub live: Lazy<Monitor<bool>>,
+    pub locks: Mutex<Vec<*mut RawMutex>>,
+    pub cvars: Mutex<Vec<*mut RawCondvar>>,
     pub fs: Box<dyn Any>,
 }
 
@@ -54,7 +56,9 @@ impl Proc {
             },
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
-            monitor: SysMonitor::new(),
+            live: Lazy::new(|| Monitor::new(true)),
+            locks: Mutex::default(),
+            cvars: Mutex::default(),
             fs: vfs_state,
         });
         // Create main thread
@@ -200,12 +204,32 @@ impl Proc {
         if guard.deref() as *const PageTable != user_page_table as *const PageTable {
             crate::memory::utils::release_user_page_table(self.get_page_table());
         }
+        // Mark as dead
+        {
+            let mut live = self.live.lock();
+            *live = false;
+            self.live.notify_all();
+        }
+        // Release user-allocated locks
+        {
+            let mut locks = self.locks.lock();
+            for lock in locks.iter_mut() {
+                let _boxed = unsafe { Box::from_raw(*lock) };
+            }
+            locks.clear();
+        }
+        {
+            let mut cvars = self.cvars.lock();
+            for cvars in cvars.iter_mut() {
+                let _boxed = unsafe { Box::from_raw(*cvars) };
+            }
+            cvars.clear();
+        }
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {
             SCHEDULER.remove_task(*t)
         }
-        self.monitor.notify();
         // Remove from procs
         PROCS.lock().remove(&self.id);
     }

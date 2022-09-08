@@ -7,7 +7,6 @@ use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::modules::SCHEDULER;
 use crate::task::Proc;
 use crate::task::Task;
-use crate::utils::monitor::SysMonitor;
 use crate::utils::testing::Tests;
 use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
@@ -166,9 +165,5 @@ impl kernel_module::KernelService for KernelService {
     }
     fn set_timer_controller(&self, timer: &'static dyn interrupt::TimerController) {
         crate::modules::TIMER.set_timer_controller(timer)
-    }
-
-    fn new_monitor(&self) -> mutex::Monitor {
-        mutex::Monitor::new(SysMonitor::new())
     }
 }

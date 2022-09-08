@@ -7,7 +7,6 @@ use interrupt::{InterruptController, TimerController};
 use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
-use mutex::Monitor;
 use proc::{ProcId, TaskId};
 use sched::Scheduler;
 use syscall::RawModuleRequest;
@@ -74,8 +73,6 @@ pub trait KernelService: Send + Sync + 'static {
     fn scheduler(&self) -> &'static dyn Scheduler;
     /// Set the scheduler.
     fn set_scheduler(&self, scheduler: &'static dyn Scheduler);
-    /// Create monitor object.
-    fn new_monitor(&self) -> Monitor;
 }
 
 #[repr(C)]
