@@ -81,11 +81,14 @@ pub fn handle_panic() -> ! {
     SERVICE.handle_panic()
 }
 
+/// Per-processor storage.
 pub struct ProcessorLocalStorage<T: Default> {
     data: Vec<T>,
 }
 
 impl<T: Default> ProcessorLocalStorage<T> {
+    /// Create a new per-processor storage.
+    /// This must be called after the arch-dependent initialization is finished.
     pub fn new() -> Self {
         let len = SERVICE.num_cores();
         Self {
@@ -93,6 +96,7 @@ impl<T: Default> ProcessorLocalStorage<T> {
         }
     }
 
+    /// Get stroage by processor index.
     #[inline(always)]
     pub fn get(&self, index: usize) -> &T {
         &self.data[index]
