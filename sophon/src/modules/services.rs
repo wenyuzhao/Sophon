@@ -64,11 +64,11 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn current_process(&self) -> Option<ProcId> {
-        Some(Proc::current().id)
+        Proc::current_opt().map(|p| p.id)
     }
 
     fn current_task(&self) -> Option<proc::TaskId> {
-        Some(Task::current().id)
+        Task::current_opt().map(|p| p.id)
     }
 
     fn handle_panic(&self) -> ! {

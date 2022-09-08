@@ -62,6 +62,14 @@ struct ProcData {
 
 impl ProcData {
     fn new(cwd: String) -> Self {
+        let cwd = if cwd == "" {
+            SERVICE
+                .current_process()
+                .map(|p| VFS.get_state(p).lock().cwd.clone())
+                .unwrap_or_else(|| "/".to_owned())
+        } else {
+            cwd
+        };
         let mut data = Self {
             nodes: [
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
