@@ -644,15 +644,12 @@ version = "0.0.3"
 dependencies = [
  "anyhow",
  "atomic",
- "crossbeam",
  "interrupt",
  "kernel-module",
  "log 0.0.3",
  "proc",
- "sched",
  "spin",
  "syscall",
- "vfs",
 ]
 
 [[package]]

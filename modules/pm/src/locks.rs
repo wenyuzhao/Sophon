@@ -18,10 +18,6 @@ impl RawMutex {
         }
     }
 
-    pub fn is_locked(&self) -> bool {
-        self.is_locked.load(Ordering::SeqCst)
-    }
-
     pub fn lock(&self) {
         let _guard = interrupt::uninterruptible();
         let task = SERVICE.scheduler().get_current_task_id().unwrap();

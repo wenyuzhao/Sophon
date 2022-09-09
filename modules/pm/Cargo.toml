@@ -11,15 +11,12 @@ crate-type = ["cdylib"]
 [dependencies]
 log = { path = "../../libs/log" }
 kernel-module = { path = "../../libs/kernel-module" }
-vfs = { path = "../../libs/vfs" }
 proc = { path = "../../libs/proc" }
 interrupt = { path = "../../libs/interrupt" }
 syscall = { path = "../../libs/syscall" }
-sched = { path = "../../libs/sched" }
 anyhow = { workspace = true }
 spin = { workspace = true }
 atomic = { workspace = true }
-crossbeam = { workspace = true }
 
 [features]
 default = []

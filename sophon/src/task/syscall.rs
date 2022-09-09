@@ -1,7 +1,5 @@
 use crate::arch::Arch;
-use crate::utils::locks::{RawCondvar, RawMutex};
 use crate::{arch::TargetArch, modules::SCHEDULER};
-use alloc::boxed::Box;
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
 use syscall::Syscall;

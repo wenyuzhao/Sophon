@@ -14,17 +14,12 @@ extern crate alloc;
 mod locks;
 
 use alloc::{boxed::Box, vec::Vec};
-use atomic::{Atomic, Ordering};
-use core::{any::Any, sync::atomic::AtomicUsize};
-use crossbeam::queue::SegQueue;
-use kernel_module::{kernel_module, KernelModule, ProcessorLocalStorage, SERVICE};
+use core::any::Any;
+use kernel_module::{kernel_module, KernelModule, SERVICE};
 use locks::{RawCondvar, RawMutex};
-use proc::{ProcId, TaskId};
-use sched::{RunState, Scheduler};
-use spin::{Lazy, Mutex};
+use proc::ProcId;
+use spin::Mutex;
 use syscall::module_calls::proc::ProcRequest;
-
-const UNIT_TIME_SLICE: usize = 1;
 
 #[derive(Debug, Default)]
 pub struct State {
@@ -35,17 +30,11 @@ pub struct State {
 #[kernel_module]
 pub static mut PM: ProcessManager = ProcessManager::new();
 
-pub struct ProcessManager {
-    current_task: Vec<Atomic<Option<TaskId>>>,
-    per_core_task_queue: Lazy<ProcessorLocalStorage<SegQueue<TaskId>>>,
-}
+pub struct ProcessManager {}
 
 impl ProcessManager {
     const fn new() -> Self {
-        Self {
-            current_task: Vec::new(),
-            per_core_task_queue: Lazy::new(|| ProcessorLocalStorage::new()),
-        }
+        Self {}
     }
 
     #[inline]
@@ -65,8 +54,6 @@ impl KernelModule for ProcessManager {
     type ModuleRequest<'a> = ProcRequest;
 
     fn init(&'static mut self) -> anyhow::Result<()> {
-        self.current_task
-            .resize_with(SERVICE.num_cores(), || Atomic::new(None));
         SERVICE.set_process_manager(self);
         Ok(())
     }
