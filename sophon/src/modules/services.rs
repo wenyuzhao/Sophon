@@ -66,7 +66,7 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager) {
-        crate::modules::PROCESS_MANAGER.set_process_manager(process_manager);
+        crate::modules::PROCESS_MANAGER.set_instance(process_manager);
     }
 
     fn handle_panic(&self) -> ! {
@@ -81,7 +81,7 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager) {
-        crate::modules::VFS.set_vfs_manager(vfs_manager);
+        crate::modules::VFS.set_instance(vfs_manager);
         vfs_manager.init(unsafe { &mut *crate::INIT_FS.unwrap() });
     }
 
@@ -111,7 +111,7 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn set_interrupt_controller(&self, controller: &'static dyn interrupt::InterruptController) {
-        crate::modules::INTERRUPT.set_interrupt_controller(controller);
+        crate::modules::INTERRUPT.set_instance(controller);
     }
 
     fn timer_controller(&self) -> &'static dyn interrupt::TimerController {
@@ -119,7 +119,7 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn set_timer_controller(&self, timer: &'static dyn interrupt::TimerController) {
-        crate::modules::TIMER.set_timer_controller(timer)
+        crate::modules::TIMER.set_instance(timer)
     }
 
     fn num_cores(&self) -> usize {
@@ -147,7 +147,7 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
-        SCHEDULER.set_scheduler(scheduler);
+        SCHEDULER.set_instance(scheduler);
     }
 
     fn create_task_context(&self) -> Box<dyn Any> {

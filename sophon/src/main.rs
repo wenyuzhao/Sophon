@@ -12,6 +12,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(drain_filter)]
 #![feature(downcast_unchecked)]
+#![feature(const_option)]
 #![no_std]
 #![no_main]
 
