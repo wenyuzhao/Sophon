@@ -70,8 +70,10 @@ impl RoundRobinScheduler {
 
     #[inline]
     fn get_state(&self, task: TaskId) -> &State {
-        let state = SERVICE.get_scheduler_state(task);
-        unsafe { state.downcast_ref_unchecked::<State>() }
+        let task = SERVICE.process_manager().get_task_by_id(task).unwrap();
+        debug_assert!(task.sched().is::<State>());
+        let state = task.sched() as *const dyn Any;
+        unsafe { (*(state as *const dyn Any)).downcast_ref_unchecked::<State>() }
     }
 
     #[inline]

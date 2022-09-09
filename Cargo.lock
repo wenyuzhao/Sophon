@@ -624,6 +624,7 @@ dependencies = [
  "log 0.0.3",
  "proc",
  "spin",
+ "sync",
  "syscall",
 ]
 
@@ -644,6 +645,7 @@ version = "0.0.3"
 dependencies = [
  "log 0.0.3",
  "spin",
+ "sync",
 ]
 
 [[package]]

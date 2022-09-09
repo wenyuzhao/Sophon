@@ -10,18 +10,10 @@ use crate::memory::kernel::KERNEL_HEAP;
 
 use self::services::KernelService;
 
-mod interrupt;
-mod proc;
-mod scheduler;
+mod named_modules;
 mod services;
-mod timer;
-mod vfs;
 
-pub use self::interrupt::INTERRUPT;
-pub use self::proc::PROCESS_MANAGER;
-pub use self::scheduler::SCHEDULER;
-pub use self::timer::TIMER;
-pub use self::vfs::VFS;
+pub use named_modules::{INTERRUPT, PROCESS_MANAGER, SCHEDULER, TIMER, VFS};
 
 struct KernelModule {
     _name: String,

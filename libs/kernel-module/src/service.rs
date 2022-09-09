@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::any::Any;
 use core::ops::{Deref, Range};
@@ -6,7 +7,7 @@ use interrupt::{InterruptController, TimerController};
 use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
-use proc::{ProcId, TaskId};
+use proc::TaskId;
 use sched::Scheduler;
 use syscall::RawModuleRequest;
 use testing::Tests;
@@ -32,19 +33,16 @@ pub trait KernelService: Send + Sync + 'static {
     fn process_manager(&self) -> &'static dyn proc::ProcessManager;
     /// Set process manager.
     fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager);
-    /// Get per-process pm state by proc id.
-    fn get_pm_state(&self, proc: ProcId) -> &dyn Any;
-    fn current_process(&self) -> Option<ProcId>;
-    fn current_task(&self) -> Option<TaskId>;
+    /// Kernel module panic handler.
     fn handle_panic(&self) -> !;
+    /// Create memory state
+    fn create_mm_state(&self) -> Box<dyn Any>;
 
     // === VFS === //
     /// Get VFS manager.
     fn vfs(&self) -> &'static dyn vfs::VFSManager;
     /// Set VFS manager.
     fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager);
-    /// Get per-process VFS state by proc id.
-    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any;
 
     // === Devices === //
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
@@ -67,14 +65,14 @@ pub trait KernelService: Send + Sync + 'static {
     /// Get the current core.
     /// Returning `0` means its a BSP.
     fn current_core(&self) -> usize;
-    /// Get per-task scheduling state.
-    fn get_scheduler_state(&self, task: TaskId) -> &dyn Any;
     /// Return from kernel space to user space.
     unsafe fn return_to_user(&self, task: TaskId) -> !;
     /// Get the scheduler.
     fn scheduler(&self) -> &'static dyn Scheduler;
     /// Set the scheduler.
     fn set_scheduler(&self, scheduler: &'static dyn Scheduler);
+    /// Arch-dependent task context
+    fn create_task_context(&self) -> Box<dyn Any>;
 }
 
 #[repr(C)]
@@ -82,9 +80,11 @@ pub trait KernelService: Send + Sync + 'static {
 pub struct KernelServiceWrapper([usize; 2]);
 
 impl KernelServiceWrapper {
+    #[inline(always)]
     pub fn get_service(self) -> &'static dyn KernelService {
         unsafe { core::mem::transmute(self) }
     }
+
     pub fn from_service(service: &'static dyn KernelService) -> Self {
         unsafe { core::mem::transmute(service) }
     }
@@ -93,6 +93,7 @@ impl KernelServiceWrapper {
 impl Deref for KernelServiceWrapper {
     type Target = dyn KernelService;
 
+    #[inline(always)]
     fn deref(&self) -> &'static Self::Target {
         self.get_service()
     }
