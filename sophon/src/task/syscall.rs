@@ -4,7 +4,6 @@ use crate::modules::PROCESS_MANAGER;
 use crate::{arch::TargetArch, modules::SCHEDULER};
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
-use proc::Task;
 use syscall::Syscall;
 use vfs::{Fd, VFSRequest};
 
@@ -93,8 +92,7 @@ fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
 
 fn thread_exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     // Note: `Task::current()` must be dropped before calling `schedule`.
-    let t = PROCESS_MANAGER.current_task().unwrap().as_ref() as *const dyn Task;
-    unsafe { (*t).exit() };
+    PROCESS_MANAGER.current_task().unwrap().exit();
     SCHEDULER.schedule()
 }
 fn halt(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
