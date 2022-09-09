@@ -44,7 +44,8 @@ impl ProcessManager {
 
     #[inline]
     fn get_state(&self, proc: ProcId) -> &State {
-        let state = SERVICE.get_pm_state(proc);
+        let state = Process::by_id(proc).unwrap().pm.as_ref() as *const dyn Any;
+        let state = unsafe { &*state };
         debug_assert!(state.is::<State>());
         unsafe { state.downcast_ref_unchecked::<State>() }
     }
@@ -63,6 +64,9 @@ impl ::proc::ProcessManager for ProcessManager {
     }
     fn current_proc(&self) -> Option<Arc<dyn Proc>> {
         Process::current().map(|p| p.as_proc())
+    }
+    fn current_proc_id(&self) -> Option<ProcId> {
+        self.current_proc().map(|p| p.id())
     }
     fn get_task_by_id(&self, id: TaskId) -> Option<Arc<dyn ::proc::Task>> {
         proc::Task::by_id(id).map(|t| t.as_dyn())
@@ -85,7 +89,7 @@ impl KernelModule for ProcessManager {
             ProcRequest::MutexCreate => {
                 let mutex = Box::leak(box RawMutex::new()) as *mut RawMutex;
                 if !privileged {
-                    let proc = SERVICE.current_process().unwrap();
+                    let proc = Process::current().unwrap().id;
                     self.get_state(proc).locks.lock().push(mutex);
                 }
                 mutex as _
@@ -102,7 +106,7 @@ impl KernelModule for ProcessManager {
             }
             ProcRequest::MutexDestroy(mutex) => {
                 let mutex = mutex.cast_mut_ptr::<RawMutex>();
-                let proc = SERVICE.current_process().unwrap();
+                let proc = Process::current().unwrap().id;
                 let mut locks = self.get_state(proc).locks.lock();
                 if locks.drain_filter(|x| *x == mutex).count() > 0 {
                     let _boxed = unsafe { Box::from_raw(mutex) };
@@ -112,7 +116,7 @@ impl KernelModule for ProcessManager {
             ProcRequest::CondvarCreate => {
                 let cvar = Box::leak(box RawCondvar::new()) as *mut RawCondvar;
                 if !privileged {
-                    let proc = SERVICE.current_process().unwrap();
+                    let proc = Process::current().unwrap().id;
                     self.get_state(proc).cvars.lock().push(cvar);
                 }
                 cvar as _
@@ -130,7 +134,7 @@ impl KernelModule for ProcessManager {
             }
             ProcRequest::CondvarDestroy(cvar) => {
                 let cvar = cvar.cast_mut_ptr::<RawCondvar>();
-                let proc = SERVICE.current_process().unwrap();
+                let proc = Process::current().unwrap().id;
                 let mut cvars = self.get_state(proc).cvars.lock();
                 if cvars.drain_filter(|x| *x == cvar).count() > 0 {
                     let _boxed = unsafe { Box::from_raw(cvar) };

@@ -7,7 +7,7 @@ use interrupt::{InterruptController, TimerController};
 use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
-use proc::{ProcId, TaskId};
+use proc::TaskId;
 use sched::Scheduler;
 use syscall::RawModuleRequest;
 use testing::Tests;
@@ -33,10 +33,7 @@ pub trait KernelService: Send + Sync + 'static {
     fn process_manager(&self) -> &'static dyn proc::ProcessManager;
     /// Set process manager.
     fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager);
-    /// Get per-process pm state by proc id.
-    fn get_pm_state(&self, proc: ProcId) -> &dyn Any;
-    fn current_process(&self) -> Option<ProcId>;
-    fn current_task(&self) -> Option<TaskId>;
+    /// Kernel module panic handler.
     fn handle_panic(&self) -> !;
 
     // === VFS === //
@@ -44,8 +41,6 @@ pub trait KernelService: Send + Sync + 'static {
     fn vfs(&self) -> &'static dyn vfs::VFSManager;
     /// Set VFS manager.
     fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager);
-    /// Get per-process VFS state by proc id.
-    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any;
 
     // === Devices === //
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
@@ -68,8 +63,6 @@ pub trait KernelService: Send + Sync + 'static {
     /// Get the current core.
     /// Returning `0` means its a BSP.
     fn current_core(&self) -> usize;
-    /// Get per-task scheduling state.
-    fn get_scheduler_state(&self, task: TaskId) -> &dyn Any;
     /// Return from kernel space to user space.
     unsafe fn return_to_user(&self, task: TaskId) -> !;
     /// Get the scheduler.

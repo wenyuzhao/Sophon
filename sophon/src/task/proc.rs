@@ -1,26 +1,19 @@
 use super::runnable::UserTask;
-use super::{ProcId, TaskId};
 use crate::arch::ArchContext;
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::modules::{PROCESS_MANAGER, SCHEDULER};
-use alloc::borrow::ToOwned;
-use alloc::collections::BTreeMap;
+use crate::modules::PROCESS_MANAGER;
 use alloc::ffi::CString;
 use alloc::sync::Arc;
-use alloc::{boxed::Box, vec, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::any::Any;
 use core::iter::Step;
 use core::ops::{Deref, Range};
-use core::sync::atomic::AtomicUsize;
-use interrupt::UninterruptibleMutex;
 use memory::address::{Address, V};
 use memory::page::{Page, PageSize, Size4K};
 use memory::page_table::{PageFlags, PageTable, L4};
 use proc::{Proc, Task};
-use spin::{Lazy, Mutex};
-use sync::Monitor;
 
 pub struct MMState {
     page_table: Atomic<*mut PageTable>,
@@ -38,6 +31,16 @@ impl MMState {
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
         };
         box x
+    }
+}
+
+impl Drop for MMState {
+    fn drop(&mut self) {
+        let guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+        let user_page_table = unsafe { &mut *self.page_table.load(Ordering::SeqCst) };
+        if guard.deref() as *const PageTable != user_page_table as *const PageTable {
+            crate::memory::utils::release_user_page_table(user_page_table);
+        }
     }
 }
 

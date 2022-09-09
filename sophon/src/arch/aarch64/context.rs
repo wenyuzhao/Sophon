@@ -13,7 +13,6 @@ use cortex_a::registers::*;
 use memory::address::{Address, V};
 use memory::page::PageResource;
 use memory::page::*;
-use proc::Proc;
 use spin::Mutex;
 use tock_registers::interfaces::Readable;
 

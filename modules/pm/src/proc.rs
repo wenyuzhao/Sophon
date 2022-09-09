@@ -8,13 +8,11 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use atomic::{Atomic, Ordering};
+use atomic::Ordering;
 use kernel_module::SERVICE;
 use proc::{Proc, ProcId, Runnable, TaskId};
 use spin::{Lazy, Mutex};
 use sync::Monitor;
-
-use crate::PM;
 
 static PROCS: Mutex<BTreeMap<ProcId, Arc<Process>>> = Mutex::new(BTreeMap::new());
 static TASKS: Mutex<BTreeMap<TaskId, Arc<Task>>> = Mutex::new(BTreeMap::new());
@@ -22,7 +20,6 @@ static TASKS: Mutex<BTreeMap<TaskId, Arc<Task>>> = Mutex::new(BTreeMap::new());
 pub struct Process {
     pub id: ProcId,
     pub threads: Mutex<Vec<TaskId>>,
-    user_elf: Option<Vec<u8>>,
     pub live: Lazy<Monitor<bool>>,
     pub fs: Box<dyn Any>,
     pub mm: Box<dyn Any>,
@@ -36,7 +33,6 @@ impl Process {
     pub fn create(t: Box<dyn Runnable>, mm: Box<dyn Any>) -> Arc<Self> {
         let _guard = interrupt::uninterruptible();
         // Assign an id
-        println!("A");
         static COUNTER: AtomicUsize = AtomicUsize::new(1);
         let proc_id = ProcId(COUNTER.fetch_add(1, Ordering::SeqCst));
         // Allocate proc struct
@@ -45,25 +41,18 @@ impl Process {
             id: proc_id,
             threads: Mutex::new(vec![]),
             mm,
-            user_elf: None,
             live: Lazy::new(|| Monitor::new(true)),
             fs: vfs_state,
             pm: SERVICE.process_manager().new_state(),
         });
-        println!("A");
         // Create main thread
         let task = Task::create(proc.clone(), t, SERVICE.create_task_context());
-        println!("A");
         proc.threads.lock().push(task.id);
-        println!("A");
         // Add to list
         PROCS.lock().insert(proc.id, proc.clone());
-        println!("A");
         // Spawn
         TASKS.lock().insert(task.id, task.clone());
-        println!("A");
         SERVICE.scheduler().register_new_task(task.id);
-        println!("A");
         proc
     }
 
@@ -72,10 +61,12 @@ impl Process {
     }
 
     pub fn by_id(id: ProcId) -> Option<Arc<Self>> {
+        let _guard = interrupt::uninterruptible();
         PROCS.lock().get(&id).cloned()
     }
 
     pub fn current() -> Option<Arc<Self>> {
+        let _guard = interrupt::uninterruptible();
         let proc = Task::current().map(|t| t.proc.upgrade().unwrap())?;
         let ptr = Arc::into_raw(proc).cast::<Self>();
         Some(unsafe { Arc::from_raw(ptr) })
@@ -96,11 +87,31 @@ impl Proc for Process {
         &self.threads
     }
     fn spawn_task(self: Arc<Self>, task: Box<dyn Runnable>) -> Arc<dyn proc::Task> {
+        let _guard = interrupt::uninterruptible();
         let task = Task::create(self.clone(), task, SERVICE.create_task_context());
         self.threads.lock().push(task.id);
         task
     }
-    fn exit(&self) {}
+    fn exit(&self) {
+        let _guard = interrupt::uninterruptible();
+        // Release file handles
+        SERVICE.vfs().deregister_process(self.id);
+        // Release memory
+        // - Note: this is done in the MMState destructor
+        // Mark as dead
+        {
+            let mut live = self.live.lock();
+            *live = false;
+            self.live.notify_all();
+        }
+        // Remove from scheduler
+        let threads = self.threads.lock();
+        for t in &*threads {
+            SERVICE.scheduler().remove_task(*t)
+        }
+        // Remove from procs
+        PROCS.lock().remove(&self.id);
+    }
     fn wait_for_completion(&self) {
         let mut live = self.live.lock();
         while *live {
@@ -108,6 +119,13 @@ impl Proc for Process {
         }
     }
 }
+impl PartialEq for Process {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Process {}
 
 pub struct Task {
     pub id: TaskId,
@@ -174,6 +192,7 @@ impl Task {
         Self::by_id(SERVICE.scheduler().get_current_task_id()?)
     }
 
+    #[allow(unused)]
     pub fn exit(&self) {
         assert!(!interrupt::is_enabled());
         assert_eq!(self.id, Task::current().unwrap().id);
@@ -205,11 +224,3 @@ impl PartialEq for Task {
 }
 
 impl Eq for Task {}
-
-extern "C" fn entry(_ctx: *mut ()) -> ! {
-    let runnable = unsafe {
-        &mut *(Task::current().unwrap().runnable.as_ref() as *const dyn Runnable
-            as *mut dyn Runnable)
-    };
-    runnable.run()
-}

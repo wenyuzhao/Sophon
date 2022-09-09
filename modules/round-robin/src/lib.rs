@@ -70,9 +70,10 @@ impl RoundRobinScheduler {
 
     #[inline]
     fn get_state(&self, task: TaskId) -> &State {
-        let state = SERVICE.get_scheduler_state(task);
-        debug_assert!(state.is::<State>());
-        unsafe { state.downcast_ref_unchecked::<State>() }
+        let task = SERVICE.process_manager().get_task_by_id(task).unwrap();
+        debug_assert!(task.sched().is::<State>());
+        let state = task.sched() as *const dyn Any;
+        unsafe { (*(state as *const dyn Any)).downcast_ref_unchecked::<State>() }
     }
 
     #[inline]
@@ -88,7 +89,6 @@ impl RoundRobinScheduler {
 
 impl Scheduler for RoundRobinScheduler {
     fn new_state(&self) -> Box<dyn Any> {
-        println!("new_state");
         Box::new(State::new())
     }
 
@@ -98,9 +98,7 @@ impl Scheduler for RoundRobinScheduler {
 
     fn register_new_task(&self, task: TaskId) {
         let _guard = interrupt::uninterruptible();
-        println!("register_new_task");
         let state = self.get_state(task);
-        println!("register_new_task 2");
         if state.run_state.load(Ordering::SeqCst) == RunState::Ready {
             debug_assert!(!interrupt::is_enabled());
             self.per_core_task_queue.get(0).push(task);

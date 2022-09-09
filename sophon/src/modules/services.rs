@@ -21,7 +21,7 @@ use memory::{
     address::Address,
     page::{Page, Size4K},
 };
-use proc::{ProcId, TaskId};
+use proc::TaskId;
 
 pub struct KernelService(pub usize);
 
@@ -69,20 +69,6 @@ impl kernel_module::KernelService for KernelService {
         crate::modules::PROCESS_MANAGER.set_process_manager(process_manager);
     }
 
-    fn get_pm_state(&self, proc: ProcId) -> &dyn Any {
-        unimplemented!()
-    }
-
-    fn current_process(&self) -> Option<ProcId> {
-        crate::modules::PROCESS_MANAGER
-            .current_proc()
-            .map(|p| p.id())
-    }
-
-    fn current_task(&self) -> Option<proc::TaskId> {
-        PROCESS_MANAGER.current_task().map(|p| p.id())
-    }
-
     fn handle_panic(&self) -> ! {
         if cfg!(sophon_test) {
             TargetArch::halt(-1)
@@ -97,13 +83,6 @@ impl kernel_module::KernelService for KernelService {
     fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager) {
         crate::modules::VFS.set_vfs_manager(vfs_manager);
         vfs_manager.init(unsafe { &mut *crate::INIT_FS.unwrap() });
-    }
-
-    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any {
-        let proc = crate::modules::PROCESS_MANAGER
-            .get_proc_by_id(proc)
-            .unwrap();
-        unsafe { &*(proc.fs() as *const dyn Any) }
     }
 
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {
@@ -149,11 +128,6 @@ impl kernel_module::KernelService for KernelService {
 
     fn current_core(&self) -> usize {
         0
-    }
-
-    fn get_scheduler_state(&self, task: TaskId) -> &dyn Any {
-        let task = PROCESS_MANAGER.get_task_by_id(task).unwrap();
-        unsafe { &*(task.sched() as *const dyn Any) }
     }
 
     unsafe fn return_to_user(&self, task: TaskId) -> ! {

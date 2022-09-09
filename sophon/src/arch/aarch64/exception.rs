@@ -1,10 +1,9 @@
 use crate::arch::{aarch64::context::*, *};
 use crate::modules::INTERRUPT;
-use crate::modules::{PROCESS_MANAGER, SCHEDULER};
+use crate::modules::PROCESS_MANAGER;
 use crate::task::proc::TaskExt;
 use core::arch::{asm, global_asm};
 use cortex_a::{asm::barrier, registers::*};
-use proc::Task;
 use tock_registers::interfaces::{Readable, Writeable};
 
 #[repr(usize)]

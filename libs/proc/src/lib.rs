@@ -31,6 +31,7 @@ pub trait ProcessManager {
     fn spawn(&self, t: Box<dyn Runnable>, mm: Box<dyn Any>) -> Arc<dyn Proc>;
     fn get_proc_by_id(&self, id: ProcId) -> Option<Arc<dyn Proc>>;
     fn current_proc(&self) -> Option<Arc<dyn Proc>>;
+    fn current_proc_id(&self) -> Option<ProcId>;
     fn get_task_by_id(&self, id: TaskId) -> Option<Arc<dyn Task>>;
     fn current_task(&self) -> Option<Arc<dyn Task>>;
 }
