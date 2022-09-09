@@ -78,9 +78,11 @@ pub trait KernelService: Send + Sync + 'static {
 pub struct KernelServiceWrapper([usize; 2]);
 
 impl KernelServiceWrapper {
+    #[inline(always)]
     pub fn get_service(self) -> &'static dyn KernelService {
         unsafe { core::mem::transmute(self) }
     }
+
     pub fn from_service(service: &'static dyn KernelService) -> Self {
         unsafe { core::mem::transmute(service) }
     }
@@ -89,6 +91,7 @@ impl KernelServiceWrapper {
 impl Deref for KernelServiceWrapper {
     type Target = dyn KernelService;
 
+    #[inline(always)]
     fn deref(&self) -> &'static Self::Target {
         self.get_service()
     }

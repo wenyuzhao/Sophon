@@ -46,12 +46,22 @@ impl UserTask {
     const USER_STACK_PAGES: usize = 4; // Too many???
     const USER_STACK_SIZE: usize = Self::USER_STACK_PAGES * Size4K::BYTES;
 
-    pub fn new(
-        entry: Option<*const extern "C" fn()>,
-        args: Option<Vec<CString>>,
-        elf: Option<Vec<u8>>,
-    ) -> Self {
-        Self { entry, args, elf }
+    /// Create a main thread.
+    pub fn new_main(elf: Option<Vec<u8>>, args: Option<Vec<CString>>) -> Self {
+        Self {
+            entry: None,
+            args,
+            elf,
+        }
+    }
+
+    /// Create a secondary thread
+    pub fn new_companion(entry: *const extern "C" fn(), args: Option<Vec<CString>>) -> Self {
+        Self {
+            entry: Some(entry),
+            args,
+            elf: None,
+        }
     }
 
     fn setup_user_stack(page_table: &mut PageTable) -> Address {

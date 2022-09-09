@@ -49,10 +49,9 @@ pub struct ProcUtils;
 impl ProcUtils {
     pub fn spawn_user(elf: Vec<u8>, args: &[&str]) -> Arc<dyn Proc> {
         PROCESS_MANAGER.spawn(
-            box UserTask::new(
-                None,
-                Some(args.iter().map(|s| CString::new(*s).unwrap()).collect()),
+            box UserTask::new_main(
                 Some(elf),
+                Some(args.iter().map(|s| CString::new(*s).unwrap()).collect()),
             ),
             MMState::new(),
         )

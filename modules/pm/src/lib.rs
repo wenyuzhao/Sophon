@@ -14,65 +14,41 @@ extern crate alloc;
 
 mod locks;
 mod proc;
-mod user;
+mod task;
 
 use ::proc::{Proc, ProcId, Runnable, TaskId};
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, sync::Arc};
 use core::any::Any;
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use locks::{RawCondvar, RawMutex};
-use spin::Mutex;
 use syscall::module_calls::proc::ProcRequest;
 
 use crate::proc::Process;
 
-#[derive(Debug, Default)]
-pub struct State {
-    locks: Mutex<Vec<*mut RawMutex>>,
-    cvars: Mutex<Vec<*mut RawCondvar>>,
-}
-
 #[kernel_module]
-pub static mut PM: ProcessManager = ProcessManager::new();
+pub static mut PM: ProcessManager = ProcessManager;
 
-pub struct ProcessManager {}
-
-impl ProcessManager {
-    const fn new() -> Self {
-        Self {}
-    }
-
-    #[inline]
-    fn get_state(&self, proc: ProcId) -> &State {
-        let state = Process::by_id(proc).unwrap().pm.as_ref() as *const dyn Any;
-        let state = unsafe { &*state };
-        debug_assert!(state.is::<State>());
-        unsafe { state.downcast_ref_unchecked::<State>() }
-    }
-}
+pub struct ProcessManager;
 
 impl ::proc::ProcessManager for ProcessManager {
-    fn new_state(&self) -> Box<dyn Any> {
-        Box::new(State::default())
-    }
     fn spawn(&self, t: Box<dyn Runnable>, mm: Box<dyn Any>) -> Arc<dyn Proc> {
         let proc = Process::create(t, mm);
         proc
     }
     fn get_proc_by_id(&self, id: ProcId) -> Option<Arc<dyn Proc>> {
-        Process::by_id(id).map(|p| p.as_proc())
+        Process::by_id(id).map(|p| p.as_dyn())
     }
     fn current_proc(&self) -> Option<Arc<dyn Proc>> {
-        Process::current().map(|p| p.as_proc())
+        Process::current().map(|p| p.as_dyn())
     }
     fn current_proc_id(&self) -> Option<ProcId> {
         self.current_proc().map(|p| p.id())
     }
     fn get_task_by_id(&self, id: TaskId) -> Option<Arc<dyn ::proc::Task>> {
-        proc::Task::by_id(id).map(|t| t.as_dyn())
+        task::Task::by_id(id).map(|t| t.as_dyn())
     }
     fn current_task(&self) -> Option<Arc<dyn ::proc::Task>> {
-        proc::Task::current().map(|t| t.as_dyn())
+        task::Task::current().map(|t| t.as_dyn())
     }
 }
 
@@ -89,8 +65,7 @@ impl KernelModule for ProcessManager {
             ProcRequest::MutexCreate => {
                 let mutex = Box::leak(box RawMutex::new()) as *mut RawMutex;
                 if !privileged {
-                    let proc = Process::current().unwrap().id;
-                    self.get_state(proc).locks.lock().push(mutex);
+                    Process::current().unwrap().locks.lock().push(mutex);
                 }
                 mutex as _
             }
@@ -106,8 +81,8 @@ impl KernelModule for ProcessManager {
             }
             ProcRequest::MutexDestroy(mutex) => {
                 let mutex = mutex.cast_mut_ptr::<RawMutex>();
-                let proc = Process::current().unwrap().id;
-                let mut locks = self.get_state(proc).locks.lock();
+                let proc = Process::current().unwrap();
+                let mut locks = proc.locks.lock();
                 if locks.drain_filter(|x| *x == mutex).count() > 0 {
                     let _boxed = unsafe { Box::from_raw(mutex) };
                 }
@@ -116,8 +91,7 @@ impl KernelModule for ProcessManager {
             ProcRequest::CondvarCreate => {
                 let cvar = Box::leak(box RawCondvar::new()) as *mut RawCondvar;
                 if !privileged {
-                    let proc = Process::current().unwrap().id;
-                    self.get_state(proc).cvars.lock().push(cvar);
+                    Process::current().unwrap().cvars.lock().push(cvar);
                 }
                 cvar as _
             }
@@ -134,8 +108,8 @@ impl KernelModule for ProcessManager {
             }
             ProcRequest::CondvarDestroy(cvar) => {
                 let cvar = cvar.cast_mut_ptr::<RawCondvar>();
-                let proc = Process::current().unwrap().id;
-                let mut cvars = self.get_state(proc).cvars.lock();
+                let proc = Process::current().unwrap();
+                let mut cvars = proc.cvars.lock();
                 if cvars.drain_filter(|x| *x == cvar).count() > 0 {
                     let _boxed = unsafe { Box::from_raw(cvar) };
                 }

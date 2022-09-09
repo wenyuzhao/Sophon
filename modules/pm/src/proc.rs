@@ -1,21 +1,18 @@
 use core::{any::Any, sync::atomic::AtomicUsize};
 
-use alloc::{
-    borrow::ToOwned,
-    boxed::Box,
-    collections::BTreeMap,
-    sync::{Arc, Weak},
-    vec,
-    vec::Vec,
-};
+use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, sync::Arc, vec, vec::Vec};
 use atomic::Ordering;
 use kernel_module::SERVICE;
 use proc::{Proc, ProcId, Runnable, TaskId};
 use spin::{Lazy, Mutex};
 use sync::Monitor;
 
+use crate::{
+    locks::{RawCondvar, RawMutex},
+    task::Task,
+};
+
 static PROCS: Mutex<BTreeMap<ProcId, Arc<Process>>> = Mutex::new(BTreeMap::new());
-static TASKS: Mutex<BTreeMap<TaskId, Arc<Task>>> = Mutex::new(BTreeMap::new());
 
 pub struct Process {
     pub id: ProcId,
@@ -23,7 +20,8 @@ pub struct Process {
     pub live: Lazy<Monitor<bool>>,
     pub fs: Box<dyn Any>,
     pub mm: Box<dyn Any>,
-    pub pm: Box<dyn Any>,
+    pub locks: Mutex<Vec<*mut RawMutex>>,
+    pub cvars: Mutex<Vec<*mut RawCondvar>>,
 }
 
 unsafe impl Send for Process {}
@@ -43,7 +41,8 @@ impl Process {
             mm,
             live: Lazy::new(|| Monitor::new(true)),
             fs: vfs_state,
-            pm: SERVICE.process_manager().new_state(),
+            locks: Default::default(),
+            cvars: Default::default(),
         });
         // Create main thread
         let task = Task::create(proc.clone(), t, SERVICE.create_task_context());
@@ -51,20 +50,22 @@ impl Process {
         // Add to list
         PROCS.lock().insert(proc.id, proc.clone());
         // Spawn
-        TASKS.lock().insert(task.id, task.clone());
         SERVICE.scheduler().register_new_task(task.id);
         proc
     }
 
-    pub fn as_proc(self: Arc<Process>) -> Arc<dyn Proc> {
+    #[inline(always)]
+    pub const fn as_dyn(self: Arc<Process>) -> Arc<dyn Proc> {
         self
     }
 
+    #[inline(always)]
     pub fn by_id(id: ProcId) -> Option<Arc<Self>> {
         let _guard = interrupt::uninterruptible();
         PROCS.lock().get(&id).cloned()
     }
 
+    #[inline(always)]
     pub fn current() -> Option<Arc<Self>> {
         let _guard = interrupt::uninterruptible();
         let proc = Task::current().map(|t| t.proc.upgrade().unwrap())?;
@@ -107,6 +108,7 @@ impl Proc for Process {
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {
+            crate::task::TASKS.lock().remove(t);
             SERVICE.scheduler().remove_task(*t)
         }
         // Remove from procs
@@ -126,101 +128,3 @@ impl PartialEq for Process {
 }
 
 impl Eq for Process {}
-
-pub struct Task {
-    pub id: TaskId,
-    pub context: Box<dyn Any>,
-    proc: Weak<dyn Proc>,
-    pub live: Lazy<Monitor<bool>>,
-    pub sched: Box<dyn Any>,
-    runnable: Box<dyn Runnable>,
-}
-
-impl proc::Task for Task {
-    fn id(&self) -> TaskId {
-        self.id
-    }
-
-    fn context(&self) -> &dyn Any {
-        self.context.as_ref()
-    }
-
-    fn proc(&self) -> Arc<dyn Proc> {
-        self.proc.upgrade().unwrap()
-    }
-
-    fn sched(&self) -> &dyn Any {
-        self.sched.as_ref()
-    }
-
-    fn state(&self) -> &Monitor<bool> {
-        &self.live
-    }
-
-    fn runnable(&self) -> &dyn Runnable {
-        &*self.runnable
-    }
-}
-
-impl Task {
-    pub fn create(
-        proc: Arc<dyn Proc>,
-        runnable: Box<dyn Runnable>,
-        context: Box<dyn Any>,
-    ) -> Arc<Self> {
-        static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
-        let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
-        Arc::new(Task {
-            id,
-            context,
-            proc: Arc::downgrade(&proc),
-            live: Lazy::new(|| Monitor::new(true)),
-            sched: SERVICE.scheduler().new_state(),
-            runnable,
-        })
-    }
-
-    pub fn by_id(id: TaskId) -> Option<Arc<Self>> {
-        TASKS.lock().get(&id).cloned()
-    }
-
-    pub fn as_dyn(self: Arc<Self>) -> Arc<dyn proc::Task> {
-        self
-    }
-
-    pub fn current() -> Option<Arc<Self>> {
-        Self::by_id(SERVICE.scheduler().get_current_task_id()?)
-    }
-
-    #[allow(unused)]
-    pub fn exit(&self) {
-        assert!(!interrupt::is_enabled());
-        assert_eq!(self.id, Task::current().unwrap().id);
-        // Mark as dead
-        {
-            let mut live = self.live.lock();
-            *live = false;
-            self.live.notify_all()
-        }
-        // Remove from scheduler
-        SERVICE.scheduler().remove_task(Task::current().unwrap().id);
-        // Remove from process
-        self.proc
-            .upgrade()
-            .unwrap()
-            .tasks()
-            .lock()
-            .drain_filter(|t| *t == self.id);
-    }
-}
-
-unsafe impl Send for Task {}
-unsafe impl Sync for Task {}
-
-impl PartialEq for Task {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for Task {}

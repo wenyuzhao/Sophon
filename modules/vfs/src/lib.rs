@@ -35,6 +35,7 @@ impl VFS {
     fn get_current_state(&self) -> Option<&Mutex<ProcData>> {
         Some(self.get_state(&*SERVICE.process_manager().current_proc()?))
     }
+
     #[inline]
     fn get_state(&self, proc: &dyn Proc) -> &Mutex<ProcData> {
         let state = proc.fs() as *const dyn Any;
