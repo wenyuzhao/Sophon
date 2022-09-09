@@ -1,7 +1,6 @@
 #![feature(format_args_nl)]
 #![feature(default_alloc_error_handler)]
 #![feature(box_syntax)]
-#![feature(generic_associated_types)]
 #![no_std]
 
 #[allow(unused)]
