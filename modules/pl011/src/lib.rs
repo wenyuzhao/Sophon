@@ -51,7 +51,7 @@ impl KernelModule for PL011 {
         SERVICE.set_sys_logger(&UART_LOGGER);
         // Initialize interrupts
         let irq = node.interrupts().unwrap().next().unwrap().0;
-        SERVICE.set_irq_handler(irq, box || {
+        SERVICE.interrupt_controller().set_irq_handler(irq, box || {
             let _guard = PL011.monitor.lock();
             while !self.uart().receive_fifo_empty() {
                 let c = self.uart().dr.get() as u8;
@@ -60,7 +60,7 @@ impl KernelModule for PL011 {
             PL011.monitor.notify_all();
             0
         });
-        SERVICE.enable_irq(irq);
+        SERVICE.interrupt_controller().enable_irq(irq);
         kernel_module::module_call(
             "dev",
             &DevRequest::RegisterDev(&(self as &'static dyn Device)),

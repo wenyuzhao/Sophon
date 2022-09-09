@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::any::Any;
 use core::ops::{Deref, Range};
@@ -49,9 +48,6 @@ pub trait KernelService: Send + Sync + 'static {
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
     fn map_device_page(&self, frame: Frame) -> Page;
     fn map_device_pages(&self, frames: Range<Frame>) -> Range<Page>;
-    fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>);
-    fn enable_irq(&self, irq: usize);
-    fn disable_irq(&self, irq: usize);
 
     // === Interrupt and Timer === //
     /// Get interrupt controller.

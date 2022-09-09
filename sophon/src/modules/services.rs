@@ -8,7 +8,6 @@ use crate::modules::SCHEDULER;
 use crate::task::Proc;
 use crate::task::Task;
 use crate::utils::testing::Tests;
-use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
 use core::any::Any;
 use core::iter::Step;
@@ -118,18 +117,6 @@ impl kernel_module::KernelService for KernelService {
             KERNEL_MEMORY_MAPPER.map(page, frame, PageFlags::device());
         }
         pages
-    }
-
-    fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>) {
-        crate::modules::INTERRUPT.set_irq_handler(irq, handler);
-    }
-
-    fn enable_irq(&self, irq: usize) {
-        crate::modules::INTERRUPT.enable_irq(irq);
-    }
-
-    fn disable_irq(&self, irq: usize) {
-        crate::modules::INTERRUPT.disable_irq(irq);
     }
 
     fn set_interrupt_controller(&self, controller: &'static dyn interrupt::InterruptController) {
