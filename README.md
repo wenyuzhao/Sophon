@@ -71,8 +71,8 @@ Make the kernel as simple and small as possible. Instead of following the micro-
 - [x] VFS module and Root-FS
 - [ ] Memory management module; `mmap` and `munmap` syscalls
 - [ ] File system modules like fat32
-- [ ] Process management module
-- [ ] Process and multi-threading
+- [x] Process management module
+- [x] Process and multi-threading
 - [x] Driver interface based on modules
 - [ ] SMP support
 
@@ -94,7 +94,7 @@ Make the kernel as simple and small as possible. Instead of following the micro-
 
 ### Others
 
-- [ ] Unit / integration tests
+- [x] Unit / integration tests
 - [x] Continuous integration (based on GitHub Actions)
 
 # References

@@ -20,7 +20,7 @@ use alloc::{
     borrow::ToOwned, boxed::Box, collections::BTreeMap, format, string::String, vec, vec::Vec,
 };
 use kernel_module::{kernel_module, KernelModule, SERVICE};
-use proc::ProcId;
+use proc::{Proc, ProcId};
 use rootfs::ROOT_FS;
 use spin::{Mutex, RwLock};
 use vfs::{ramfs::RamFS, FileSystem, VFSManager, VFSRequest};
@@ -32,9 +32,14 @@ pub struct VFS {}
 
 impl VFS {
     #[inline]
-    fn get_state(&self, proc: ProcId) -> &Mutex<ProcData> {
-        let state = SERVICE.get_vfs_state(proc);
-        unsafe { state.downcast_ref_unchecked::<Mutex<ProcData>>() }
+    fn get_current_state(&self) -> Option<&Mutex<ProcData>> {
+        Some(self.get_state(&*SERVICE.process_manager().current_proc()?))
+    }
+
+    #[inline]
+    fn get_state(&self, proc: &dyn Proc) -> &Mutex<ProcData> {
+        let state = proc.fs() as *const dyn Any;
+        unsafe { (*state).downcast_ref_unchecked::<Mutex<ProcData>>() }
     }
 }
 
@@ -63,9 +68,8 @@ struct ProcData {
 impl ProcData {
     fn new(cwd: String) -> Self {
         let cwd = if cwd == "" {
-            SERVICE
-                .current_process()
-                .map(|p| VFS.get_state(p).lock().cwd.clone())
+            VFS.get_current_state()
+                .map(|s| s.lock().cwd.clone())
                 .unwrap_or_else(|| "/".to_owned())
         } else {
             cwd
@@ -147,8 +151,7 @@ impl KernelModule for VFS {
         debug_assert!(!interrupt::is_enabled());
         match request {
             VFSRequest::Open(path) => {
-                let proc = SERVICE.current_process().unwrap();
-                let mut proc_data = self.get_state(proc).lock();
+                let mut proc_data = self.get_current_state().unwrap().lock();
                 let path = match proc_data.canonicalize(path.to_owned()) {
                     Ok(path) => path,
                     Err(_) => return -1,
@@ -173,7 +176,7 @@ impl KernelModule for VFS {
                 if fd.0 < 3 {
                     return -1;
                 }
-                let mut proc_data = self.get_state(SERVICE.current_process().unwrap()).lock();
+                let mut proc_data = self.get_current_state().unwrap().lock();
                 let node = match proc_data.nodes[fd.0 as usize].take() {
                     Some(fd) => {
                         proc_data.files -= 1;
@@ -185,7 +188,7 @@ impl KernelModule for VFS {
                 0
             }
             VFSRequest::Read(fd, buf) => {
-                let mut proc_data = self.get_state(SERVICE.current_process().unwrap()).lock();
+                let mut proc_data = self.get_current_state().unwrap().lock();
                 let fdesc = match proc_data.nodes[fd.0 as usize].as_mut() {
                     Some(fd) => fd,
                     None => return -1,
@@ -197,8 +200,7 @@ impl KernelModule for VFS {
                 match fs.read(&node, offset, buf) {
                     None => -1,
                     Some(v) => {
-                        let mut proc_data =
-                            self.get_state(SERVICE.current_process().unwrap()).lock();
+                        let mut proc_data = self.get_current_state().unwrap().lock();
                         let fdesc = match proc_data.nodes[fd.0 as usize].as_mut() {
                             Some(fd) => fd,
                             None => return -1,
@@ -209,7 +211,7 @@ impl KernelModule for VFS {
                 }
             }
             VFSRequest::Write(fd, buf) => {
-                let mut proc_data = self.get_state(SERVICE.current_process().unwrap()).lock();
+                let mut proc_data = self.get_current_state().unwrap().lock();
                 let fdesc = match proc_data.nodes[fd.0 as usize].as_mut() {
                     Some(fd) => fd,
                     None => return -1,
@@ -221,8 +223,7 @@ impl KernelModule for VFS {
                 match fs.write(&node, offset, buf) {
                     None => -1,
                     Some(v) => {
-                        let mut proc_data =
-                            self.get_state(SERVICE.current_process().unwrap()).lock();
+                        let mut proc_data = self.get_current_state().unwrap().lock();
                         let fdesc = match proc_data.nodes[fd.0 as usize].as_mut() {
                             Some(fd) => fd,
                             None => return -1,
@@ -233,7 +234,7 @@ impl KernelModule for VFS {
                 }
             }
             VFSRequest::ReadDir(fd, i, buf) => {
-                let mut proc_data = self.get_state(SERVICE.current_process().unwrap()).lock();
+                let mut proc_data = self.get_current_state().unwrap().lock();
                 let fdesc = match proc_data.nodes[fd.0 as usize].as_mut() {
                     Some(fd) => fd,
                     None => return -1,
@@ -258,7 +259,7 @@ impl KernelModule for VFS {
                 0
             }
             VFSRequest::GetCwd(buf) => {
-                let proc_data = self.get_state(SERVICE.current_process().unwrap()).lock();
+                let proc_data = self.get_current_state().unwrap().lock();
                 let cwd = proc_data.cwd.as_str();
                 if cwd.len() > buf.len() {
                     return -1;
@@ -267,7 +268,7 @@ impl KernelModule for VFS {
                 cwd.len() as _
             }
             VFSRequest::SetCwd(path) => {
-                let mut proc_data = self.get_state(SERVICE.current_process().unwrap()).lock();
+                let mut proc_data = self.get_current_state().unwrap().lock();
                 match proc_data.set_cwd(path) {
                     Ok(_) => 0,
                     Err(_) => -1,

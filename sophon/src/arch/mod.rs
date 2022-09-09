@@ -1,6 +1,7 @@
 use boot::BootInfo;
 use memory::address::*;
 use memory::page_table::PageTable;
+use proc::Task;
 
 #[allow(unused)]
 #[inline]
@@ -26,6 +27,10 @@ pub trait ArchContext: Sized + 'static {
         argc: isize,
         argv: *const *const u8,
     ) -> !;
+
+    fn of(task: &dyn Task) -> &Self {
+        unsafe { task.context().downcast_ref_unchecked() }
+    }
 }
 
 pub trait Arch {
