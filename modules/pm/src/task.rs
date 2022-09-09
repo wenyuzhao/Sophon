@@ -46,6 +46,35 @@ impl proc::Task for Task {
     fn runnable(&self) -> &dyn Runnable {
         &*self.runnable
     }
+
+    fn exit(&self) {
+        assert!(!interrupt::is_enabled());
+        assert_eq!(self.id, Task::current().unwrap().id);
+        // Mark as dead
+        {
+            let mut live = self.live.lock();
+            *live = false;
+            self.live.notify_all()
+        }
+        // Remove from process
+        self.proc
+            .upgrade()
+            .unwrap()
+            .tasks()
+            .lock()
+            .drain_filter(|t| *t == self.id);
+        // Remove from scheduler
+        SERVICE.scheduler().remove_task(Task::current().unwrap().id);
+        // Remove from all tasks
+        TASKS.lock().remove(&self.id).unwrap();
+    }
+
+    fn wait_for_completion(&self) {
+        let mut live = self.live.lock();
+        while *live {
+            live = self.live.wait(live);
+        }
+    }
 }
 
 impl Task {
@@ -81,27 +110,6 @@ impl Task {
     #[inline(always)]
     pub fn current() -> Option<Arc<Self>> {
         Self::by_id(SERVICE.scheduler().get_current_task_id()?)
-    }
-
-    #[allow(unused)]
-    pub fn exit(&self) {
-        assert!(!interrupt::is_enabled());
-        assert_eq!(self.id, Task::current().unwrap().id);
-        // Mark as dead
-        {
-            let mut live = self.live.lock();
-            *live = false;
-            self.live.notify_all()
-        }
-        // Remove from scheduler
-        SERVICE.scheduler().remove_task(Task::current().unwrap().id);
-        // Remove from process
-        self.proc
-            .upgrade()
-            .unwrap()
-            .tasks()
-            .lock()
-            .drain_filter(|t| *t == self.id);
     }
 }
 

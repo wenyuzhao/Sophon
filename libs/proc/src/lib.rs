@@ -53,6 +53,10 @@ pub trait Task: Send + Sync {
     fn sched(&self) -> &dyn Any;
     /// The task runnable
     fn runnable(&self) -> &dyn Runnable;
+    /// Exit the task
+    fn exit(&self);
+    /// Wait for the task to complete
+    fn wait_for_completion(&self);
 }
 
 /// Abstruct process type

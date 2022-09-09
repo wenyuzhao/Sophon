@@ -35,6 +35,7 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
         .unwrap_or(-1),
         Syscall::Exec => exec(a, b, c, d, e),
         Syscall::Exit => exit(a, b, c, d, e),
+        Syscall::ThreadExit => thread_exit(a, b, c, d, e),
         Syscall::Halt => halt(a, b, c, d, e),
     }
 }
@@ -89,6 +90,11 @@ fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     SCHEDULER.schedule()
 }
 
+fn thread_exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    // Note: `Task::current()` must be dropped before calling `schedule`.
+    PROCESS_MANAGER.current_task().unwrap().exit();
+    SCHEDULER.schedule()
+}
 fn halt(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     TargetArch::halt(a as _)
 }

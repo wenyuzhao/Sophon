@@ -91,6 +91,8 @@ impl Proc for Process {
         let _guard = interrupt::uninterruptible();
         let task = Task::create(self.clone(), task, SERVICE.create_task_context());
         self.threads.lock().push(task.id);
+        SERVICE.scheduler().register_new_task(task.id);
+        debug_assert_eq!(Arc::strong_count(&task), 2);
         task
     }
     fn exit(&self) {
@@ -108,7 +110,7 @@ impl Proc for Process {
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {
-            crate::task::TASKS.lock().remove(t);
+            crate::task::TASKS.lock().remove(t).unwrap();
             SERVICE.scheduler().remove_task(*t)
         }
         // Remove from procs
