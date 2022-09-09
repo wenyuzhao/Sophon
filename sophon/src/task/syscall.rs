@@ -2,7 +2,6 @@ use crate::arch::Arch;
 use crate::{arch::TargetArch, modules::SCHEDULER};
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
-use mutex::AbstractMonitor;
 use syscall::Syscall;
 use vfs::{Fd, VFSRequest};
 
@@ -79,7 +78,10 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
     }
     crate::modules::module_call("vfs", false, &VFSRequest::Close(Fd(fd as _)));
     let proc = Proc::spawn_user(elf, args);
-    proc.monitor.wait();
+    let mut live = proc.live.lock();
+    while *live {
+        live = proc.live.wait(live);
+    }
     proc.id.0 as _
 }
 

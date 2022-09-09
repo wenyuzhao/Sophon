@@ -1,5 +1,5 @@
 [package]
-name = "pl011"
+name = "pm"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -11,13 +11,12 @@ crate-type = ["cdylib"]
 [dependencies]
 log = { path = "../../libs/log" }
 kernel-module = { path = "../../libs/kernel-module" }
-memory = { path = "../../libs/memory" }
-dev = { path = "../../libs/dev" }
-sync = { path = "../../libs/sync" }
+proc = { path = "../../libs/proc" }
 interrupt = { path = "../../libs/interrupt" }
+syscall = { path = "../../libs/syscall" }
 anyhow = { workspace = true }
 spin = { workspace = true }
-crossbeam = { workspace = true }
+atomic = { workspace = true }
 
 [features]
 default = []

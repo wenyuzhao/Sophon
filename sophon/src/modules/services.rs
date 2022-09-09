@@ -7,9 +7,7 @@ use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::modules::SCHEDULER;
 use crate::task::Proc;
 use crate::task::Task;
-use crate::utils::monitor::SysMonitor;
 use crate::utils::testing::Tests;
-use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
 use core::any::Any;
 use core::iter::Step;
@@ -40,6 +38,16 @@ impl kernel_module::KernelService for KernelService {
         crate::utils::testing::register_kernel_tests(tests);
     }
 
+    fn register_module_call_handler(&self, handler: &'static dyn ModuleCallHandler) {
+        MODULES.write()[self.0].as_mut().map(|m| {
+            m.call = Some(handler);
+        });
+    }
+
+    fn module_call<'a>(&self, module: &str, request: syscall::RawModuleRequest<'a>) -> isize {
+        raw_module_call(module, true, request.as_buf())
+    }
+
     fn alloc(&self, layout: core::alloc::Layout) -> Option<Address> {
         let ptr = unsafe { crate::ALLOCATOR.alloc(layout) };
         if ptr.is_null() {
@@ -53,15 +61,12 @@ impl kernel_module::KernelService for KernelService {
         unsafe { crate::ALLOCATOR.dealloc(ptr.as_mut_ptr(), layout) }
     }
 
-    fn register_module_call_handler(&self, handler: &'static dyn ModuleCallHandler) {
-        // log!("register module call");
-        MODULES.write()[self.0].as_mut().map(|m| {
-            m.call = Some(handler);
-        });
+    fn process_manager(&self) -> &'static dyn proc::ProcessManager {
+        &*crate::modules::PROCESS_MANAGER
     }
 
-    fn module_call<'a>(&self, module: &str, request: syscall::RawModuleRequest<'a>) -> isize {
-        raw_module_call(module, true, request.as_buf())
+    fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager) {
+        crate::modules::PROCESS_MANAGER.set_process_manager(process_manager);
     }
 
     fn current_process(&self) -> Option<ProcId> {
@@ -78,18 +83,19 @@ impl kernel_module::KernelService for KernelService {
         }
         syscall::exit();
     }
+
     fn vfs(&self) -> &'static dyn vfs::VFSManager {
         &*crate::modules::VFS
-    }
-
-    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any {
-        let proc = Proc::by_id(proc).unwrap();
-        unsafe { &*(proc.fs.as_ref() as *const dyn Any) }
     }
 
     fn set_vfs_manager(&self, vfs_manager: &'static dyn vfs::VFSManager) {
         crate::modules::VFS.set_vfs_manager(vfs_manager);
         vfs_manager.init(unsafe { &mut *crate::INIT_FS.unwrap() });
+    }
+
+    fn get_vfs_state(&self, proc: ProcId) -> &dyn Any {
+        let proc = Proc::by_id(proc).unwrap();
+        unsafe { &*(proc.fs.as_ref() as *const dyn Any) }
     }
 
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {
@@ -113,28 +119,20 @@ impl kernel_module::KernelService for KernelService {
         pages
     }
 
-    fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>) {
-        crate::modules::INTERRUPT.set_irq_handler(irq, handler);
-    }
-
-    fn enable_irq(&self, irq: usize) {
-        crate::modules::INTERRUPT.enable_irq(irq);
-    }
-
-    fn disable_irq(&self, irq: usize) {
-        crate::modules::INTERRUPT.disable_irq(irq);
+    fn interrupt_controller(&self) -> &'static dyn interrupt::InterruptController {
+        &*crate::modules::INTERRUPT
     }
 
     fn set_interrupt_controller(&self, controller: &'static dyn interrupt::InterruptController) {
         crate::modules::INTERRUPT.set_interrupt_controller(controller);
     }
 
-    fn interrupt_controller(&self) -> &'static dyn interrupt::InterruptController {
-        &*crate::modules::INTERRUPT
+    fn timer_controller(&self) -> &'static dyn interrupt::TimerController {
+        &*crate::modules::TIMER
     }
 
-    fn scheduler(&self) -> &'static dyn sched::Scheduler {
-        &*crate::modules::SCHEDULER
+    fn set_timer_controller(&self, timer: &'static dyn interrupt::TimerController) {
+        crate::modules::TIMER.set_timer_controller(timer)
     }
 
     fn num_cores(&self) -> usize {
@@ -158,17 +156,11 @@ impl kernel_module::KernelService for KernelService {
         (*context_ptr).return_to_user()
     }
 
-    fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
-        SCHEDULER.set_scheduler(scheduler);
-    }
-    fn timer_controller(&self) -> &'static dyn interrupt::TimerController {
-        &*crate::modules::TIMER
-    }
-    fn set_timer_controller(&self, timer: &'static dyn interrupt::TimerController) {
-        crate::modules::TIMER.set_timer_controller(timer)
+    fn scheduler(&self) -> &'static dyn sched::Scheduler {
+        &*crate::modules::SCHEDULER
     }
 
-    fn new_monitor(&self) -> mutex::Monitor {
-        mutex::Monitor::new(SysMonitor::new())
+    fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
+        SCHEDULER.set_scheduler(scheduler);
     }
 }

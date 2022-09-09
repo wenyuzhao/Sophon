@@ -64,6 +64,7 @@ const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
     ("gic", "/etc/modules/libgic.so"),
     ("gic-timer", "/etc/modules/libgic_timer.so"),
     ("vfs", "/etc/modules/libvfs.so"),
+    ("pm", "/etc/modules/libpm.so"),
     ("dev", "/etc/modules/libdev.so"),
     ("pl011", "/etc/modules/libpl011.so"),
     ("round-robin", "/etc/modules/libround_robin.so"),

@@ -1,5 +1,5 @@
 [package]
-name = "mutex"
+name = "sync"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }

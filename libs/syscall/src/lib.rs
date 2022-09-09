@@ -6,6 +6,7 @@ extern crate alloc;
 
 #[macro_use]
 mod log;
+pub mod module_calls;
 mod syscall;
 
 use core::marker::PhantomData;

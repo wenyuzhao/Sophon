@@ -1,6 +1,6 @@
 use core::ops::Deref;
 
-pub static mut TIMER_IMPL: Option<&'static dyn interrupt::TimerController> = None;
+static mut TIMER_IMPL: Option<&'static dyn interrupt::TimerController> = None;
 
 pub static TIMER: TimerController = TimerController;
 
