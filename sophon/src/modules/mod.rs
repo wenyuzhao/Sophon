@@ -11,12 +11,14 @@ use crate::memory::kernel::KERNEL_HEAP;
 use self::services::KernelService;
 
 mod interrupt;
+mod proc;
 mod scheduler;
 mod services;
 mod timer;
 mod vfs;
 
 pub use self::interrupt::INTERRUPT;
+pub use self::proc::PROCESS_MANAGER;
 pub use self::scheduler::SCHEDULER;
 pub use self::timer::TIMER;
 pub use self::vfs::VFS;
@@ -86,15 +88,18 @@ pub fn raw_module_call(module: &str, privileged: bool, args: [usize; 4]) -> isiz
     // log!("module call #{} {:x?}", module, args);
     let _guard = ::interrupt::uninterruptible();
     let id = *MODULE_NAMES.read().get(module).unwrap();
-    MODULES.read()[id]
+    let modules_ptr = MODULES.read()[id]
         .as_ref()
-        .map(|m| {
-            m.call
-                .as_ref()
-                .map(|call| call.handle(privileged, RawModuleRequest::from_buf(args)))
-                .unwrap_or(-1)
-        })
-        .unwrap_or(-1)
+        .map(|m| m.as_ref() as *const KernelModule);
+    if let Some(modules_ptr) = modules_ptr {
+        let m = unsafe { &*modules_ptr };
+        m.call
+            .as_ref()
+            .map(|call| call.handle(privileged, RawModuleRequest::from_buf(args)))
+            .unwrap_or(-1)
+    } else {
+        -1
+    }
 }
 
 pub fn module_call<'a>(

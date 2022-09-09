@@ -63,6 +63,14 @@ impl kernel_module::KernelService for KernelService {
         raw_module_call(module, true, request.as_buf())
     }
 
+    fn process_manager(&self) -> &'static dyn proc::ProcessManager {
+        &*crate::modules::PROCESS_MANAGER
+    }
+
+    fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager) {
+        crate::modules::PROCESS_MANAGER.set_process_manager(process_manager);
+    }
+
     fn current_process(&self) -> Option<ProcId> {
         Proc::current_opt().map(|p| p.id)
     }

@@ -3,7 +3,7 @@ use super::{runnable::Runnable, task::Task};
 use super::{ProcId, TaskId};
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::modules::SCHEDULER;
+use crate::modules::{PROCESS_MANAGER, SCHEDULER};
 use crate::utils::locks::{RawCondvar, RawMutex};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
@@ -34,6 +34,7 @@ pub struct Proc {
     pub locks: Mutex<Vec<*mut RawMutex>>,
     pub cvars: Mutex<Vec<*mut RawCondvar>>,
     pub fs: Box<dyn Any>,
+    pub pm: Box<dyn Any>,
 }
 
 unsafe impl Send for Proc {}
@@ -60,6 +61,7 @@ impl Proc {
             locks: Mutex::default(),
             cvars: Mutex::default(),
             fs: vfs_state,
+            pm: PROCESS_MANAGER.new_state(),
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);

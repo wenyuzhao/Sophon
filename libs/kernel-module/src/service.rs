@@ -29,6 +29,10 @@ pub trait KernelService: Send + Sync + 'static {
     fn dealloc(&self, address: Address, layout: Layout);
 
     // === Process === //
+    /// Get process manager.
+    fn process_manager(&self) -> &'static dyn proc::ProcessManager;
+    /// Set process manager.
+    fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager);
     fn current_process(&self) -> Option<ProcId>;
     fn current_task(&self) -> Option<TaskId>;
     fn handle_panic(&self) -> !;
