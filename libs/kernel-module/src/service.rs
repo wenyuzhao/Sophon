@@ -35,6 +35,8 @@ pub trait KernelService: Send + Sync + 'static {
     fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager);
     /// Kernel module panic handler.
     fn handle_panic(&self) -> !;
+    /// Create memory state
+    fn create_mm_state(&self) -> Box<dyn Any>;
 
     // === VFS === //
     /// Get VFS manager.

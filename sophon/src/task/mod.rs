@@ -1,5 +1,5 @@
 pub mod proc;
-pub mod runnable;
+pub mod runnables;
 pub mod syscall;
 
 pub use self::proc::*;

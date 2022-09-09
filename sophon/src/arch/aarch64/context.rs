@@ -2,7 +2,7 @@ use super::exception::ExceptionFrame;
 use crate::arch::*;
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
-use crate::task::proc::ProcExt;
+use crate::task::proc::MMState;
 use alloc::vec;
 use alloc::vec::Vec;
 use atomic::{Atomic, Ordering};
@@ -135,10 +135,8 @@ impl ArchContext for AArch64Context {
     unsafe extern "C" fn return_to_user(&self) -> ! {
         assert!(!interrupt::is_enabled());
         // Switch page table
-        let p4 = crate::modules::PROCESS_MANAGER
-            .current_proc()
-            .unwrap()
-            .get_page_table();
+        let p4 =
+            MMState::of(&*crate::modules::PROCESS_MANAGER.current_proc().unwrap()).get_page_table();
         if p4 as *mut _ as u64 != TTBR0_EL1.get() {
             PageTable::set(p4);
         } else {

@@ -18,7 +18,6 @@ mod task;
 
 use ::proc::{Proc, ProcId, Runnable, TaskId};
 use alloc::{boxed::Box, sync::Arc};
-use core::any::Any;
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use locks::{RawCondvar, RawMutex};
 use syscall::module_calls::proc::ProcRequest;
@@ -31,9 +30,8 @@ pub static mut PM: ProcessManager = ProcessManager;
 pub struct ProcessManager;
 
 impl ::proc::ProcessManager for ProcessManager {
-    fn spawn(&self, t: Box<dyn Runnable>, mm: Box<dyn Any>) -> Arc<dyn Proc> {
-        let proc = Process::create(t, mm);
-        proc
+    fn spawn(&self, t: Box<dyn Runnable>) -> Arc<dyn Proc> {
+        Process::create(t, SERVICE.create_mm_state())
     }
     fn get_proc_by_id(&self, id: ProcId) -> Option<Arc<dyn Proc>> {
         Process::by_id(id).map(|p| p.as_dyn())

@@ -1,3 +1,4 @@
+use super::runnables::UserTask;
 use crate::arch::Arch;
 use crate::modules::PROCESS_MANAGER;
 use crate::{arch::TargetArch, modules::SCHEDULER};
@@ -5,8 +6,6 @@ use alloc::vec;
 use memory::page::{PageSize, Size4K};
 use syscall::Syscall;
 use vfs::{Fd, VFSRequest};
-
-use super::{ProcExt, ProcUtils};
 
 // =====================
 // ===   Syscalls   ===
@@ -28,12 +27,12 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
             SCHEDULER.sleep();
             0
         }
-        Syscall::Sbrk => PROCESS_MANAGER
-            .current_proc()
-            .unwrap()
-            .sbrk(a >> Size4K::LOG_BYTES)
-            .map(|r| r.start.start().as_usize() as isize)
-            .unwrap_or(-1),
+        Syscall::Sbrk => crate::memory::utils::sbrk(
+            PROCESS_MANAGER.current_proc().unwrap(),
+            a >> Size4K::LOG_BYTES,
+        )
+        .map(|r| r.start.start().as_usize() as isize)
+        .unwrap_or(-1),
         Syscall::Exec => exec(a, b, c, d, e),
         Syscall::Exit => exit(a, b, c, d, e),
         Syscall::Halt => halt(a, b, c, d, e),
@@ -80,7 +79,7 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
         }
     }
     crate::modules::module_call("vfs", false, &VFSRequest::Close(Fd(fd as _)));
-    let proc = ProcUtils::spawn_user(elf, args);
+    let proc = UserTask::spawn_user_process(elf, args);
     proc.wait_for_completion();
     proc.id().0 as _
 }

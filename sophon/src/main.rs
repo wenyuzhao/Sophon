@@ -36,8 +36,7 @@ use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::modules::{PROCESS_MANAGER, SCHEDULER};
-use crate::task::runnable::Idle;
-use crate::task::{MMState, ProcUtils};
+use crate::task::runnables::{Idle, UserTask};
 use ::vfs::ramfs::RamFS;
 use alloc::boxed::Box;
 use boot::BootInfo;
@@ -115,11 +114,11 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     log!("[kernel] kernel modules loaded");
 
     log!("[kernel] start idle process");
-    let _proc = PROCESS_MANAGER.spawn(box Idle, MMState::new());
+    let _proc = PROCESS_MANAGER.spawn(box Idle);
 
     log!("[kernel] start init process");
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
-    let _proc = ProcUtils::spawn_user(init.to_vec(), &[]);
+    let _proc = UserTask::spawn_user_process(init.to_vec(), &[]);
 
     if cfg!(sophon_test) {
         log!("[kernel] run boot tests");

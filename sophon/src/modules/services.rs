@@ -6,6 +6,7 @@ use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::modules::SCHEDULER;
+use crate::task::MMState;
 use crate::utils::testing::Tests;
 use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
@@ -74,6 +75,10 @@ impl kernel_module::KernelService for KernelService {
             TargetArch::halt(-1)
         }
         syscall::exit();
+    }
+
+    fn create_mm_state(&self) -> Box<dyn Any> {
+        MMState::new()
     }
 
     fn vfs(&self) -> &'static dyn vfs::VFSManager {

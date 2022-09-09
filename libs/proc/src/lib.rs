@@ -26,7 +26,7 @@ impl TaskId {
 /// Process manager
 pub trait ProcessManager {
     /// Create a new process
-    fn spawn(&self, t: Box<dyn Runnable>, mm: Box<dyn Any>) -> Arc<dyn Proc>;
+    fn spawn(&self, t: Box<dyn Runnable>) -> Arc<dyn Proc>;
     /// Get a process by its id
     fn get_proc_by_id(&self, id: ProcId) -> Option<Arc<dyn Proc>>;
     /// Get the current process
