@@ -32,6 +32,8 @@ pub trait KernelService: Send + Sync + 'static {
     fn process_manager(&self) -> &'static dyn proc::ProcessManager;
     /// Set process manager.
     fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager);
+    /// Get per-process pm state by proc id.
+    fn get_pm_state(&self, proc: ProcId) -> &dyn Any;
     fn current_process(&self) -> Option<ProcId>;
     fn current_task(&self) -> Option<TaskId>;
     fn handle_panic(&self) -> !;

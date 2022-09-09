@@ -69,6 +69,11 @@ impl kernel_module::KernelService for KernelService {
         crate::modules::PROCESS_MANAGER.set_process_manager(process_manager);
     }
 
+    fn get_pm_state(&self, proc: ProcId) -> &dyn Any {
+        let proc = Proc::by_id(proc).unwrap();
+        unsafe { &*(proc.pm.as_ref() as *const dyn Any) }
+    }
+
     fn current_process(&self) -> Option<ProcId> {
         Proc::current_opt().map(|p| p.id)
     }

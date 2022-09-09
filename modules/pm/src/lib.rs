@@ -39,7 +39,8 @@ impl ProcessManager {
 
     #[inline]
     fn get_state(&self, proc: ProcId) -> &State {
-        let state = SERVICE.get_vfs_state(proc);
+        let state = SERVICE.get_pm_state(proc);
+        debug_assert!(state.is::<State>());
         unsafe { state.downcast_ref_unchecked::<State>() }
     }
 }
