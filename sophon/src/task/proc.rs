@@ -3,8 +3,7 @@ use super::{runnable::Runnable, task::Task};
 use super::{ProcId, TaskId};
 use crate::memory::kernel::{KERNEL_MEMORY_MAPPER, KERNEL_MEMORY_RANGE};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::modules::SCHEDULER;
-use crate::utils::locks::{RawCondvar, RawMutex};
+use crate::modules::{PROCESS_MANAGER, SCHEDULER};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::ffi::CString;
@@ -31,9 +30,8 @@ pub struct Proc {
     virtual_memory_highwater: Atomic<Address<V>>,
     user_elf: Option<Vec<u8>>,
     pub live: Lazy<Monitor<bool>>,
-    pub locks: Mutex<Vec<*mut RawMutex>>,
-    pub cvars: Mutex<Vec<*mut RawCondvar>>,
     pub fs: Box<dyn Any>,
+    pub pm: Box<dyn Any>,
 }
 
 unsafe impl Send for Proc {}
@@ -61,9 +59,8 @@ impl Proc {
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
             user_elf,
             live: Lazy::new(|| Monitor::new(true)),
-            locks: Mutex::default(),
-            cvars: Mutex::default(),
             fs: vfs_state,
+            pm: PROCESS_MANAGER.new_state(),
         });
         // Create main thread
         let task = Task::create(proc.clone(), t);
@@ -228,21 +225,6 @@ impl Proc {
             let mut live = self.live.lock();
             *live = false;
             self.live.notify_all();
-        }
-        // Release user-allocated locks
-        {
-            let mut locks = self.locks.lock();
-            for lock in locks.iter_mut() {
-                let _boxed = unsafe { Box::from_raw(*lock) };
-            }
-            locks.clear();
-        }
-        {
-            let mut cvars = self.cvars.lock();
-            for cvars in cvars.iter_mut() {
-                let _boxed = unsafe { Box::from_raw(*cvars) };
-            }
-            cvars.clear();
         }
         // Remove from scheduler
         let threads = self.threads.lock();

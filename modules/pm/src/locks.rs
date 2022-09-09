@@ -1,7 +1,7 @@
-use crate::modules::SCHEDULER;
 use alloc::vec::Vec;
 use atomic::Ordering;
 use core::sync::atomic::AtomicBool;
+use kernel_module::SERVICE;
 use proc::TaskId;
 
 #[derive(Default)]
@@ -18,13 +18,9 @@ impl RawMutex {
         }
     }
 
-    pub fn is_locked(&self) -> bool {
-        self.is_locked.load(Ordering::SeqCst)
-    }
-
     pub fn lock(&self) {
         let _guard = interrupt::uninterruptible();
-        let task = SCHEDULER.get_current_task_id().unwrap();
+        let task = SERVICE.scheduler().get_current_task_id().unwrap();
         while self.is_locked.fetch_or(true, Ordering::SeqCst) {
             self.waiters.lock().push(task);
             syscall::wait();
@@ -36,9 +32,7 @@ impl RawMutex {
         self.is_locked.store(false, Ordering::SeqCst);
         let mut waiters = self.waiters.lock();
         for t in &*waiters {
-            if SCHEDULER.get_task_by_id(*t).is_some() {
-                SCHEDULER.wake_up(*t)
-            }
+            SERVICE.scheduler().wake_up(*t)
         }
         waiters.clear()
     }
@@ -60,7 +54,7 @@ impl RawCondvar {
         let _guard = interrupt::uninterruptible();
         {
             let mut waiters = self.waiters.lock();
-            let task = SCHEDULER.get_current_task_id().unwrap();
+            let task = SERVICE.scheduler().get_current_task_id().unwrap();
             lock.unlock();
             waiters.push(task);
         }
@@ -72,9 +66,7 @@ impl RawCondvar {
         let _guard = interrupt::uninterruptible();
         let mut waiters = self.waiters.lock();
         for t in &*waiters {
-            if SCHEDULER.get_task_by_id(*t).is_some() {
-                SCHEDULER.wake_up(*t)
-            }
+            SERVICE.scheduler().wake_up(*t)
         }
         waiters.clear()
     }

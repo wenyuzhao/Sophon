@@ -39,6 +39,13 @@ impl Build {
             out: "./target/_boot/init.fs".to_string(),
         };
         build_initfs.run(shell);
+        let rflags = std::env::var("RUSTFLAGS");
+        assert!(
+            rflags.is_err() || rflags == Ok("--cfg sophon_test".to_owned()),
+            "RUSTFLAGS is set to {:?}",
+            rflags
+        );
+        std::env::remove_var("RUSTFLAGS");
         // Build bootloader
         shell.build_package(
             "boot/uefi",

@@ -1,0 +1,22 @@
+[package]
+name = "pm"
+version = { workspace = true }
+authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
+edition = { workspace = true }
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+log = { path = "../../libs/log" }
+kernel-module = { path = "../../libs/kernel-module" }
+proc = { path = "../../libs/proc" }
+interrupt = { path = "../../libs/interrupt" }
+syscall = { path = "../../libs/syscall" }
+anyhow = { workspace = true }
+spin = { workspace = true }
+atomic = { workspace = true }
+
+[features]
+default = []

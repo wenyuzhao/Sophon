@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::any::Any;
 use core::ops::{Deref, Range};
@@ -29,6 +28,12 @@ pub trait KernelService: Send + Sync + 'static {
     fn dealloc(&self, address: Address, layout: Layout);
 
     // === Process === //
+    /// Get process manager.
+    fn process_manager(&self) -> &'static dyn proc::ProcessManager;
+    /// Set process manager.
+    fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager);
+    /// Get per-process pm state by proc id.
+    fn get_pm_state(&self, proc: ProcId) -> &dyn Any;
     fn current_process(&self) -> Option<ProcId>;
     fn current_task(&self) -> Option<TaskId>;
     fn handle_panic(&self) -> !;
@@ -45,9 +50,6 @@ pub trait KernelService: Send + Sync + 'static {
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>>;
     fn map_device_page(&self, frame: Frame) -> Page;
     fn map_device_pages(&self, frames: Range<Frame>) -> Range<Page>;
-    fn set_irq_handler(&self, irq: usize, handler: Box<dyn Fn() -> isize>);
-    fn enable_irq(&self, irq: usize);
-    fn disable_irq(&self, irq: usize);
 
     // === Interrupt and Timer === //
     /// Get interrupt controller.

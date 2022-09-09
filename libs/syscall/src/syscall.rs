@@ -2,7 +2,10 @@
 use core::arch::asm;
 use core::intrinsics::transmute;
 
-use crate::ModuleRequest;
+use crate::{
+    module_calls::proc::{OpaqueCondvarPointer, OpaqueMutexPointer, ProcRequest},
+    ModuleRequest,
+};
 
 #[repr(usize)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -15,14 +18,6 @@ pub enum Syscall {
     Exit,
     ThreadExit,
     Halt,
-    MutexCreate,
-    MutexLock,
-    MutexUnlock,
-    MutexDestroy,
-    CondvarCreate,
-    CondvarWait,
-    CondvarNotifyAll,
-    CondvarDestroy,
 }
 
 #[inline]
@@ -97,52 +92,44 @@ pub fn halt(code: usize) -> ! {
     unreachable!()
 }
 
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OpaqueMutexPointer(*mut ());
-
 #[inline]
 pub fn mutex_create() -> OpaqueMutexPointer {
-    let r = syscall(Syscall::MutexCreate, &[]);
+    let r = module_call("pm", &ProcRequest::MutexCreate);
     OpaqueMutexPointer(r as _)
 }
 
 #[inline]
 pub fn mutex_lock(mutex: OpaqueMutexPointer) -> isize {
-    syscall(Syscall::MutexLock, &[mutex.0 as _])
+    module_call("pm", &ProcRequest::MutexLock(mutex))
 }
 
 #[inline]
 pub fn mutex_unlock(mutex: OpaqueMutexPointer) -> isize {
-    syscall(Syscall::MutexUnlock, &[mutex.0 as _])
+    module_call("pm", &ProcRequest::MutexUnlock(mutex))
 }
 
 #[inline]
 pub fn mutex_destroy(mutex: OpaqueMutexPointer) -> isize {
-    syscall(Syscall::MutexDestroy, &[mutex.0 as _])
+    module_call("pm", &ProcRequest::MutexDestroy(mutex))
 }
-
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OpaqueCondvarPointer(*mut ());
 
 #[inline]
 pub fn condvar_create() -> OpaqueCondvarPointer {
-    let r = syscall(Syscall::CondvarCreate, &[]);
+    let r = module_call("pm", &ProcRequest::CondvarCreate);
     OpaqueCondvarPointer(r as _)
 }
 
 #[inline]
 pub fn condvar_wait(cvar: OpaqueCondvarPointer, mutex: OpaqueMutexPointer) -> isize {
-    syscall(Syscall::CondvarWait, &[cvar.0 as _, mutex.0 as _])
+    module_call("pm", &ProcRequest::CondvarWait(cvar, mutex))
 }
 
 #[inline]
 pub fn condvar_notify_all(cvar: OpaqueCondvarPointer) -> isize {
-    syscall(Syscall::CondvarNotifyAll, &[cvar.0 as _])
+    module_call("pm", &ProcRequest::CondvarNotifyAll(cvar))
 }
 
 #[inline]
 pub fn condvar_destory(cvar: OpaqueCondvarPointer) -> isize {
-    syscall(Syscall::CondvarDestroy, &[cvar.0 as _])
+    module_call("pm", &ProcRequest::CondvarDestroy(cvar))
 }

@@ -36,7 +36,7 @@ impl GICTimer {
     }
 
     fn set_timer_handler(&self, irq: usize) {
-        SERVICE.set_irq_handler(irq, box || {
+        SERVICE.interrupt_controller().set_irq_handler(irq, box || {
             // Update compare value
             let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
             CNTP_TVAL_EL0.set(step as u64);
@@ -48,7 +48,7 @@ impl GICTimer {
     fn start_timer(&self, irq: usize) {
         unsafe {
             asm!("dsb SY");
-            SERVICE.enable_irq(irq);
+            SERVICE.interrupt_controller().enable_irq(irq);
             let n_cntfrq: usize = CNTFRQ_EL0.get() as _;
             // assert!(n_cntfrq % TIMER_INTERRUPT_FREQUENCY == 0);
             let clock_ticks_per_timer_irq = n_cntfrq / TIMER_INTERRUPT_FREQUENCY;

@@ -8,7 +8,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use syscall::{OpaqueCondvarPointer, OpaqueMutexPointer};
+use syscall::module_calls::proc::{OpaqueCondvarPointer, OpaqueMutexPointer};
 
 pub trait AbstractRawMutex {
     fn lock(&self);
