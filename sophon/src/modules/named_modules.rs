@@ -40,7 +40,7 @@ impl<T: 'static + ?Sized> Deref for NamedModule<T> {
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
         debug_assert!(self.instance.load(Ordering::Relaxed).is_some());
-        self.instance.load(Ordering::Relaxed).unwrap()
+        unsafe { self.instance.load(Ordering::Relaxed).unwrap_unchecked() }
     }
 }
 

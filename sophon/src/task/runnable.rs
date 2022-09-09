@@ -16,13 +16,6 @@ use memory::page::*;
 use memory::page_table::{PageFlags, PageTable};
 use proc::Runnable;
 
-// /// Holds the execution code for a kernel task.
-// ///
-// /// Unless jumping to the user mode, the program will remain in the kernel-space.
-// pub trait Runnable {
-//     fn run(&mut self) -> !;
-// }
-
 /// The idle task.
 ///
 /// The task scheduler should schedule this task when no other task is ready.
