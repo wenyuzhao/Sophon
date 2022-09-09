@@ -1,10 +1,12 @@
+use proc::Runnable;
 use spin::RwLock;
 
 pub use testing::{Test, Tests};
 
 use crate::{
     arch::{Arch, TargetArch},
-    task::{runnable::Runnable, Proc},
+    modules::PROCESS_MANAGER,
+    task::MMState,
 };
 
 static BOOT_TESTS: RwLock<Tests> = RwLock::new(Tests::new("boot"));
@@ -35,7 +37,7 @@ pub fn run_boot_tests() {
 
 pub fn start_kernel_test_runner() {
     assert!(cfg!(sophon_test));
-    let _proc = Proc::spawn(box KernelTestRunner);
+    let _proc = PROCESS_MANAGER.spawn(box KernelTestRunner, MMState::new());
 }
 
 pub struct KernelTestRunner;

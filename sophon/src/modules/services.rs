@@ -1,13 +1,13 @@
 use super::raw_module_call;
 use super::MODULES;
+use super::PROCESS_MANAGER;
 use crate::arch::ArchContext;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::modules::SCHEDULER;
-use crate::task::Proc;
-use crate::task::Task;
 use crate::utils::testing::Tests;
+use alloc::boxed::Box;
 use core::alloc::GlobalAlloc;
 use core::any::Any;
 use core::iter::Step;
@@ -70,16 +70,17 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn get_pm_state(&self, proc: ProcId) -> &dyn Any {
-        let proc = Proc::by_id(proc).unwrap();
-        unsafe { &*(proc.pm.as_ref() as *const dyn Any) }
+        unimplemented!()
     }
 
     fn current_process(&self) -> Option<ProcId> {
-        Proc::current_opt().map(|p| p.id)
+        crate::modules::PROCESS_MANAGER
+            .current_proc()
+            .map(|p| p.id())
     }
 
     fn current_task(&self) -> Option<proc::TaskId> {
-        Task::current_opt().map(|p| p.id)
+        PROCESS_MANAGER.current_task().map(|p| p.id())
     }
 
     fn handle_panic(&self) -> ! {
@@ -99,8 +100,10 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn get_vfs_state(&self, proc: ProcId) -> &dyn Any {
-        let proc = Proc::by_id(proc).unwrap();
-        unsafe { &*(proc.fs.as_ref() as *const dyn Any) }
+        let proc = crate::modules::PROCESS_MANAGER
+            .get_proc_by_id(proc)
+            .unwrap();
+        unsafe { &*(proc.fs() as *const dyn Any) }
     }
 
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {
@@ -149,14 +152,18 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn get_scheduler_state(&self, task: TaskId) -> &dyn Any {
-        let task = SCHEDULER.get_task_by_id(task).unwrap();
-        unsafe { &*(task.sched.as_ref() as *const dyn Any) }
+        let task = PROCESS_MANAGER.get_task_by_id(task).unwrap();
+        unsafe { &*(task.sched() as *const dyn Any) }
     }
 
     unsafe fn return_to_user(&self, task: TaskId) -> ! {
         // Note: `task` must be dropped before calling `return_to_user`.
-        let task = SCHEDULER.get_task_by_id(task).unwrap();
-        let context_ptr = &task.context as *const <TargetArch as Arch>::Context;
+        let task = PROCESS_MANAGER.get_task_by_id(task).unwrap();
+        let context_ptr = {
+            task.context()
+                .downcast_ref_unchecked::<<TargetArch as Arch>::Context>()
+                as *const <TargetArch as Arch>::Context
+        };
         drop(task);
         (*context_ptr).return_to_user()
     }
@@ -167,5 +174,9 @@ impl kernel_module::KernelService for KernelService {
 
     fn set_scheduler(&self, scheduler: &'static dyn sched::Scheduler) {
         SCHEDULER.set_scheduler(scheduler);
+    }
+
+    fn create_task_context(&self) -> Box<dyn Any> {
+        box <TargetArch as Arch>::Context::new(crate::task::entry as _, 0 as _)
     }
 }

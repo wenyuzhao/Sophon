@@ -9,6 +9,7 @@ edition = { workspace = true }
 [dependencies]
 spin = { workspace = true }
 log = { path = "../log" }
+sync = { path = "../sync" }
 
 [features]
 default = []

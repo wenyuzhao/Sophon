@@ -4,6 +4,7 @@
 #![feature(generic_associated_types)]
 #![feature(downcast_unchecked)]
 #![feature(drain_filter)]
+#![feature(const_btree_new)]
 #![no_std]
 
 #[allow(unused)]
@@ -12,14 +13,18 @@ extern crate log;
 extern crate alloc;
 
 mod locks;
+mod proc;
+mod user;
 
-use alloc::{boxed::Box, vec::Vec};
+use ::proc::{Proc, ProcId, Runnable, TaskId};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::any::Any;
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use locks::{RawCondvar, RawMutex};
-use proc::ProcId;
 use spin::Mutex;
 use syscall::module_calls::proc::ProcRequest;
+
+use crate::proc::Process;
 
 #[derive(Debug, Default)]
 pub struct State {
@@ -45,9 +50,25 @@ impl ProcessManager {
     }
 }
 
-impl proc::ProcessManager for ProcessManager {
+impl ::proc::ProcessManager for ProcessManager {
     fn new_state(&self) -> Box<dyn Any> {
         Box::new(State::default())
+    }
+    fn spawn(&self, t: Box<dyn Runnable>, mm: Box<dyn Any>) -> Arc<dyn Proc> {
+        let proc = Process::create(t, mm);
+        proc
+    }
+    fn get_proc_by_id(&self, id: ProcId) -> Option<Arc<dyn Proc>> {
+        Process::by_id(id).map(|p| p.as_proc())
+    }
+    fn current_proc(&self) -> Option<Arc<dyn Proc>> {
+        Process::current().map(|p| p.as_proc())
+    }
+    fn get_task_by_id(&self, id: TaskId) -> Option<Arc<dyn ::proc::Task>> {
+        proc::Task::by_id(id).map(|t| t.as_dyn())
+    }
+    fn current_task(&self) -> Option<Arc<dyn ::proc::Task>> {
+        proc::Task::current().map(|t| t.as_dyn())
     }
 }
 

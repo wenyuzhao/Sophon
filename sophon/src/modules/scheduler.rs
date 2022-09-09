@@ -1,4 +1,4 @@
-use crate::task::{Task, TaskId};
+use crate::task::TaskId;
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::ops::Deref;
 use spin::Mutex;
@@ -8,13 +8,13 @@ static mut SCHEDULER_IMPL: Option<&'static dyn sched::Scheduler> = None;
 pub static SCHEDULER: Scheduler = Scheduler::new();
 
 pub struct Scheduler {
-    tasks: Mutex<BTreeMap<TaskId, Arc<Task>>>,
+    // tasks: Mutex<BTreeMap<TaskId, Arc<Task>>>,
 }
 
 impl Scheduler {
     pub const fn new() -> Self {
         Self {
-            tasks: Mutex::new(BTreeMap::new()),
+            // tasks: Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -24,28 +24,28 @@ impl Scheduler {
         }
     }
 
-    pub fn register_new_task(&self, task: Arc<Task>) -> Arc<Task> {
-        self.tasks.lock().insert(task.id, task.clone());
-        self.deref().register_new_task(task.id);
-        task
-    }
+    // pub fn register_new_task(&self, task: Arc<Task>) -> Arc<Task> {
+    //     self.tasks.lock().insert(task.id, task.clone());
+    //     self.deref().register_new_task(task.id);
+    //     task
+    // }
 
-    pub fn remove_task(&self, task: TaskId) {
-        self.tasks.lock().remove(&task);
-        self.deref().remove_task(task)
-    }
+    // pub fn remove_task(&self, task: TaskId) {
+    //     self.tasks.lock().remove(&task);
+    //     self.deref().remove_task(task)
+    // }
 
-    pub fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>> {
-        let _guard = interrupt::uninterruptible();
-        let tasks = self.tasks.lock();
-        let task = tasks.get(&id)?;
-        Some(task.clone())
-    }
+    // pub fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>> {
+    //     let _guard = interrupt::uninterruptible();
+    //     let tasks = self.tasks.lock();
+    //     let task = tasks.get(&id)?;
+    //     Some(task.clone())
+    // }
 
-    pub fn get_current_task(&self) -> Option<Arc<Task>> {
-        let _guard = interrupt::uninterruptible();
-        self.get_task_by_id(self.get_current_task_id()?)
-    }
+    // pub fn get_current_task(&self) -> Option<Arc<Task>> {
+    //     let _guard = interrupt::uninterruptible();
+    //     self.get_task_by_id(self.get_current_task_id()?)
+    // }
 }
 
 impl Deref for Scheduler {

@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use core::alloc::Layout;
 use core::any::Any;
 use core::ops::{Deref, Range};
@@ -75,6 +76,8 @@ pub trait KernelService: Send + Sync + 'static {
     fn scheduler(&self) -> &'static dyn Scheduler;
     /// Set the scheduler.
     fn set_scheduler(&self, scheduler: &'static dyn Scheduler);
+    /// Arch-dependent task context
+    fn create_task_context(&self) -> Box<dyn Any>;
 }
 
 #[repr(C)]

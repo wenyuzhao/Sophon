@@ -14,6 +14,7 @@ kernel-module = { path = "../../libs/kernel-module" }
 proc = { path = "../../libs/proc" }
 interrupt = { path = "../../libs/interrupt" }
 syscall = { path = "../../libs/syscall" }
+sync = { path = "../../libs/sync" }
 anyhow = { workspace = true }
 spin = { workspace = true }
 atomic = { workspace = true }

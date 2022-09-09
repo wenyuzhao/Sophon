@@ -1,11 +1,12 @@
 use crate::arch::Arch;
+use crate::modules::PROCESS_MANAGER;
 use crate::{arch::TargetArch, modules::SCHEDULER};
 use alloc::vec;
 use memory::page::{PageSize, Size4K};
 use syscall::Syscall;
 use vfs::{Fd, VFSRequest};
 
-use super::Proc;
+use super::{ProcExt, ProcUtils};
 
 // =====================
 // ===   Syscalls   ===
@@ -27,7 +28,9 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
             SCHEDULER.sleep();
             0
         }
-        Syscall::Sbrk => Proc::current()
+        Syscall::Sbrk => PROCESS_MANAGER
+            .current_proc()
+            .unwrap()
             .sbrk(a >> Size4K::LOG_BYTES)
             .map(|r| r.start.start().as_usize() as isize)
             .unwrap_or(-1),
@@ -77,16 +80,17 @@ fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
         }
     }
     crate::modules::module_call("vfs", false, &VFSRequest::Close(Fd(fd as _)));
-    let proc = Proc::spawn_user(elf, args);
-    let mut live = proc.live.lock();
-    while *live {
-        live = proc.live.wait(live);
-    }
-    proc.id.0 as _
+    let proc = ProcUtils::spawn_user(elf, args);
+    // let mut live = proc.live.lock();
+    // while *live {
+    //     live = proc.live.wait(live);
+    // }
+    proc.wait_for_completion();
+    proc.id().0 as _
 }
 
 fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
-    Proc::current().exit();
+    PROCESS_MANAGER.current_proc().unwrap().exit();
     SCHEDULER.schedule()
 }
 

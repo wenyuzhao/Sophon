@@ -1,8 +1,8 @@
+use super::proc::ProcExt;
 use crate::arch::*;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::task::Proc;
-use crate::task::Task;
+use crate::modules::PROCESS_MANAGER;
 use alloc::ffi::CString;
 use alloc::vec::Vec;
 use core::arch::asm;
@@ -14,13 +14,14 @@ use interrupt::UninterruptibleMutex;
 use memory::address::*;
 use memory::page::*;
 use memory::page_table::{PageFlags, PageTable};
+use proc::Runnable;
 
-/// Holds the execution code for a kernel task.
-///
-/// Unless jumping to the user mode, the program will remain in the kernel-space.
-pub trait Runnable {
-    fn run(&mut self) -> !;
-}
+// /// Holds the execution code for a kernel task.
+// ///
+// /// Unless jumping to the user mode, the program will remain in the kernel-space.
+// pub trait Runnable {
+//     fn run(&mut self) -> !;
+// }
 
 /// The idle task.
 ///
@@ -44,6 +45,7 @@ impl Runnable for Idle {
 pub struct UserTask {
     entry: Option<*const extern "C" fn()>,
     args: Option<Vec<CString>>,
+    elf: Option<Vec<u8>>,
 }
 
 impl UserTask {
@@ -51,14 +53,20 @@ impl UserTask {
     const USER_STACK_PAGES: usize = 4; // Too many???
     const USER_STACK_SIZE: usize = Self::USER_STACK_PAGES * Size4K::BYTES;
 
-    pub fn new(entry: Option<*const extern "C" fn()>, args: Option<Vec<CString>>) -> Self {
-        Self { entry, args }
+    pub fn new(
+        entry: Option<*const extern "C" fn()>,
+        args: Option<Vec<CString>>,
+        elf: Option<Vec<u8>>,
+    ) -> Self {
+        Self { entry, args, elf }
     }
 
     fn setup_user_stack(page_table: &mut PageTable) -> Address {
-        let tid = Task::current().id;
-        let i = Proc::current()
-            .threads
+        let tid = PROCESS_MANAGER.current_task().unwrap().id();
+        let i = PROCESS_MANAGER
+            .current_proc()
+            .unwrap()
+            .tasks()
             .lock_uninterruptible()
             .iter()
             .position(|t| *t == tid)
@@ -77,11 +85,11 @@ impl UserTask {
 
 impl Runnable for UserTask {
     fn run(&mut self) -> ! {
-        let proc = Proc::current();
-        let first_thread = proc.threads.lock().len() == 1;
+        let proc = PROCESS_MANAGER.current_proc().unwrap();
+        let first_thread = proc.tasks().lock().len() == 1;
         let entry = if first_thread {
             // First user thread of the process. Initialize the user space first.
-            proc.initialize_user_space()
+            proc.initialize_user_space(self.elf.as_ref().unwrap())
         } else {
             // The process is spawning a new thread. The entrypoint is passed by the user program.
             unsafe { transmute(self.entry.unwrap()) }
