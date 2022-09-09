@@ -1,6 +1,6 @@
 use core::ops::Deref;
 
-pub static mut PROCESS_MANAGER_IMPL: Option<&'static dyn proc::ProcessManager> = None;
+static mut PROCESS_MANAGER_IMPL: Option<&'static dyn proc::ProcessManager> = None;
 
 pub static PROCESS_MANAGER: ProcessManager = ProcessManager;
 

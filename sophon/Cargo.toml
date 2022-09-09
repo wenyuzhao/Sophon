@@ -13,8 +13,6 @@ tock-registers = { workspace = true }
 serde = { workspace = true }
 postcard = { workspace = true }
 atomic = { workspace = true }
-crossbeam = { workspace = true }
-hashbrown = { workspace = true }
 syscall = { path = "../libs/syscall" }
 memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
