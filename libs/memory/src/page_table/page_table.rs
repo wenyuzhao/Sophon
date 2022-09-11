@@ -117,9 +117,7 @@ impl PageTable<L4> {
         }
         impl Drop for PageTables {
             fn drop(&mut self) {
-                if self.old != self.new {
-                    PageTable::<L4>::set(self.old.start().as_mut_ptr());
-                }
+                PageTable::<L4>::set(self.old.start().as_mut_ptr());
                 if self.irq_enabled {
                     interrupt::enable();
                 }
@@ -144,9 +142,7 @@ impl PageTable<L4> {
         if x.irq_enabled {
             interrupt::disable();
         }
-        if x.old != x.new {
-            Self::set(x.new.start().as_mut_ptr());
-        }
+        Self::set(x.new.start().as_mut_ptr());
         x
     }
 

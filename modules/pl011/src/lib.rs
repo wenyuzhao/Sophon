@@ -155,7 +155,7 @@ impl UART0 {
         self.icr.set(0);
         self.ibrd.set(26);
         self.fbrd.set(3);
-        self.lcrh.set((0b11 << 5) | (1 << 4));
+        self.lcrh.set(0b11 << 5);
         self.cr.set((1 << 0) | (1 << 8) | (1 << 9));
         self.imsc.set(1 << 4);
     }

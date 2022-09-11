@@ -41,7 +41,7 @@ use ::vfs::ramfs::RamFS;
 use alloc::boxed::Box;
 use boot::BootInfo;
 use device_tree::DeviceTree;
-use spin::Barrier;
+use spin::{Barrier, Mutex};
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
@@ -157,7 +157,16 @@ fn _start_ap(_core: usize) -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo<'_>) -> ! {
     log!("{}", info);
-    TargetArch::halt(-1)
+    static DOUBLE_PANIC: Mutex<bool> = Mutex::new(false);
+    let mut double_panic = DOUBLE_PANIC.lock();
+    if !*double_panic {
+        *double_panic = true;
+        TargetArch::halt(-1)
+    } else {
+        drop(double_panic);
+        log!("ERROR: Double panic!");
+        loop {}
+    }
 }
 
 #[no_mangle]
