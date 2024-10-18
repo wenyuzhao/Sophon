@@ -17,7 +17,7 @@ jobs:
       - name: Install QEMU
         run: sudo apt-get install -y qemu-system
       - name: Run Unit Tests (Debug)
-        run: cargo x test
+        run: cargo dev test
   test-release:
     runs-on: ubuntu-latest
     steps:
@@ -30,4 +30,4 @@ jobs:
       - name: Install QEMU
         run: sudo apt-get install -y qemu-system
       - name: Run Unit Tests (Release)
-        run: cargo x test --release
+        run: cargo dev test --release

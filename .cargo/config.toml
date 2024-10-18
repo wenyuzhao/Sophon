@@ -1,5 +1,5 @@
 [alias]
-x = "run --package sophon-dev --"
+dev = "run --package sophon-dev --"
 
 [unstable]
 unstable-options = true

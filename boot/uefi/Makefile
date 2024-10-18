@@ -16,11 +16,11 @@ copy-files:
 	sync
 
 build-debug:
-	cd ../.. && cargo x build
+	cd ../.. && cargo dev build
 
 deploy-debug: build-debug copy-files
 
 build-release:
-	cd ../.. && cargo x build --release
+	cd ../.. && cargo dev build --release
 
 deploy: build-release copy-files

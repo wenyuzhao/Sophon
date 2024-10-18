@@ -13,7 +13,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: codota/toolchain@v1
       - name: Build Test (Debug)
-        run: cargo x build
+        run: cargo dev build
   build-release:
     runs-on: ubuntu-latest
     steps:
@@ -22,4 +22,4 @@ jobs:
       - name: Install Rust Toolchain
         uses: codota/toolchain@v1
       - name: Build Test (Release)
-        run: cargo x build --release
+        run: cargo dev build --release

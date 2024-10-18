@@ -18,7 +18,7 @@ The name "Sophon" comes from the novel [_The Three-Body Problem_](https://en.wik
 ## Run on QEMU
 
 ```console
-$ cargo x run
+$ cargo dev run
 ```
 
 ## Run on a Raspberry Pi 4B
