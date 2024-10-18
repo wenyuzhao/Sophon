@@ -7,6 +7,7 @@ use spin::RwLock;
 use vfs::{FileSystem, Node};
 
 // static MOUNT_POINTS: BTreeMap<>
+#[allow(unused)]
 pub struct MountPoint {
     pub parent: Node,
     pub root: Node,

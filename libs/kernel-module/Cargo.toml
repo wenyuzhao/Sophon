@@ -24,3 +24,6 @@ spin = { workspace = true }
 [features]
 default = []
 disable = []
+
+[lints]
+workspace = true

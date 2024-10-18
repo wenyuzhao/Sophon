@@ -7,10 +7,12 @@ use crate::modules::PROCESS_MANAGER;
 use ::proc::Runnable;
 pub use ::proc::{ProcId, TaskId};
 
+#[allow(invalid_reference_casting)]
 pub extern "C" fn entry(_ctx: *mut ()) -> ! {
     let runnable = unsafe {
-        &mut *(PROCESS_MANAGER.current_task().unwrap().runnable() as *const dyn Runnable
-            as *mut dyn Runnable)
+        let task = PROCESS_MANAGER.current_task();
+        let runnable_ptr = task.as_ref().unwrap().runnable() as *const dyn Runnable;
+        &mut *(runnable_ptr as *mut dyn Runnable)
     };
     runnable.run()
 }
@@ -39,8 +41,9 @@ fn thread_test() {
     let num_threads = 16;
     let proc = PROCESS_MANAGER.current_proc().unwrap();
     let mut tasks = vec![];
+    use alloc::boxed::Box;
     for i in 0..num_threads {
-        let task = proc.clone().spawn_task(box TestThread(i));
+        let task = proc.clone().spawn_task(Box::new(TestThread(i)));
         tasks.push(task);
     }
     // Wait for all threads to finish

@@ -1,30 +1,29 @@
-use core::ops::Deref;
-
-use atomic::{Atomic, Ordering};
+use core::{cell::UnsafeCell, ops::Deref};
 
 use crate::arch::{Arch, TargetArch};
 
 pub struct NamedModule<T: 'static + ?Sized> {
-    instance: Atomic<Option<&'static T>>,
+    instance: UnsafeCell<Option<&'static T>>,
     init: Option<fn()>,
 }
 
 impl<T: 'static + ?Sized> NamedModule<T> {
     const UNINIT: Self = Self {
-        instance: Atomic::new(None),
+        instance: UnsafeCell::new(None),
         init: None,
     };
 
     const fn uninit_with_post_initializer(init: fn()) -> Self {
         Self {
-            instance: Atomic::new(None),
+            instance: UnsafeCell::new(None),
             init: Some(init),
         }
     }
 
     pub fn set_instance(&self, instance: &'static T) {
-        assert!(self.instance.load(Ordering::SeqCst).is_none());
-        self.instance.store(Some(instance), Ordering::SeqCst);
+        let slot = unsafe { &mut *self.instance.get() };
+        assert!(slot.is_none());
+        *slot = Some(instance);
         if let Some(init) = self.init {
             init();
         }
@@ -39,8 +38,9 @@ impl<T: 'static + ?Sized> Deref for NamedModule<T> {
 
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
-        debug_assert!(self.instance.load(Ordering::Relaxed).is_some());
-        unsafe { self.instance.load(Ordering::Relaxed).unwrap_unchecked() }
+        let slot = unsafe { &mut *self.instance.get() };
+        debug_assert!(slot.is_some());
+        slot.as_ref().unwrap()
     }
 }
 

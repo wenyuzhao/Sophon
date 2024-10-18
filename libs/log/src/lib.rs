@@ -45,6 +45,7 @@ pub fn init(logger: &'static dyn Logger) {
 
 #[doc(hidden)]
 #[inline(never)]
+#[allow(static_mut_refs)]
 pub fn _print(args: fmt::Arguments) {
     unsafe { LOGGER.as_mut().map(|logger| logger.log_fmt(args).unwrap()) };
 }

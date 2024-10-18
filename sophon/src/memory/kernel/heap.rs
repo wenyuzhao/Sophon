@@ -1,7 +1,6 @@
 use super::{KERNEL_HEAP_RANGE, KERNEL_MEMORY_MAPPER, LOG_KERNEL_HEAP_SIZE};
 use crate::memory::physical::PHYSICAL_MEMORY;
 use core::alloc::{GlobalAlloc, Layout};
-use core::intrinsics::likely;
 use core::iter::Step;
 use core::ops::Range;
 use core::{ptr, usize};
@@ -93,7 +92,7 @@ pub struct KernelHeapAllocator;
 unsafe impl GlobalAlloc for KernelHeapAllocator {
     #[inline(always)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if likely(layout.pad_to_align().size() < Size2M::BYTES) {
+        if layout.pad_to_align().size() < Size2M::BYTES {
             KERNEL_HEAP
                 .fa
                 .lock_uninterruptible()
@@ -106,7 +105,7 @@ unsafe impl GlobalAlloc for KernelHeapAllocator {
 
     #[inline(always)]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        if likely(layout.pad_to_align().size() < Size2M::BYTES) {
+        if layout.pad_to_align().size() < Size2M::BYTES {
             KERNEL_HEAP
                 .fa
                 .lock_uninterruptible()

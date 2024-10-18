@@ -34,7 +34,7 @@ fn load_elf(
     elf_data: &[u8],
 ) -> (
     extern "C" fn(kernel_module::KernelServiceWrapper) -> usize,
-    &[extern "C" fn()],
+    Option<&[extern "C" fn()]>,
 ) {
     let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
         let range = KERNEL_HEAP
@@ -58,18 +58,20 @@ pub fn register(name: &str, elf: Vec<u8>) {
         }
         let id = names.len();
         let (start, init_array) = load_elf(&elf);
-        let service = box KernelService(id);
+        let service = Box::new(KernelService(id));
         let service_ptr = service.as_ref() as *const KernelService;
-        for init in init_array {
-            init()
+        if let Some(init_array) = init_array {
+            for init in init_array {
+                init()
+            }
         }
-        modules[id] = Some(box KernelModule {
+        modules[id] = Some(Box::new(KernelModule {
             _name: name.to_owned(),
             _service: service,
             _deinit: None,
             call: None,
             _elf: elf,
-        });
+        }));
         names.insert(name.to_owned(), id);
         (start, service_ptr)
     };

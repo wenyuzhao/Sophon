@@ -12,7 +12,7 @@ pub struct Test {
     boot: Boot,
     #[clap(flatten)]
     pub cargo: CargoFlags,
-    #[clap(multiple = true)]
+    #[clap(last = true, allow_hyphen_values = true)]
     args: Vec<String>,
 }
 

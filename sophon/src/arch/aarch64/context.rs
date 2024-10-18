@@ -5,10 +5,11 @@ use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
 use crate::task::proc::MMState;
 use alloc::vec;
 use alloc::vec::Vec;
-use atomic::{Atomic, Ordering};
+use atomic::Ordering;
 use core::arch::asm;
 use core::ops::Range;
 use core::ptr;
+use core::sync::atomic::{AtomicBool, AtomicIsize};
 use cortex_a::registers::*;
 use memory::address::{Address, V};
 use memory::page::PageResource;
@@ -41,13 +42,13 @@ impl KernelStack {
         // }
         for i in 0..KERNEL_STACK_SIZE {
             unsafe {
-                ::core::intrinsics::volatile_store(&mut self.stack[i], 0);
+                core::ptr::write_volatile(&mut self.stack[i], 0);
             }
         }
     }
     pub const fn range(&self) -> Range<Address> {
-        let start = Address::from(&self.stack as *const [u8; KERNEL_STACK_SIZE]);
-        let end = start + KERNEL_STACK_SIZE;
+        let start = unsafe { Address::new(core::mem::transmute_copy(&self.stack.as_ptr())) };
+        let end = Address::new(start.as_usize() + KERNEL_STACK_SIZE);
         start..end
     }
 }
@@ -89,7 +90,8 @@ pub struct AArch64Context {
     // q: [u128; 32], // Neon registers
     kernel_stack: Option<*mut KernelStack>,
     kernel_stack_top: *mut u8,
-    response_status: Atomic<Option<isize>>,
+    response_status: AtomicIsize,
+    response_status_set: AtomicBool,
 }
 
 impl AArch64Context {
@@ -110,7 +112,8 @@ impl ArchContext for AArch64Context {
             entry_pc: ptr::null_mut(),
             kernel_stack: None,
             kernel_stack_top: ptr::null_mut(),
-            response_status: Atomic::new(None),
+            response_status: AtomicIsize::new(0),
+            response_status_set: AtomicBool::new(false),
         }
     }
 
@@ -129,7 +132,8 @@ impl ArchContext for AArch64Context {
     }
 
     fn set_response_status(&self, s: isize) {
-        self.response_status.store(Some(s), Ordering::SeqCst);
+        self.response_status.store(s, Ordering::SeqCst);
+        self.response_status_set.store(true, Ordering::SeqCst);
     }
 
     unsafe extern "C" fn return_to_user(&self) -> ! {
@@ -145,14 +149,16 @@ impl ArchContext for AArch64Context {
         }
         // Load user frame
         let exception_frame = self.pop_exception_frame().unwrap_or_else(|| {
-            let mut frame: *mut ExceptionFrame =
+            let frame: *mut ExceptionFrame =
                 (self.kernel_stack_top as usize - ::core::mem::size_of::<ExceptionFrame>()) as _;
             (*frame).elr_el1 = self.entry_pc as _;
             (*frame).spsr_el1 = 0b0101;
             frame
         });
         // Set return value
-        if let Some(status) = self.response_status.swap(None, Ordering::SeqCst) {
+        if self.response_status_set.load(Ordering::SeqCst) {
+            self.response_status_set.store(false, Ordering::SeqCst);
+            let status = self.response_status.load(Ordering::SeqCst);
             let slot = Address::<V>::from(&(*exception_frame).x0 as *const usize);
             slot.store(status);
             (*exception_frame).x0 = ::core::mem::transmute(status);

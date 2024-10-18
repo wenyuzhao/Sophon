@@ -12,3 +12,6 @@ log = { path = "../log" }
 
 [features]
 default = []
+
+[lints]
+workspace = true

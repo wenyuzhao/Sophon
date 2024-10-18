@@ -39,3 +39,6 @@ yaml-rust = { workspace = true }
 default = []
 disable_log = ["log/disable"]
 qemu = []
+
+[lints]
+workspace = true

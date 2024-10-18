@@ -1,8 +1,4 @@
 #![feature(format_args_nl)]
-#![feature(default_alloc_error_handler)]
-#![feature(generic_associated_types)]
-#![feature(const_btree_new)]
-#![feature(box_syntax)]
 #![feature(downcast_unchecked)]
 #![no_std]
 
@@ -49,7 +45,7 @@ impl VFSManager for VFS {
     }
 
     fn register_process(&self, _proc: ProcId, cwd: String) -> Box<dyn Any> {
-        box Mutex::new(ProcData::new(cwd))
+        Box::new(Mutex::new(ProcData::new(cwd)))
     }
 
     fn deregister_process(&self, _proc: ProcId) {}

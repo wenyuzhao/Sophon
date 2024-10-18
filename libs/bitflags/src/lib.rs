@@ -50,7 +50,7 @@ pub fn bitflags(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl const core::ops::Not for #name {
+        impl core::ops::Not for #name {
             type Output = Self;
             #[inline(always)]
             fn not(self) -> Self::Output {
@@ -58,7 +58,7 @@ pub fn bitflags(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl const core::ops::BitAnd for #name {
+        impl core::ops::BitAnd for #name {
             type Output = Self;
             #[inline(always)]
             fn bitand(self, x: Self) -> Self::Output {
@@ -66,14 +66,14 @@ pub fn bitflags(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl const core::ops::BitAndAssign for #name {
+        impl core::ops::BitAndAssign for #name {
             #[inline(always)]
             fn bitand_assign(&mut self, x: Self) {
                 self.value &= x.value;
             }
         }
 
-        impl const core::ops::BitOr for #name {
+        impl core::ops::BitOr for #name {
             type Output = Self;
             #[inline(always)]
             fn bitor(self, x: Self) -> Self::Output {
@@ -81,14 +81,14 @@ pub fn bitflags(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl const core::ops::BitOrAssign for #name {
+        impl core::ops::BitOrAssign for #name {
             #[inline(always)]
             fn bitor_assign(&mut self, x: Self) {
                 self.value |= x.value;
             }
         }
 
-        impl const core::ops::BitXor for #name {
+        impl core::ops::BitXor for #name {
             type Output = Self;
             #[inline(always)]
             fn bitxor(self, x: Self) -> Self::Output {
@@ -96,21 +96,21 @@ pub fn bitflags(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl const core::ops::BitXorAssign for #name {
+        impl core::ops::BitXorAssign for #name {
             #[inline(always)]
             fn bitxor_assign(&mut self, x: Self) {
                 self.value ^= x.value;
             }
         }
 
-        impl const From<#ty> for #name {
+        impl From<#ty> for #name {
             #[inline(always)]
             fn from(value: #ty) -> Self {
                 Self { value }
             }
         }
 
-        impl const From<#name> for #ty {
+        impl From<#name> for #ty {
             #[inline(always)]
             fn from(x: #name) -> #ty {
                 x.value

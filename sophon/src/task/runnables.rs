@@ -4,6 +4,7 @@ use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::kernel::KERNEL_MEMORY_RANGE;
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::modules::PROCESS_MANAGER;
+use alloc::boxed::Box;
 use alloc::ffi::CString;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -71,10 +72,10 @@ impl UserTask {
 
     /// Spawn a new user process.
     pub fn spawn_user_process(elf: Vec<u8>, args: &[&str]) -> Arc<dyn Proc> {
-        PROCESS_MANAGER.spawn(box UserTask::new_main(
+        PROCESS_MANAGER.spawn(Box::new(UserTask::new_main(
             Some(elf),
             Some(args.iter().map(|s| CString::new(*s).unwrap()).collect()),
-        ))
+        )))
     }
 
     fn setup_user_stack(page_table: &mut PageTable) -> Address {

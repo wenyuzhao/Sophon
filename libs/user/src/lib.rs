@@ -1,7 +1,5 @@
 #![no_std]
-#![feature(core_intrinsics)]
 #![feature(step_trait)]
-#![feature(const_mut_refs)]
 
 extern crate alloc;
 

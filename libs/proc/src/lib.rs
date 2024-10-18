@@ -23,6 +23,18 @@ impl TaskId {
     pub const NULL: Self = Self(0);
 }
 
+unsafe impl bytemuck::Zeroable for TaskId {
+    fn zeroed() -> Self {
+        TaskId::NULL
+    }
+}
+
+unsafe impl bytemuck::Pod for TaskId {}
+
+unsafe impl bytemuck::ZeroableInOption for TaskId {}
+
+unsafe impl bytemuck::PodInOption for TaskId {}
+
 /// Process manager
 pub trait ProcessManager {
     /// Create a new process

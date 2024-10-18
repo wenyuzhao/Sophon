@@ -1,8 +1,8 @@
 #![no_std]
+#![allow(internal_features)]
 #![feature(const_type_name)]
 #![feature(associated_type_defaults)]
 #![feature(type_alias_impl_trait)]
-#![feature(generic_associated_types)]
 #![feature(never_type)]
 #![feature(core_intrinsics)]
 
@@ -27,6 +27,7 @@ use testing::Tests;
 
 static mut SERVICE_OPT: Option<&'static dyn KernelService> = None;
 
+#[allow(static_mut_refs)]
 pub static SERVICE: spin::Lazy<&'static dyn KernelService> =
     spin::Lazy::new(|| unsafe { *SERVICE_OPT.as_ref().unwrap() });
 
@@ -48,6 +49,7 @@ pub fn init_kernel_module<T: KernelModule>(
 ) -> anyhow::Result<()> {
     init_kernel_service(service);
     call::register_module_call::<T>(instance);
+    #[allow(invalid_reference_casting)]
     let instance_mut = unsafe { &mut *(instance as *const T as *mut T) };
     // Initialize the module
     let result = instance_mut.init()?;

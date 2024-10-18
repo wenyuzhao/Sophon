@@ -13,7 +13,6 @@ spin = { workspace = true }
 cortex-a = { workspace = true }
 tock-registers = { workspace = true }
 uefi = { workspace = true }
-uefi-services = { workspace = true }
 device-tree = { path = "../../libs/device-tree" }
 memory = { path = "../../libs/memory" }
 boot = { path = "../../libs/boot" }

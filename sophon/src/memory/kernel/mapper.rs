@@ -1,13 +1,14 @@
 use crate::memory::kernel::KERNEL_HEAP_RANGE;
 use crate::memory::physical::PHYSICAL_MEMORY;
-use atomic::{Atomic, Ordering};
+use atomic::Ordering;
 use core::ops::{Deref, DerefMut};
+use core::sync::atomic::AtomicPtr;
 use memory::address::{Address, P, V};
 use memory::page::*;
 use memory::page_table::{PageFlags, PageTable};
 
 pub struct KernelMemoryMapper {
-    page_table: Atomic<*mut PageTable>,
+    page_table: AtomicPtr<PageTable>,
 }
 
 unsafe impl Sync for KernelMemoryMapper {}
@@ -15,7 +16,7 @@ unsafe impl Sync for KernelMemoryMapper {}
 impl KernelMemoryMapper {
     pub const fn new() -> Self {
         Self {
-            page_table: Atomic::new(core::ptr::null_mut()),
+            page_table: AtomicPtr::new(core::ptr::null_mut()),
         }
     }
 

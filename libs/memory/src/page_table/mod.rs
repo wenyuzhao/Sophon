@@ -110,7 +110,7 @@ impl PageTableEntry {
 
     pub fn clear(&mut self) {
         unsafe {
-            ::core::intrinsics::volatile_store(&mut self.0, 0);
+            core::ptr::write_volatile(&mut self.0, 0);
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -123,17 +123,16 @@ impl PageTableEntry {
         !self.flags().contains(PageFlags::SMALL_PAGE)
     }
     pub fn address(&self) -> Address<P> {
-        ((unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::ADDRESS_MASK) as usize)
-            .into()
+        ((unsafe { core::ptr::read_volatile(&self.0) } & Self::ADDRESS_MASK) as usize).into()
     }
     pub fn flags(&self) -> PageFlags {
-        let v = unsafe { ::core::intrinsics::volatile_load(&self.0) } & Self::FLAGS_MASK;
+        let v = unsafe { core::ptr::read_volatile(&self.0) } & Self::FLAGS_MASK;
         PageFlags::from(v)
     }
     pub fn update_flags(&mut self, new_flags: PageFlags) {
         let v = self.address().as_usize() as u64 | new_flags.value;
         unsafe {
-            ::core::intrinsics::volatile_store(&mut self.0, v);
+            core::ptr::write_volatile(&mut self.0, v);
         }
     }
     pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) {
@@ -146,7 +145,7 @@ impl PageTableEntry {
         a &= !(0xffff_0000_0000_0000);
         let v = a as u64 | flags.value;
         unsafe {
-            ::core::intrinsics::volatile_store(&mut self.0, v);
+            core::ptr::write_volatile(&mut self.0, v);
         }
     }
 }

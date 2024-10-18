@@ -1,16 +1,11 @@
 #![allow(incomplete_features)]
 #![feature(format_args_nl)]
-#![feature(box_syntax)]
-#![feature(core_intrinsics)]
 #![feature(step_trait)]
 #![feature(const_trait_impl)]
-#![feature(const_btree_new)]
 #![feature(alloc_error_handler)]
-#![feature(const_mut_refs)]
 #![feature(adt_const_params)]
 #![feature(generic_const_exprs)]
 #![feature(type_alias_impl_trait)]
-#![feature(drain_filter)]
 #![feature(downcast_unchecked)]
 #![feature(const_option_ext)]
 #![no_std]
@@ -103,7 +98,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     TargetArch::init(boot_info);
 
     log!("[kernel] load init-fs");
-    let initfs = Box::leak(box RamFS::deserialize(boot_info.init_fs));
+    let initfs = Box::leak(Box::new(RamFS::deserialize(boot_info.init_fs)));
     unsafe { INIT_FS = Some(initfs) };
 
     log!("[kernel] load kernel modules...");
@@ -115,7 +110,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     log!("[kernel] kernel modules loaded");
 
     log!("[kernel] start idle process");
-    let _proc = PROCESS_MANAGER.spawn(box Idle);
+    let _proc = PROCESS_MANAGER.spawn(Box::new(Idle));
 
     log!("[kernel] start init process");
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();

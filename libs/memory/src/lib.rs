@@ -1,8 +1,6 @@
 #![allow(incomplete_features)]
 #![feature(step_trait)]
-#![feature(core_intrinsics)]
 #![feature(const_trait_impl)]
-#![feature(const_mut_refs)]
 #![feature(const_option)]
 #![feature(never_type)]
 #![feature(format_args_nl)]

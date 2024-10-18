@@ -1,16 +1,15 @@
 #![no_std]
 #![no_main]
 #![feature(format_args_nl)]
-#![feature(core_intrinsics)]
 #![feature(step_trait)]
 
 extern crate alloc;
 #[macro_use]
 extern crate log;
 
+use ::boot::BootInfo;
 use alloc::vec;
 use alloc::vec::Vec;
-use boot::BootInfo;
 #[allow(unused)]
 use core::arch::asm;
 use core::iter::Step;
@@ -23,31 +22,29 @@ use memory::page::*;
 use memory::page_table::*;
 #[allow(unused)]
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
+use uefi::mem::memory_map::MemoryMap;
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::*;
 use uefi::table::runtime::ResetType;
 use uefi::{prelude::*, table::boot::*};
 use uefi::{CStr16, Guid};
 
+use uefi::boot;
+
 use crate::uefi_logger::UEFILogger;
 
 mod uefi_logger;
 
-static mut BOOT_SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
-static mut RUNTIME_SERVICES: Option<&'static RuntimeServices> = None;
-static mut IMAGE: Option<Handle> = None;
+#[global_allocator]
+static ALLOCATOR: uefi::allocator::Allocator = uefi::allocator::Allocator;
 
 unsafe fn establish_el1_page_table() {
     let p4 = new_page4k().start().as_mut::<PageTable<L4>>();
     TTBR0_EL1.set(p4 as *const _ as u64);
     // Get physical address limit
-    let mut buffer = [0u8; 4096];
-    let (_, descriptors) = boot_system_table()
-        .boot_services()
-        .memory_map(&mut buffer)
-        .unwrap();
+    let mmap = boot::memory_map(MemoryType::LOADER_CODE).unwrap();
     let mut top = Address::<P>::ZERO;
-    for desc in descriptors {
+    for desc in mmap.entries() {
         let start = Address::<P>::from(desc.phys_start as *mut u8);
         let end = start + ((desc.page_count as usize) << Size4K::LOG_BYTES);
         if end > top {
@@ -72,15 +69,10 @@ unsafe fn establish_el1_page_table() {
     }
 }
 
-fn boot_system_table() -> &'static mut SystemTable<Boot> {
-    unsafe { BOOT_SYSTEM_TABLE.as_mut().unwrap() }
-}
-
 fn new_page4k() -> Frame {
-    let page = boot_system_table()
-        .boot_services()
-        .allocate_pages(AllocateType::AnyPages, MemoryType::LOADER_CODE, 1)
-        .unwrap();
+    let page = boot::allocate_pages(AllocateType::AnyPages, MemoryType::LOADER_CODE, 1)
+        .unwrap()
+        .as_ptr();
     let page = Frame::new(Address::from(page as usize));
     unsafe { page.zero() };
     page
@@ -210,17 +202,13 @@ fn load_elf(elf_data: &[u8]) -> ELFEntry {
 }
 
 fn gen_available_physical_memory() -> &'static [Range<Frame>] {
-    let bt = boot_system_table();
     let buffer = new_page4k();
-    let (_, descriptors) = bt
-        .boot_services()
-        .memory_map(unsafe { buffer.start().as_mut::<[u8; 4096]>() })
-        .unwrap();
+    let mmap = boot::memory_map(MemoryType::LOADER_CODE).unwrap();
     let count = Frame::<Size4K>::BYTES / mem::size_of::<Range<Frame>>();
     let available_physical_memory_ranges: &'static mut [Range<Frame>] =
         unsafe { slice::from_raw_parts_mut(buffer.start().as_mut_ptr(), count) };
     let mut cursor = 0;
-    for desc in descriptors {
+    for desc in mmap.entries() {
         log!(
             " - {:?} p={:?} v={:?} c={} end={:?}",
             desc.ty,
@@ -272,14 +260,8 @@ fn gen_boot_info(device_tree: &'static [u8], init_fs: &'static [u8]) -> BootInfo
 }
 
 fn read_file(handle: Handle, path: &str) -> Vec<u8> {
-    let sfs = unsafe {
-        &mut *boot_system_table()
-            .boot_services()
-            .get_image_file_system(handle)
-            .expect("Cannot open `SimpleFileSystem` protocol")
-            .interface
-            .get()
-    };
+    let mut sfs =
+        boot::get_image_file_system(handle).expect("Cannot open `SimpleFileSystem` protocol");
     let mut directory = sfs.open_volume().unwrap();
     let mut data = [0u16; 512];
     let filename = CStr16::from_str_with_buf(path, &mut data).unwrap();
@@ -311,21 +293,7 @@ fn read_file(handle: Handle, path: &str) -> Vec<u8> {
 
 fn read_dtb(handle: Handle) -> &'static mut [u8] {
     // Try to get dtb path from command line args: dtb=...
-    let loaded_image = unsafe {
-        &*boot_system_table()
-            .boot_services()
-            .open_protocol::<LoadedImage>(
-                OpenProtocolParams {
-                    handle: handle,
-                    agent: handle,
-                    controller: None,
-                },
-                OpenProtocolAttributes::Exclusive,
-            )
-            .expect("Failed to retrieve `LoadedImage` protocol from handle")
-            .interface
-            .get()
-    };
+    let loaded_image = boot::open_protocol_exclusive::<LoadedImage>(boot::image_handle()).unwrap();
     let options = loaded_image.load_options_as_bytes();
     if let Some(options) = options {
         let mut args = core::str::from_utf8(options).unwrap().split(" ");
@@ -338,34 +306,31 @@ fn read_dtb(handle: Handle) -> &'static mut [u8] {
         }
     }
     // Try to load dtb from efi configuration table
-    const GUID: Guid = Guid::from_values(
-        0xb1b621d5,
-        0xf19c,
-        0x41a5,
-        0x830b,
-        u64::from_be_bytes([0, 0, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0]),
-    );
+    const FDT_TABLE_GUID: Guid = uefi::guid!("b1b621d5-f19c-41a5-830b-d9152c69aae0");
     #[repr(C)]
     struct FDTHeader {
         magic: u32,
         totalsize: u32,
     }
-    if let Some(cfg) = boot_system_table()
-        .config_table()
-        .iter()
-        .find(|x| x.guid == GUID)
-    {
-        let size = unsafe { (*(cfg.address as *mut FDTHeader)).totalsize };
-        let size = u32::from_le_bytes(size.to_be_bytes());
-        let dtb = unsafe { slice::from_raw_parts_mut(cfg.address as *mut u8, size as _) };
-        log!("Load device tree from EFI configuration table");
+    let result = uefi::system::with_config_table(|entries| {
+        if let Some(cfg) = entries.iter().find(|x| x.guid == FDT_TABLE_GUID) {
+            let size = unsafe { (*(cfg.address as *mut FDTHeader)).totalsize };
+            let size = u32::from_le_bytes(size.to_be_bytes());
+            let dtb = unsafe { slice::from_raw_parts_mut(cfg.address as *mut u8, size as _) };
+            log!("Load device tree from EFI configuration table");
+            return Some(dtb);
+        }
+        None
+    });
+    if let Some(dtb) = result {
         return dtb;
     }
-
-    log!("Config table:");
-    for entry in boot_system_table().config_table() {
-        log!(" - {} {:?}", entry.guid, entry.address);
-    }
+    uefi::system::with_config_table(|entries| {
+        log!("Config table:");
+        for entry in entries {
+            log!(" - {} {:?}", entry.guid, entry.address);
+        }
+    });
 
     panic!("Device tree not specified");
 }
@@ -449,11 +414,7 @@ extern "C" fn launch_kernel(
 
     unsafe {
         {
-            let buffer = &mut [0; 4096];
-            boot_system_table()
-                .unsafe_clone()
-                .exit_boot_services(IMAGE.unwrap(), buffer)
-                .unwrap();
+            let _mmap = boot::exit_boot_services(MemoryType::LOADER_CODE);
         }
         asm! {
             "
@@ -486,20 +447,15 @@ static mut BOOT_INFO: BootInfo = BootInfo {
 static mut INIT_ARRAY: Option<&'static [extern "C" fn()]> = None;
 
 extern "C" fn shutdown() -> ! {
-    unsafe {
-        RUNTIME_SERVICES
-            .as_ref()
-            .unwrap()
-            .reset(ResetType::Shutdown, Status::SUCCESS, None);
-    }
+    uefi::runtime::reset(ResetType::SHUTDOWN, Status::SUCCESS, None);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> Status {
-    uefi_services::init(&mut st).expect("Failed to initialize utilities");
-    BOOT_SYSTEM_TABLE = Some(st.unsafe_clone());
-    RUNTIME_SERVICES = Some(BOOT_SYSTEM_TABLE.as_ref().unwrap().runtime_services());
-    IMAGE = Some(image);
+#[entry]
+pub unsafe fn main() -> Status {
+    uefi::helpers::init().expect("Failed to initialize uefi");
+
+    let image = boot::image_handle();
+
     UEFILogger::init();
     log!("Hello, UEFI!");
     log!("CurrentEL {:?}", CurrentEL.get() >> 2);
@@ -528,6 +484,7 @@ pub unsafe extern "C" fn efi_main(image: Handle, mut st: SystemTable<Boot>) -> S
     BOOT_INFO = gen_boot_info(dtb, init_fs);
     INIT_ARRAY = mem::transmute(entry.init_array);
 
+    #[allow(static_mut_refs)]
     launch_kernel(mem::transmute(entry.entry), &mut BOOT_INFO);
 }
 

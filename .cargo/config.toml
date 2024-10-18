@@ -5,4 +5,4 @@ x = "run --package sophon-dev --"
 unstable-options = true
 
 [build]
-out-dir = "target/_out"
+artifact-dir = "target/_out"

@@ -1,24 +1,25 @@
-use core::intrinsics::{volatile_load, volatile_store};
+use core::cell::UnsafeCell;
 use core::mem;
 use core::ops::{Deref, DerefMut};
+use core::ptr::{read_volatile, write_volatile};
 
 #[repr(transparent)]
-pub struct Volatile<T: Copy>(T);
+pub struct Volatile<T: Copy>(UnsafeCell<T>);
 
 impl<T: Copy> Volatile<T> {
     #[inline(always)]
     pub fn get(&self) -> T {
-        unsafe { volatile_load(&self.0) }
+        unsafe { read_volatile(self.0.get()) }
     }
 
     #[inline(always)]
     pub unsafe fn force_set(&self, v: T) {
-        volatile_store(&mut *(&self.0 as *const T as *mut T), v)
+        write_volatile(self.0.get(), v)
     }
 
     #[inline(always)]
     pub fn set(&mut self, v: T) {
-        unsafe { volatile_store(&mut self.0, v) }
+        unsafe { write_volatile(self.0.get(), v) }
     }
 
     #[inline(always)]
@@ -55,7 +56,7 @@ pub type PaddingForRange<const START: usize, const END: usize> = [u8; END - STAR
 
 pub type PaddingForBytes<const N: usize> = [u8; N];
 
-impl<T: Copy, const N: usize> const Deref for VolatileArray<T, N> {
+impl<T: Copy, const N: usize> Deref for VolatileArray<T, N> {
     type Target = [Volatile<T>; N];
 
     fn deref(&self) -> &Self::Target {

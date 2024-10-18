@@ -57,12 +57,10 @@ impl proc::Task for Task {
             self.live.notify_all()
         }
         // Remove from process
-        self.proc
-            .upgrade()
-            .unwrap()
-            .tasks()
-            .lock()
-            .drain_filter(|t| *t == self.id);
+        let proc = self.proc.upgrade().unwrap();
+        let mut tasks = proc.tasks().lock();
+        let index = tasks.iter().position(|t| *t == self.id).unwrap();
+        tasks.swap_remove(index);
         // Remove from scheduler
         SERVICE.scheduler().remove_task(Task::current().unwrap().id);
         // Remove from all tasks

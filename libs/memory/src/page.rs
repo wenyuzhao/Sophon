@@ -63,11 +63,11 @@ impl<S: PageSize, K: MemoryKind> Page<S, K> {
     }
 
     pub const fn start(&self) -> Address<K> {
-        Address::from(self.0)
+        Address::new(self.0)
     }
 
     pub const fn end(&self) -> Address<K> {
-        self.start() + Self::BYTES
+        Address::new(self.start().as_usize() + Self::BYTES)
     }
 
     pub const fn range(&self) -> Range<Address<K>> {
@@ -89,10 +89,10 @@ impl<S: PageSize, K: MemoryKind> fmt::Debug for Page<S, K> {
     }
 }
 
-unsafe impl<S: PageSize, K: MemoryKind> const Send for Page<S, K> {}
-unsafe impl<S: PageSize, K: MemoryKind> const Sync for Page<S, K> {}
+unsafe impl<S: PageSize, K: MemoryKind> Send for Page<S, K> {}
+unsafe impl<S: PageSize, K: MemoryKind> Sync for Page<S, K> {}
 
-impl<S: PageSize, K: MemoryKind> const Clone for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Clone for Page<S, K> {
     fn clone(&self) -> Self {
         Self(self.0, PhantomData)
     }
@@ -102,9 +102,9 @@ impl<S: PageSize, K: MemoryKind> const Clone for Page<S, K> {
     }
 }
 
-impl<S: PageSize, K: MemoryKind> const Copy for Page<S, K> {}
+impl<S: PageSize, K: MemoryKind> Copy for Page<S, K> {}
 
-impl<S: PageSize, K: MemoryKind> const PartialEq for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> PartialEq for Page<S, K> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
@@ -114,11 +114,11 @@ impl<S: PageSize, K: MemoryKind> const PartialEq for Page<S, K> {
     }
 }
 
-impl<S: PageSize, K: MemoryKind> const Eq for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Eq for Page<S, K> {
     fn assert_receiver_is_total_eq(&self) {}
 }
 
-impl<S: PageSize, K: MemoryKind> const PartialOrd for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> PartialOrd for Page<S, K> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -146,7 +146,7 @@ impl<S: PageSize, K: MemoryKind> const PartialOrd for Page<S, K> {
     }
 }
 
-impl<S: PageSize, K: MemoryKind> const Ord for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Ord for Page<S, K> {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self.0, other.0) {
             (x, y) if x == y => Ordering::Equal,
@@ -181,7 +181,7 @@ impl<S: PageSize, K: MemoryKind> const Ord for Page<S, K> {
     }
 }
 
-impl<S: PageSize, K: MemoryKind> const Step for Page<S, K> {
+impl<S: PageSize, K: MemoryKind> Step for Page<S, K> {
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         if start.0 > end.0 {
             None

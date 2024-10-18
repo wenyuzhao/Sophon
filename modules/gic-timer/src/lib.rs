@@ -1,6 +1,4 @@
 #![feature(format_args_nl)]
-#![feature(default_alloc_error_handler)]
-#![feature(box_syntax)]
 #![no_std]
 
 #[allow(unused)]
@@ -8,6 +6,7 @@
 extern crate log;
 extern crate alloc;
 
+use alloc::boxed::Box;
 use core::arch::asm;
 use cortex_a::registers::*;
 use interrupt::TimerController;
@@ -35,13 +34,16 @@ impl GICTimer {
     }
 
     fn set_timer_handler(&self, irq: usize) {
-        SERVICE.interrupt_controller().set_irq_handler(irq, box || {
-            // Update compare value
-            let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
-            CNTP_TVAL_EL0.set(step as u64);
-            SERVICE.interrupt_controller().interrupt_end();
-            SERVICE.scheduler().timer_tick();
-        });
+        SERVICE.interrupt_controller().set_irq_handler(
+            irq,
+            Box::new(|| {
+                // Update compare value
+                let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
+                CNTP_TVAL_EL0.set(step as u64);
+                SERVICE.interrupt_controller().interrupt_end();
+                SERVICE.scheduler().timer_tick();
+            }),
+        );
     }
 
     fn start_timer(&self, irq: usize) {

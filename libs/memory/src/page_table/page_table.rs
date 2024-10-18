@@ -18,7 +18,7 @@ pub struct PageTable<L: TableLevel = L4> {
     phantom: PhantomData<L>,
 }
 
-impl<L: TableLevel> const Index<usize> for PageTable<L> {
+impl<L: TableLevel> Index<usize> for PageTable<L> {
     type Output = PageTableEntry;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -26,7 +26,7 @@ impl<L: TableLevel> const Index<usize> for PageTable<L> {
     }
 }
 
-impl<L: TableLevel> const IndexMut<usize> for PageTable<L> {
+impl<L: TableLevel> IndexMut<usize> for PageTable<L> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.entries[index]
     }

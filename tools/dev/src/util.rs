@@ -82,7 +82,7 @@ impl CargoFlags {
 
     pub fn uefi_target(&self) -> &'static str {
         assert_eq!(self.arch, Arch::AArch64);
-        "aarch64-uefi.json"
+        "aarch64-unknown-uefi"
     }
 }
 

@@ -1,6 +1,4 @@
 #![feature(format_args_nl)]
-#![feature(default_alloc_error_handler)]
-#![feature(box_syntax)]
 #![no_std]
 
 #[allow(unused)]
@@ -47,6 +45,7 @@ pub struct GICD {
 }
 
 #[allow(unused)]
+#[allow(non_upper_case_globals)]
 impl GICD {
     pub const CTLR_DISABLE: u32 = 0 << 0;
     pub const CTLR_ENABLE: u32 = 1 << 0;
@@ -73,6 +72,7 @@ pub struct GICC {
 }
 
 #[allow(unused)]
+#[allow(non_upper_case_globals)]
 impl GICC {
     pub const CTLR_DISABLE: u32 = 0 << 0;
     pub const CTLR_ENABLE: u32 = 1 << 0;
@@ -127,36 +127,35 @@ impl GIC {
     fn init_gic(&self, bsp: bool) {
         #[allow(non_snake_case)]
         let (GICD, GICC) = (self.gicd(), self.gicc());
-        unsafe { barrier::dsb(barrier::SY) };
-        unsafe {
-            // Disable all interrupts
-            GICD.CTLR.set(GICD::CTLR_DISABLE);
-            if bsp {
-                for n in 0..(IRQ_LINES / 32) {
-                    GICD.ICENABLER[n].set(!0);
-                    GICD.ICPENDR[n].set(!0);
-                    GICD.ICACTIVER[n].set(!0);
-                }
+        barrier::dsb(barrier::SY);
+
+        // Disable all interrupts
+        GICD.CTLR.set(GICD::CTLR_DISABLE);
+        if bsp {
+            for n in 0..(IRQ_LINES / 32) {
+                GICD.ICENABLER[n].set(!0);
+                GICD.ICPENDR[n].set(!0);
+                GICD.ICACTIVER[n].set(!0);
             }
-            // Set priority
-            for n in 0..(IRQ_LINES / 4) {
-                GICD.IPRIORITYR[n].set(
-                    GICD::IPRIORITYRAULT
-                        | GICD::IPRIORITYRAULT << 8
-                        | GICD::IPRIORITYRAULT << 16
-                        | GICD::IPRIORITYRAULT << 24,
-                );
-            }
-            // set all interrupts to level triggered
-            for n in 0..(IRQ_LINES / 16) {
-                GICD.ICFGR[n].set(0);
-            }
-            // Enable GIC
-            GICD.CTLR.set(GICD::CTLR_ENABLE);
-            GICC.PMR.set(GICC::PMR_PRIORITY);
-            GICC.CTLR.set(GICC::CTLR_ENABLE);
-            barrier::dmb(barrier::SY);
         }
+        // Set priority
+        for n in 0..(IRQ_LINES / 4) {
+            GICD.IPRIORITYR[n].set(
+                GICD::IPRIORITYRAULT
+                    | GICD::IPRIORITYRAULT << 8
+                    | GICD::IPRIORITYRAULT << 16
+                    | GICD::IPRIORITYRAULT << 24,
+            );
+        }
+        // set all interrupts to level triggered
+        for n in 0..(IRQ_LINES / 16) {
+            GICD.ICFGR[n].set(0);
+        }
+        // Enable GIC
+        GICD.CTLR.set(GICD::CTLR_ENABLE);
+        GICC.PMR.set(GICC::PMR_PRIORITY);
+        GICC.CTLR.set(GICC::CTLR_ENABLE);
+        barrier::dmb(barrier::SY);
     }
 }
 
@@ -204,6 +203,7 @@ impl InterruptController for GIC {
         Some(irq as _)
     }
 
+    #[allow(static_mut_refs)]
     fn enable_irq(&self, irq: usize) {
         unsafe {
             asm!("dsb SY");

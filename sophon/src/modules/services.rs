@@ -90,6 +90,7 @@ impl kernel_module::KernelService for KernelService {
         vfs_manager.init(unsafe { &mut *crate::INIT_FS.unwrap() });
     }
 
+    #[allow(static_mut_refs)]
     fn get_device_tree(&self) -> Option<&'static DeviceTree<'static, 'static>> {
         unsafe { crate::DEV_TREE.as_ref() }
     }
@@ -156,6 +157,9 @@ impl kernel_module::KernelService for KernelService {
     }
 
     fn create_task_context(&self) -> Box<dyn Any> {
-        box <TargetArch as Arch>::Context::new(crate::task::entry as _, 0 as _)
+        Box::new(<TargetArch as Arch>::Context::new(
+            crate::task::entry as _,
+            0 as _,
+        ))
     }
 }

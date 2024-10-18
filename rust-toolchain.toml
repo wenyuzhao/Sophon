@@ -1,4 +1,10 @@
 [toolchain]
-channel = "nightly-2022-08-01"
-components = [ "rls-preview", "rust-analysis", "rust-src", "llvm-tools-preview", "rustfmt" ]
-targets = [ "aarch64-unknown-none", "aarch64-pc-windows-msvc" ]
+channel = "nightly-2024-10-01"
+components = [
+    "rls-preview",
+    "rust-analysis",
+    "rust-src",
+    "llvm-tools-preview",
+    "rustfmt",
+]
+targets = ["aarch64-unknown-none", "aarch64-unknown-uefi"]

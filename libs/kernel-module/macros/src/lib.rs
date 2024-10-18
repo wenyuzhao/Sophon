@@ -13,6 +13,7 @@ pub fn kernel_module(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #[no_mangle]
         #[allow(unused)]
+        #[allow(static_mut_refs)]
         pub extern "C" fn _start(service: kernel_module::KernelServiceWrapper) -> isize {
             if kernel_module::init_kernel_module(service, unsafe { &#name }).is_err() {
                 return -1;

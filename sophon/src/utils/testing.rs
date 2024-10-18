@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use proc::Runnable;
 use spin::RwLock;
 
@@ -36,7 +37,7 @@ pub fn run_boot_tests() {
 
 pub fn start_kernel_test_runner() {
     assert!(cfg!(sophon_test));
-    let _proc = PROCESS_MANAGER.spawn(box KernelTestRunner);
+    let _proc = PROCESS_MANAGER.spawn(Box::new(KernelTestRunner));
 }
 
 pub struct KernelTestRunner;

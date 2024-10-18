@@ -1,11 +1,11 @@
-[target.aarch64-uefi]
+[target.aarch64-unknown-uefi]
 runner = ".cargo/run-qemu.sh"
 
 [target.x86_64-unknown-uefi]
 runner = ".cargo/run-qemu.sh"
 
 [build]
-target = "aarch64-uefi.json"
+target = "aarch64-unknown-uefi"
 
 [unstable]
 build-std = ["core", "compiler_builtins", "alloc"]

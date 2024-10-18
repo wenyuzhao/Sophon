@@ -1,5 +1,3 @@
-#![feature(const_btree_new)]
-
 #[macro_use]
 extern crate clap;
 #[macro_use]
@@ -14,13 +12,13 @@ mod run;
 mod test;
 mod util;
 
-use clap::{AppSettings, Parser};
+use clap::Parser;
 use std::path::Path;
 use xshell::Shell;
 
 /// Tools for sophon development and compilation.
 #[derive(Parser)]
-#[clap(name = "Sophon Build Tool", version, author = "Wenyu Zhao", setting = AppSettings::TrailingVarArg)]
+#[clap(name = "Sophon Build Tool", version, author = "Wenyu Zhao")]
 struct Opts {
     #[clap(subcommand)]
     sub_command: SubCommand,

@@ -1,10 +1,5 @@
 #![feature(format_args_nl)]
-#![feature(default_alloc_error_handler)]
-#![feature(box_syntax)]
-#![feature(generic_associated_types)]
 #![feature(downcast_unchecked)]
-#![feature(drain_filter)]
-#![feature(const_btree_new)]
 #![no_std]
 
 #[allow(unused)]
@@ -61,7 +56,7 @@ impl KernelModule for ProcessManager {
     fn handle_module_call<'a>(&self, privileged: bool, request: Self::ModuleRequest<'a>) -> isize {
         match request {
             ProcRequest::MutexCreate => {
-                let mutex = Box::leak(box RawMutex::new()) as *mut RawMutex;
+                let mutex = Box::leak(Box::new(RawMutex::new())) as *mut RawMutex;
                 if !privileged {
                     Process::current().unwrap().locks.lock().push(mutex);
                 }
@@ -81,13 +76,14 @@ impl KernelModule for ProcessManager {
                 let mutex = mutex.cast_mut_ptr::<RawMutex>();
                 let proc = Process::current().unwrap();
                 let mut locks = proc.locks.lock();
-                if locks.drain_filter(|x| *x == mutex).count() > 0 {
+                if let Some(index) = locks.iter().position(|x| *x == mutex) {
+                    locks.swap_remove(index);
                     let _boxed = unsafe { Box::from_raw(mutex) };
                 }
                 0
             }
             ProcRequest::CondvarCreate => {
-                let cvar = Box::leak(box RawCondvar::new()) as *mut RawCondvar;
+                let cvar = Box::leak(Box::new(RawCondvar::new())) as *mut RawCondvar;
                 if !privileged {
                     Process::current().unwrap().cvars.lock().push(cvar);
                 }
@@ -108,7 +104,8 @@ impl KernelModule for ProcessManager {
                 let cvar = cvar.cast_mut_ptr::<RawCondvar>();
                 let proc = Process::current().unwrap();
                 let mut cvars = proc.cvars.lock();
-                if cvars.drain_filter(|x| *x == cvar).count() > 0 {
+                if let Some(index) = cvars.iter().position(|x| *x == cvar) {
+                    cvars.swap_remove(index);
                     let _boxed = unsafe { Box::from_raw(cvar) };
                 }
                 0

@@ -29,7 +29,15 @@ pub trait Scheduler: Send + Sync + 'static {
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 #[repr(u8)]
 pub enum RunState {
-    Ready,
+    Ready = 0,
     Running,
     Sleeping,
 }
+
+unsafe impl bytemuck::Zeroable for RunState {
+    fn zeroed() -> Self {
+        RunState::Ready
+    }
+}
+
+unsafe impl bytemuck::Pod for RunState {}

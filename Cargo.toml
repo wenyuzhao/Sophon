@@ -1,9 +1,10 @@
 [workspace]
+resolver = "2"
 members = [
-# Kernel
+    # Kernel
     "sophon/macros",
     "sophon",
-# Kernel Modules,
+    # Kernel Modules,
     "modules/dev",
     "modules/bcm2711-gpio",
     "modules/gic",
@@ -13,7 +14,7 @@ members = [
     "modules/pm",
     "modules/round-robin",
     "modules/vfs",
-# Libraries
+    # Libraries
     "libs/bitflags",
     "libs/boot",
     "libs/dev",
@@ -31,16 +32,21 @@ members = [
     "libs/testing",
     "libs/user",
     "libs/vfs",
-# Tools
+    # Tools
     "tools/dev",
-# Boot loaders
+    # Boot loaders
     "boot/uefi",
-# User programs
+    # User programs
     "user/init",
     "user/tty",
     "user/hello",
     "user/ls",
 ]
+
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(sophon_test)'] }
+
 
 [workspace.package]
 version = "0.0.3"
@@ -56,22 +62,24 @@ lto = true
 codegen-units = 1
 
 [workspace.dependencies]
-spin = "0.9.3"
-fdt-rs = { version = "0.4.3", default-features = false }
+spin = "0.9.8"
+fdt-rs = { version = "0.4.5", default-features = false }
 serde = { version = "1.0", default-features = false }
-postcard = { version = "1.0.0", features = ["alloc"] }
-atomic = "0.5"
-crossbeam = { version = "0.8.1", default-features = false, features = ["alloc"] }
-hashbrown = "0.12"
-cortex-a = "7.4.0"
-tock-registers = "0.7.0"
+postcard = { version = "1.0.10", features = ["alloc"] }
+atomic = "0.6"
+crossbeam = { version = "0.8.4", default-features = false, features = [
+    "alloc",
+] }
+hashbrown = "0.15"
+cortex-a = "8.1.1"
+tock-registers = "0.8.1"
 yaml-rust = "0.4.5"
-xshell = "0.2.2"
-clap = { version = "3.2.8", features = ["derive"] }
-uefi = { version = "0.16.0", features = ["exts", "alloc"] }
-uefi-services = "0.13.0"
-xmas-elf = "0.8.0"
+xshell = "0.2.6"
+clap = { version = "4.5.20", features = ["derive"] }
+uefi = { version = "0.32.0", features = ["panic_handler", "alloc"] }
+xmas-elf = "0.9.1"
 anyhow = { version = "1.0", default-features = false }
-quote = "1.0.20"
-syn = { version = "1.0.98", features = ["full"] }
-bitmask-enum = "2.0.0"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+bitmask-enum = "2.2.4"
+bytemuck = "1.19.0"

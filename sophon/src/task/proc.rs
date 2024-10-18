@@ -3,12 +3,13 @@ use alloc::boxed::Box;
 use atomic::{Atomic, Ordering};
 use core::any::Any;
 use core::ops::Deref;
+use core::sync::atomic::AtomicPtr;
 use memory::address::{Address, V};
 use memory::page_table::PageTable;
 use proc::Proc;
 
 pub struct MMState {
-    pub page_table: Atomic<*mut PageTable>,
+    pub page_table: AtomicPtr<PageTable>,
     pub virtual_memory_highwater: Atomic<Address<V>>,
 }
 
@@ -18,11 +19,11 @@ impl MMState {
             page_table: {
                 // the initial page table is the kernel page table
                 let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
-                Atomic::new(PageTable::get())
+                AtomicPtr::new(PageTable::get())
             },
             virtual_memory_highwater: Atomic::new(crate::memory::USER_SPACE_MEMORY_RANGE.start),
         };
-        box x
+        Box::new(x)
     }
 
     pub fn get_page_table(&self) -> &'static mut PageTable {
