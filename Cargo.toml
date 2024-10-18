@@ -23,7 +23,6 @@ members = [
     "libs/interrupt",
     "libs/kernel-module",
     "libs/kernel-module/macros",
-    "libs/log",
     "libs/memory",
     "libs/sched",
     "libs/sync",
@@ -76,10 +75,11 @@ tock-registers = "0.8.1"
 yaml-rust = "0.4.5"
 xshell = "0.2.6"
 clap = { version = "4.5.20", features = ["derive"] }
-uefi = { version = "0.32.0", features = ["panic_handler", "alloc"] }
+uefi = { version = "0.32.0", features = ["panic_handler", "alloc", "logger"] }
 xmas-elf = "0.9.1"
 anyhow = { version = "1.0", default-features = false }
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
 bitmask-enum = "2.2.4"
 bytemuck = "1.19.0"
+log = "0.4.22"

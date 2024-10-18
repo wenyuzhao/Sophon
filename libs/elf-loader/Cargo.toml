@@ -9,7 +9,7 @@ edition = { workspace = true }
 [dependencies]
 xmas-elf = { workspace = true }
 memory = { path = "../memory" }
-log = { path = "../log" }
+log = { workspace = true }
 
 [features]
 default = []

@@ -16,7 +16,7 @@ atomic = { workspace = true }
 syscall = { path = "../libs/syscall" }
 memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
-log = { path = "../libs/log" }
+log = { workspace = true }
 boot = { path = "../libs/boot" }
 kernel-module = { path = "../libs/kernel-module" }
 elf-loader = { path = "../libs/elf-loader" }
@@ -37,7 +37,7 @@ yaml-rust = { workspace = true }
 
 [features]
 default = []
-disable_log = ["log/disable"]
+disable_log = []
 qemu = []
 
 [lints]

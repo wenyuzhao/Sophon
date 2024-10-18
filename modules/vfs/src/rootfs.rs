@@ -124,7 +124,7 @@ impl FileSystem for RootFS {
     fn mount(&self, parent: &Node, file: &str, key: usize) -> Option<Node> {
         let mut fs = self.ramfs.write();
         let path = format!("{}/{}", parent.path, file);
-        println!("mount {}", path);
+        info!("mount {}", path);
         fs.mount(&path, ramfs::Mount { key }).ok()?;
         Some(Node {
             name: file.to_owned().into(),

@@ -61,7 +61,7 @@ fn vfs_mount_impl(
     if let Some(stat) = parent.fs.stat(parent, entry) {
         if stat.is_dir {
             if remaining_path == "" {
-                println!("{} is a directory", path);
+                warn!("{} is a directory", path);
                 None
             } else {
                 vfs_mount_impl(

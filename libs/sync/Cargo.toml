@@ -8,7 +8,7 @@ edition = { workspace = true }
 
 [dependencies]
 spin = { workspace = true }
-log = { path = "../log" }
+log = { workspace = true }
 syscall = { path = "../syscall" }
 
 [features]

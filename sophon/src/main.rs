@@ -72,11 +72,11 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     if let Some(uart) = boot_info.uart {
         utils::boot_logger::init(uart);
     }
-    log!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
+    info!("boot_info @ {:?} {:?}", boot_info as *const _, unsafe {
         *(boot_info as *const _ as *const usize)
     });
-    log!("device_tree @ {:?}", boot_info.device_tree.as_ptr_range());
-    log!(
+    info!("device_tree @ {:?}", boot_info.device_tree.as_ptr_range());
+    info!(
         "available_physical_memory @ {:?}",
         boot_info.available_physical_memory.as_ptr_range()
     );
@@ -84,52 +84,52 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     display_banner();
 
     // Initialize physical memory and kernel heap
-    log!("[kernel] initialize physical memory");
+    info!("initialize physical memory");
     PHYSICAL_MEMORY.init(boot_info.available_physical_memory);
-    log!("[kernel] initialize kernel heap");
+    info!("initialize kernel heap");
     KERNEL_HEAP.init();
 
     // Initialize arch and boot drivers
-    log!("[kernel] load device tree");
+    info!("load device tree");
     unsafe {
         DEV_TREE = DeviceTree::new(boot_info.device_tree);
     }
-    log!("[kernel] arch-specific initialization");
+    info!("arch-specific initialization");
     TargetArch::init(boot_info);
 
-    log!("[kernel] load init-fs");
+    info!("load init-fs");
     let initfs = Box::leak(Box::new(RamFS::deserialize(boot_info.init_fs)));
     unsafe { INIT_FS = Some(initfs) };
 
-    log!("[kernel] load kernel modules...");
+    info!("load kernel modules...");
     for (name, path) in ALL_MODULES {
-        log!("[kernel]  - load module '{}'", name);
+        info!(" - load module '{}'", name);
         let file = initfs.get(path).unwrap().as_file().unwrap();
         crate::modules::register(name, file.to_vec());
     }
-    log!("[kernel] kernel modules loaded");
+    info!("kernel modules loaded");
 
-    log!("[kernel] start idle process");
+    info!("start idle process");
     let _proc = PROCESS_MANAGER.spawn(Box::new(Idle));
 
-    log!("[kernel] start init process");
+    info!("start init process");
     let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
     let _proc = UserTask::spawn_user_process(init.to_vec(), &[]);
 
     if cfg!(sophon_test) {
-        log!("[kernel] run boot tests");
+        info!("run boot tests");
         crate::utils::testing::run_boot_tests();
-        log!("[kernel] start kernel test runner");
+        info!("start kernel test runner");
         crate::utils::testing::start_kernel_test_runner();
     }
 
-    log!("[kernel] start scheduler");
+    info!("start scheduler");
     SCHEDULER.schedule();
 }
 
 #[panic_handler]
 fn panic(info: &PanicInfo<'_>) -> ! {
-    log!("{}", info);
+    error!("{}", info);
     static DOUBLE_PANIC: Mutex<bool> = Mutex::new(false);
     let mut double_panic = DOUBLE_PANIC.lock();
     if !*double_panic {
@@ -137,7 +137,7 @@ fn panic(info: &PanicInfo<'_>) -> ! {
         TargetArch::halt(-1)
     } else {
         drop(double_panic);
-        log!("ERROR: Double panic!");
+        info!("ERROR: Double panic!");
         loop {}
     }
 }

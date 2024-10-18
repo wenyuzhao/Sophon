@@ -9,7 +9,7 @@ edition = { workspace = true }
 [dependencies]
 bytemuck = { workspace = true }
 spin = { workspace = true }
-log = { path = "../log" }
+log = { workspace = true }
 sync = { path = "../sync" }
 
 [features]

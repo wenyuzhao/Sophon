@@ -14,7 +14,7 @@ pub struct Hello;
 
 impl KernelModule for Hello {
     fn init(&mut self) -> anyhow::Result<()> {
-        log!("Hello, Kernel Module!");
+        info!("Hello, Kernel Module!");
         Ok(())
     }
 }

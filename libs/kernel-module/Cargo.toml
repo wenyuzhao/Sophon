@@ -7,7 +7,7 @@ edition = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = { path = "../log" }
+log = { workspace = true }
 memory = { path = "../memory" }
 kernel-module-macros = { path = "./macros" }
 syscall = { path = "../syscall" }

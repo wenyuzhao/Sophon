@@ -102,7 +102,7 @@ impl KernelModule for BCM2177_GPIO {
             Some(node) => node,
             _ => return Ok(().into()),
         };
-        log!("Hello, BCM2711 GPIO!");
+        info!("Hello, BCM2711 GPIO!");
         let gpio_frame = node.translate(node.regs().unwrap().next().unwrap().start);
         let gpio_page = SERVICE.map_device_page(Frame::new(gpio_frame));
         unsafe { *self.gpio.get() = gpio_page.start().as_mut_ptr() };

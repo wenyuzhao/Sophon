@@ -31,10 +31,6 @@ use uefi::{CStr16, Guid};
 
 use uefi::boot;
 
-use crate::uefi_logger::UEFILogger;
-
-mod uefi_logger;
-
 #[global_allocator]
 static ALLOCATOR: uefi::allocator::Allocator = uefi::allocator::Allocator;
 
@@ -175,7 +171,7 @@ fn map_kernel_pages_4k(p4: &mut PageTable<L4>, start: u64, pages: usize) {
 }
 
 fn load_elf(elf_data: &[u8]) -> ELFEntry {
-    log!("Load kernel ELF");
+    info!("Load kernel ELF");
     let kernel_base = Address::<V>::from(0xff0000000000usize);
     let entry = elf_loader::ELFLoader::load_with_address_translation(
         elf_data,
@@ -197,7 +193,7 @@ fn load_elf(elf_data: &[u8]) -> ELFEntry {
         },
     )
     .unwrap();
-    log!("Load kernel ELF done. entry @ {:?}", entry.entry);
+    info!("Load kernel ELF done. entry @ {:?}", entry.entry);
     entry
 }
 
@@ -209,7 +205,7 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
         unsafe { slice::from_raw_parts_mut(buffer.start().as_mut_ptr(), count) };
     let mut cursor = 0;
     for desc in mmap.entries() {
-        log!(
+        info!(
             " - {:?} p={:?} v={:?} c={} end={:?}",
             desc.ty,
             desc.phys_start as *mut u8,
@@ -225,11 +221,11 @@ fn gen_available_physical_memory() -> &'static [Range<Frame>] {
         }
     }
     let available_physical_memory_ranges = &available_physical_memory_ranges[..cursor];
-    log!(
+    info!(
         "Available physical memory: {:?}",
         available_physical_memory_ranges
     );
-    log!(
+    info!(
         "available_physical_memory_ranges @ {:?}",
         available_physical_memory_ranges.as_ptr_range()
     );
@@ -301,7 +297,7 @@ fn read_dtb(handle: Handle) -> &'static mut [u8] {
             .find(|x| x.starts_with("dtb="))
             .map(|x| x.strip_prefix("dtb=").unwrap())
         {
-            log!("Load device tree from {}", dtb_path);
+            info!("Load device tree from {}", dtb_path);
             return read_file(handle, dtb_path).leak();
         }
     }
@@ -317,7 +313,7 @@ fn read_dtb(handle: Handle) -> &'static mut [u8] {
             let size = unsafe { (*(cfg.address as *mut FDTHeader)).totalsize };
             let size = u32::from_le_bytes(size.to_be_bytes());
             let dtb = unsafe { slice::from_raw_parts_mut(cfg.address as *mut u8, size as _) };
-            log!("Load device tree from EFI configuration table");
+            info!("Load device tree from EFI configuration table");
             return Some(dtb);
         }
         None
@@ -326,9 +322,9 @@ fn read_dtb(handle: Handle) -> &'static mut [u8] {
         return dtb;
     }
     uefi::system::with_config_table(|entries| {
-        log!("Config table:");
+        info!("Config table:");
         for entry in entries {
-            log!(" - {} {:?}", entry.guid, entry.address);
+            info!(" - {} {:?}", entry.guid, entry.address);
         }
     });
 
@@ -402,12 +398,12 @@ extern "C" fn launch_kernel(
             + SPSR_EL2::M::EL1h,
     );
 
-    log!("boot_info @ {:?}", boot_info as *const _);
-    log!(
+    info!("boot_info @ {:?}", boot_info as *const _);
+    info!(
         "device_tree @ {:?}",
         (*boot_info).device_tree.as_ptr_range()
     );
-    log!(
+    info!(
         "available_physical_memory @ {:?}",
         (*boot_info).available_physical_memory.as_ptr_range()
     );
@@ -456,13 +452,12 @@ pub unsafe fn main() -> Status {
 
     let image = boot::image_handle();
 
-    UEFILogger::init();
-    log!("Hello, UEFI!");
-    log!("CurrentEL {:?}", CurrentEL.get() >> 2);
+    info!("Hello, UEFI!");
+    info!("CurrentEL {:?}", CurrentEL.get() >> 2);
 
     debug_assert_eq!(CurrentEL.get() >> 2, 2);
 
-    log!("Loading kernel...");
+    info!("Loading kernel...");
 
     // let mut config_entries = st.config_table().iter();
     // let rsdp_addr = config_entries
@@ -477,9 +472,9 @@ pub unsafe fn main() -> Status {
     let dtb = read_dtb(image);
     let entry = load_elf(&kernel_elf);
 
-    log!("Starting kernel...");
+    info!("Starting kernel...");
 
-    log!("DTB @ {:?}", dtb.as_ptr_range());
+    info!("DTB @ {:?}", dtb.as_ptr_range());
 
     BOOT_INFO = gen_boot_info(dtb, init_fs);
     INIT_ARRAY = mem::transmute(entry.init_array);

@@ -9,7 +9,7 @@ pub(self) fn handle_irq(irq: usize) -> isize {
     if let Some(handler) = crate::modules::INTERRUPT.get_irq_handler(irq) {
         handler()
     } else {
-        log!("IRQ #{:?} has no handler!", irq);
+        error!("IRQ #{:?} has no handler!", irq);
         0
     }
 }

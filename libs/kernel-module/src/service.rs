@@ -4,7 +4,6 @@ use core::any::Any;
 use core::ops::{Deref, Range};
 use device_tree::DeviceTree;
 use interrupt::{InterruptController, TimerController};
-use log::Logger;
 use memory::address::Address;
 use memory::page::{Frame, Page};
 use proc::TaskId;
@@ -15,7 +14,7 @@ use testing::Tests;
 pub trait KernelService: Send + Sync + 'static {
     // === Logging === //
     fn log(&self, s: &str);
-    fn set_sys_logger(&self, logger: &'static dyn Logger);
+    fn set_sys_logger(&self, write: *mut dyn core::fmt::Write);
 
     // === Testing === //
     fn register_tests(&self, tests: Tests);

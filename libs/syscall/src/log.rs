@@ -1,18 +1,36 @@
 use core::fmt;
-use log::Logger;
+use core::fmt::Write;
+use log::Log;
 
-pub struct UserLogger;
+struct Stdout;
 
-impl UserLogger {
-    pub fn init() {
-        log::init(&UserLogger)
-    }
-}
-
-impl Logger for UserLogger {
-    #[inline]
-    fn log(&self, s: &str) -> Result<(), fmt::Error> {
+impl fmt::Write for Stdout {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
         crate::syscall::log(s);
         Ok(())
     }
+}
+
+pub struct UserLogger;
+
+static LOGGER: UserLogger = UserLogger;
+
+impl UserLogger {
+    pub fn init() {
+        log::set_logger(&LOGGER).unwrap();
+    }
+}
+
+impl Log for UserLogger {
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
+        true
+    }
+
+    #[inline]
+    fn log(&self, record: &log::Record) {
+        let mut stdout = Stdout;
+        writeln!(stdout, "[{}] {}", record.level(), record.args()).unwrap();
+    }
+
+    fn flush(&self) {}
 }

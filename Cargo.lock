@@ -114,7 +114,7 @@ dependencies = [
  "dev",
  "interrupt",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "memory",
  "spin",
  "tock-registers",
@@ -305,7 +305,7 @@ dependencies = [
  "anyhow",
  "dev",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "memory",
  "spin",
  "syscall",
@@ -324,7 +324,7 @@ dependencies = [
 name = "elf-loader"
 version = "0.0.3"
 dependencies = [
- "log 0.0.3",
+ "log",
  "memory",
  "xmas-elf",
 ]
@@ -388,7 +388,7 @@ dependencies = [
  "dev",
  "interrupt",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "memory",
  "spin",
  "tock-registers",
@@ -403,7 +403,7 @@ dependencies = [
  "dev",
  "interrupt",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "memory",
  "spin",
  "tock-registers",
@@ -451,7 +451,7 @@ version = "0.0.3"
 dependencies = [
  "anyhow",
  "kernel-module",
- "log 0.0.3",
+ "log",
 ]
 
 [[package]]
@@ -482,7 +482,7 @@ dependencies = [
  "device-tree",
  "interrupt",
  "kernel-module-macros",
- "log 0.0.3",
+ "log",
  "memory",
  "proc",
  "sched",
@@ -525,16 +525,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.0.3"
-
-[[package]]
-name = "log"
-version = "0.4.17"
+version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
-dependencies = [
- "cfg-if",
-]
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "ls"
@@ -566,7 +559,7 @@ dependencies = [
  "bytemuck",
  "cortex-a",
  "interrupt",
- "log 0.0.3",
+ "log",
  "spin",
  "syscall",
  "tock-registers",
@@ -616,7 +609,7 @@ dependencies = [
  "dev",
  "interrupt",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "memory",
  "spin",
  "sync",
@@ -630,7 +623,7 @@ dependencies = [
  "atomic",
  "interrupt",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "proc",
  "spin",
  "sync",
@@ -655,7 +648,7 @@ name = "proc"
 version = "0.0.3"
 dependencies = [
  "bytemuck",
- "log 0.0.3",
+ "log",
  "spin",
  "sync",
 ]
@@ -745,7 +738,7 @@ dependencies = [
  "crossbeam",
  "interrupt",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "proc",
  "sched",
  "spin",
@@ -837,7 +830,7 @@ dependencies = [
  "elf-loader",
  "interrupt",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "memory",
  "postcard",
  "proc",
@@ -861,7 +854,7 @@ dependencies = [
  "cortex-a",
  "device-tree",
  "elf-loader",
- "log 0.0.3",
+ "log",
  "memory",
  "spin",
  "tock-registers",
@@ -943,7 +936,7 @@ dependencies = [
 name = "sync"
 version = "0.0.3"
 dependencies = [
- "log 0.0.3",
+ "log",
  "spin",
  "syscall",
 ]
@@ -952,7 +945,7 @@ dependencies = [
 name = "syscall"
 version = "0.0.3"
 dependencies = [
- "log 0.0.3",
+ "log",
  "spin",
 ]
 
@@ -960,7 +953,7 @@ dependencies = [
 name = "testing"
 version = "0.0.3"
 dependencies = [
- "log 0.0.3",
+ "log",
  "spin",
 ]
 
@@ -994,7 +987,7 @@ checksum = "91f17ea8502a6bd414acb2bf5194f90ca4c48e33a2d18cb57eab3294d2050d99"
 dependencies = [
  "bitflags 2.6.0",
  "cfg-if",
- "log 0.4.17",
+ "log",
  "ptr_meta",
  "ucs2",
  "uefi-macros",
@@ -1081,7 +1074,7 @@ dependencies = [
  "anyhow",
  "interrupt",
  "kernel-module",
- "log 0.0.3",
+ "log",
  "proc",
  "spin",
  "vfs",

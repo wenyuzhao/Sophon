@@ -12,7 +12,7 @@ spin = { workspace = true }
 tock-registers = { workspace = true }
 bitflags = { path = "../bitflags" }
 interrupt = { path = "../interrupt" }
-log = { path = "../log" }
+log = { workspace = true }
 syscall = { path = "../syscall" }
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]

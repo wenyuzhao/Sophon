@@ -13,9 +13,8 @@ pub trait Test: Sync {
 impl<T: Fn() + Sync> Test for T {
     fn run(&self) {
         let name = core::any::type_name::<T>().rsplit_once("::").unwrap().0;
-        print!("{}...\t", name);
         self();
-        println!("[ok]");
+        info!("{name}...\t[ok]");
     }
 }
 
@@ -44,11 +43,11 @@ impl Tests {
 
     pub fn run(&self) {
         assert!(cfg!(sophon_test));
-        println!("\n--- Running {} {} tests ---", self.len, self.name);
+        info!("\n--- Running {} {} tests ---", self.len, self.name);
         for i in 0..self.len {
             self.tests[i].unwrap().run();
         }
-        println!("--- All tests passed ---\n");
+        info!("--- All tests passed ---\n");
     }
 
     pub fn merge(&mut self, tests: Tests) {

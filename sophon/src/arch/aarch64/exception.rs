@@ -93,7 +93,7 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
             asm!("mrs {:x}, far_el1", out(reg) far);
             let mut elr: usize;
             asm!("mrs {:x}, elr_el1", out(reg) elr);
-            log!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
+            info!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
             unreachable!()
         }
         #[allow(unreachable_patterns)]
@@ -107,29 +107,24 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
 
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception_serror(exception_frame: *mut ExceptionFrame) {
-    log!("SError received");
+    info!("SError received");
     panic_for_unhandled_exception(exception_frame);
 }
 
 unsafe fn panic_for_unhandled_exception(exception_frame: *mut ExceptionFrame) -> ! {
     let exception = get_exception_class();
-    log!(
+    info!(
         "Exception Frame: {:?} {:?}",
-        exception_frame,
-        *exception_frame
+        exception_frame, *exception_frame
     );
     let far = FAR_EL1.get() as *mut ();
     let elr = ELR_EL1.get() as *mut ();
     let esr = ESR_EL1.get() as *mut ();
     let eebr0_el1 = TTBR0_EL1.get() as *mut ();
     let sp_el0 = SP_EL0.get() as *mut ();
-    log!(
+    info!(
         "Abort FAR={:?} ELR={:?} TTBR0_EL0={:?} esr_el1={:?} SP_EL0={:?}",
-        far,
-        elr,
-        eebr0_el1,
-        esr as *mut (),
-        sp_el0,
+        far, elr, eebr0_el1, esr as *mut (), sp_el0,
     );
     panic!(
         "Unknown exception 0b{:b}",

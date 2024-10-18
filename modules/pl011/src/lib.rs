@@ -11,7 +11,6 @@ use core::fmt;
 use crossbeam::queue::SegQueue;
 use dev::{DevRequest, Device};
 use kernel_module::{kernel_module, KernelModule, SERVICE};
-use log::Logger;
 use memory::{page::Frame, volatile::Volatile};
 use spin::{Lazy, RwLock};
 use sync::Monitor;
@@ -47,7 +46,7 @@ impl KernelModule for PL011 {
         let uart = unsafe { &mut *(uart_page.start().as_mut_ptr() as *mut UART0) };
         uart.init();
         *self.uart.write() = uart;
-        SERVICE.set_sys_logger(&UART_LOGGER);
+        SERVICE.set_sys_logger(&raw mut UART_LOGGER);
         // Initialize interrupts
         let irq = node.interrupts().unwrap().next().unwrap().0;
         SERVICE.interrupt_controller().set_irq_handler(
@@ -163,13 +162,12 @@ impl UART0 {
     }
 }
 
-static UART_LOGGER: UARTLogger = UARTLogger;
+static mut UART_LOGGER: UARTLogger = UARTLogger(UARTLoggerInner);
 
-pub struct UARTLogger;
+pub struct UARTLoggerInner;
 
-impl Logger for UARTLogger {
-    fn log(&self, s: &str) -> Result<(), fmt::Error> {
-        let _guard = interrupt::uninterruptible();
+impl core::fmt::Write for UARTLoggerInner {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.chars() {
             if c == '\n' {
                 PL011.uart().putchar('\r');
@@ -178,8 +176,18 @@ impl Logger for UARTLogger {
         }
         Ok(())
     }
-    fn log_fmt(&self, args: fmt::Arguments) -> Result<(), fmt::Error> {
+}
+
+pub struct UARTLogger(UARTLoggerInner);
+
+impl core::fmt::Write for UARTLogger {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
         let _guard = interrupt::uninterruptible();
-        log::log_fmt(self, args)
+        self.0.write_str(s)
+    }
+
+    fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> fmt::Result {
+        let _guard = interrupt::uninterruptible();
+        self.0.write_fmt(args)
     }
 }

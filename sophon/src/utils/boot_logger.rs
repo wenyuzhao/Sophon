@@ -1,31 +1,12 @@
-use core::{cell::UnsafeCell, fmt};
-use log::Logger;
+use core::fmt::{self};
 use memory::address::Address;
 
-static BOOT_LOG: BootLogger = BootLogger(UnsafeCell::new(Address::ZERO));
+struct BootOutput(Address);
 
-#[allow(static_mut_refs)]
-pub fn init(mmio: Address) {
-    unsafe {
-        BOOT_LOG.set_mmio_address(mmio);
-        log::init(&*&raw const BOOT_LOG);
-    }
-}
-
-struct BootLogger(UnsafeCell<Address>);
-
-unsafe impl Sync for BootLogger {}
-
-impl BootLogger {
-    fn set_mmio_address(&self, addr: Address) {
-        unsafe { *self.0.get() = addr }
-    }
-}
-
-impl Logger for BootLogger {
-    fn log(&self, s: &str) -> Result<(), fmt::Error> {
+impl fmt::Write for BootOutput {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
         let _guard = interrupt::uninterruptible();
-        let mmio = match unsafe { *self.0.get() } {
+        let mmio = match self.0 {
             a if !a.is_zero() => a,
             _ => return Ok(()),
         };
@@ -49,5 +30,15 @@ impl Logger for BootLogger {
             putc(c)
         }
         Ok(())
+    }
+}
+
+static mut BOOT_OUTPUT: BootOutput = BootOutput(Address::ZERO);
+
+#[allow(static_mut_refs)]
+pub fn init(mmio: Address) {
+    unsafe {
+        BOOT_OUTPUT.0 = mmio;
+        super::print::init(&mut BOOT_OUTPUT);
     }
 }

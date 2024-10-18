@@ -16,5 +16,5 @@ uefi = { workspace = true }
 device-tree = { path = "../../libs/device-tree" }
 memory = { path = "../../libs/memory" }
 boot = { path = "../../libs/boot" }
-log = { path = "../../libs/log" }
+log = { workspace = true }
 elf-loader = { path = "../../libs/elf-loader" }

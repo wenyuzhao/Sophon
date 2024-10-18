@@ -15,7 +15,6 @@ use core::iter::Step;
 use core::ops::Range;
 use device_tree::DeviceTree;
 use kernel_module::ModuleCallHandler;
-use log::Logger;
 use memory::page::Frame;
 use memory::page_table::PageFlags;
 use memory::{
@@ -31,8 +30,8 @@ impl kernel_module::KernelService for KernelService {
         print!("{}", s);
     }
 
-    fn set_sys_logger(&self, logger: &'static dyn Logger) {
-        log::init(logger)
+    fn set_sys_logger(&self, write: *mut dyn core::fmt::Write) {
+        crate::utils::print::init(unsafe { &mut *write });
     }
 
     fn register_tests(&self, tests: Tests) {

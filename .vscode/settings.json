@@ -1,4 +1,5 @@
 {
-    "rust-analyzer.procMacro.enable": false,
+    "rust-analyzer.check.allTargets": false,
+    "rust-analyzer.procMacro.enable": true,
     "editor.formatOnSave": true,
 }

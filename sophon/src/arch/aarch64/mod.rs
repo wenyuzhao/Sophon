@@ -50,7 +50,7 @@ impl Arch for AArch64 {
             }
         }
         // Spin
-        log!("ERROR: Failed to shutdown.");
+        error!("ERROR: Failed to shutdown.");
         loop {
             unsafe { asm!("wfe") };
         }
