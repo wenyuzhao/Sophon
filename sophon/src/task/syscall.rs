@@ -92,7 +92,7 @@ fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
 
 fn thread_exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     // Note: `Task::current()` must be dropped before calling `schedule`.
-    PROCESS_MANAGER.current_task().unwrap().exit();
+    PROCESS_MANAGER.end_current_task();
     SCHEDULER.schedule()
 }
 fn halt(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {

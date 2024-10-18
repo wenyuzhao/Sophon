@@ -79,7 +79,7 @@ impl UserTask {
     }
 
     fn setup_user_stack(page_table: &mut PageTable) -> Address {
-        let tid = PROCESS_MANAGER.current_task().unwrap().id();
+        let tid = PROCESS_MANAGER.current_task().unwrap().id;
         let i = PROCESS_MANAGER
             .current_proc()
             .unwrap()

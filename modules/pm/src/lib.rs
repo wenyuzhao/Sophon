@@ -9,12 +9,12 @@ extern crate alloc;
 
 mod locks;
 mod proc;
-mod task;
 
-use ::proc::{Proc, ProcId, Runnable, TaskId};
-use alloc::{boxed::Box, sync::Arc};
+use ::proc::{Proc, ProcId, Runnable, Task, TaskId};
+use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use kernel_module::{kernel_module, KernelModule, SERVICE};
 use locks::{RawCondvar, RawMutex};
+use spin::Mutex;
 use syscall::module_calls::proc::ProcRequest;
 
 use crate::proc::Process;
@@ -23,6 +23,8 @@ use crate::proc::Process;
 pub static mut PM: ProcessManager = ProcessManager;
 
 pub struct ProcessManager;
+
+static TASKS: Mutex<BTreeMap<TaskId, Arc<Task>>> = Mutex::new(BTreeMap::new());
 
 impl ::proc::ProcessManager for ProcessManager {
     fn spawn(&self, t: Box<dyn Runnable>) -> Arc<dyn Proc> {
@@ -37,11 +39,30 @@ impl ::proc::ProcessManager for ProcessManager {
     fn current_proc_id(&self) -> Option<ProcId> {
         self.current_proc().map(|p| p.id())
     }
-    fn get_task_by_id(&self, id: TaskId) -> Option<Arc<dyn ::proc::Task>> {
-        task::Task::by_id(id).map(|t| t.as_dyn())
+    fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>> {
+        TASKS.lock().get(&id).cloned()
     }
-    fn current_task(&self) -> Option<Arc<dyn ::proc::Task>> {
-        task::Task::current().map(|t| t.as_dyn())
+    fn current_task(&self) -> Option<Arc<Task>> {
+        self.get_task_by_id(SERVICE.scheduler().get_current_task_id()?)
+    }
+    fn end_current_task(&self) {
+        let task = self.current_task().unwrap();
+        assert!(!interrupt::is_enabled());
+        // Mark as dead
+        {
+            let mut live = task.live.lock();
+            *live = false;
+            task.live.notify_all()
+        }
+        // Remove from process
+        let proc = task.proc.upgrade().unwrap().clone();
+        let mut tasks = proc.tasks().lock();
+        let index = tasks.iter().position(|t| *t == task.id).unwrap();
+        tasks.swap_remove(index);
+        // Remove from scheduler
+        SERVICE.scheduler().remove_task(task.id);
+        // Remove from all tasks
+        TASKS.lock().remove(&task.id).unwrap();
     }
 }
 

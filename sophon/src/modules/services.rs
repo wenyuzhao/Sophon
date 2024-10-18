@@ -139,7 +139,7 @@ impl kernel_module::KernelService for KernelService {
         // Note: `task` must be dropped before calling `return_to_user`.
         let task = PROCESS_MANAGER.get_task_by_id(task).unwrap();
         let context_ptr = {
-            task.context()
+            task.context
                 .downcast_ref_unchecked::<<TargetArch as Arch>::Context>()
                 as *const <TargetArch as Arch>::Context
         };

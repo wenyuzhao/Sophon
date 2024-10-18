@@ -5,8 +5,12 @@ extern crate alloc;
 
 use core::any::Any;
 
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use spin::Mutex;
+use alloc::{
+    boxed::Box,
+    sync::{Arc, Weak},
+    vec::Vec,
+};
+use spin::{Lazy, Mutex};
 use sync::Monitor;
 
 #[derive(Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
@@ -35,6 +39,18 @@ unsafe impl bytemuck::ZeroableInOption for TaskId {}
 
 unsafe impl bytemuck::PodInOption for TaskId {}
 
+pub struct Task {
+    pub id: TaskId,
+    pub live: Lazy<Monitor<bool>>,
+    pub context: Box<dyn Any>,
+    pub proc: Weak<dyn Proc>,
+    pub sched: Box<dyn Any>,
+    pub runnable: Box<dyn Runnable>,
+}
+
+unsafe impl Send for Task {}
+unsafe impl Sync for Task {}
+
 /// Process manager
 pub trait ProcessManager {
     /// Create a new process
@@ -46,29 +62,10 @@ pub trait ProcessManager {
     /// Get the current process id
     fn current_proc_id(&self) -> Option<ProcId>;
     /// Get a task by its id
-    fn get_task_by_id(&self, id: TaskId) -> Option<Arc<dyn Task>>;
+    fn get_task_by_id(&self, id: TaskId) -> Option<Arc<Task>>;
     /// Get the current task
-    fn current_task(&self) -> Option<Arc<dyn Task>>;
-}
-
-/// Abstruct task type
-pub trait Task: Send + Sync {
-    /// Get task id
-    fn id(&self) -> TaskId;
-    /// Get task running state
-    fn state(&self) -> &Monitor<bool>;
-    /// Arch-dependent context for context switching
-    fn context(&self) -> &dyn Any;
-    /// The process that owns this task
-    fn proc(&self) -> Arc<dyn Proc>;
-    /// Task scheduler state
-    fn sched(&self) -> &dyn Any;
-    /// The task runnable
-    fn runnable(&self) -> &dyn Runnable;
-    /// Exit the task
-    fn exit(&self);
-    /// Wait for the task to complete
-    fn wait_for_completion(&self);
+    fn current_task(&self) -> Option<Arc<Task>>;
+    fn end_current_task(&self);
 }
 
 /// Abstruct process type
@@ -82,7 +79,7 @@ pub trait Proc: Send + Sync + Any {
     /// Get all the tasks in this process
     fn tasks(&self) -> &Mutex<Vec<TaskId>>;
     /// Spawn a task
-    fn spawn_task(self: Arc<Self>, task: Box<dyn Runnable>) -> Arc<dyn Task>;
+    fn spawn_task(self: Arc<Self>, task: Box<dyn Runnable>) -> Arc<Task>;
     /// Exit the process
     fn exit(&self);
     /// Wait for the process to complete

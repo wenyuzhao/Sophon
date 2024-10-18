@@ -28,8 +28,8 @@ pub trait ArchContext: Sized + 'static {
         argv: *const *const u8,
     ) -> !;
 
-    fn of(task: &dyn Task) -> &Self {
-        unsafe { task.context().downcast_ref_unchecked() }
+    fn of(task: &Task) -> &Self {
+        unsafe { task.context.downcast_ref_unchecked() }
     }
 }
 

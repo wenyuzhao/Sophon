@@ -3,14 +3,11 @@ use core::{any::Any, sync::atomic::AtomicUsize};
 use alloc::{borrow::ToOwned, boxed::Box, collections::BTreeMap, sync::Arc, vec, vec::Vec};
 use atomic::Ordering;
 use kernel_module::SERVICE;
-use proc::{Proc, ProcId, Runnable, TaskId};
+use proc::{Proc, ProcId, Runnable, Task, TaskId};
 use spin::{Lazy, Mutex};
 use sync::Monitor;
 
-use crate::{
-    locks::{RawCondvar, RawMutex},
-    task::Task,
-};
+use crate::locks::{RawCondvar, RawMutex};
 
 static PROCS: Mutex<BTreeMap<ProcId, Arc<Process>>> = Mutex::new(BTreeMap::new());
 
@@ -26,6 +23,30 @@ pub struct Process {
 
 unsafe impl Send for Process {}
 unsafe impl Sync for Process {}
+
+fn create_task(
+    proc: Arc<dyn Proc>,
+    runnable: Box<dyn Runnable>,
+    context: Box<dyn Any>,
+) -> Arc<Task> {
+    static TASK_ID_COUNT: AtomicUsize = AtomicUsize::new(0);
+    let id = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
+    let task = Arc::new(Task {
+        id,
+        context,
+        proc: Arc::downgrade(&proc),
+        live: Lazy::new(|| Monitor::new(true)),
+        sched: SERVICE.scheduler().new_state(),
+        runnable,
+    });
+    crate::TASKS.lock().insert(task.id, task.clone());
+    task
+}
+
+fn current_task() -> Option<Arc<Task>> {
+    let id = SERVICE.scheduler().get_current_task_id()?;
+    crate::TASKS.lock().get(&id).cloned()
+}
 
 impl Process {
     pub fn create(t: Box<dyn Runnable>, mm: Box<dyn Any>) -> Arc<Self> {
@@ -45,7 +66,7 @@ impl Process {
             cvars: Default::default(),
         });
         // Create main thread
-        let task = Task::create(proc.clone(), t, SERVICE.create_task_context());
+        let task = create_task(proc.clone(), t, SERVICE.create_task_context());
         proc.threads.lock().push(task.id);
         // Add to list
         PROCS.lock().insert(proc.id, proc.clone());
@@ -68,7 +89,7 @@ impl Process {
     #[inline(always)]
     pub fn current() -> Option<Arc<Self>> {
         let _guard = interrupt::uninterruptible();
-        let proc = Task::current().map(|t| t.proc.upgrade().unwrap())?;
+        let proc = current_task().map(|t| t.proc.upgrade().unwrap())?;
         let ptr = Arc::into_raw(proc).cast::<Self>();
         Some(unsafe { Arc::from_raw(ptr) })
     }
@@ -87,9 +108,9 @@ impl Proc for Process {
     fn tasks(&self) -> &Mutex<Vec<TaskId>> {
         &self.threads
     }
-    fn spawn_task(self: Arc<Self>, task: Box<dyn Runnable>) -> Arc<dyn proc::Task> {
+    fn spawn_task(self: Arc<Self>, task: Box<dyn Runnable>) -> Arc<Task> {
         let _guard = interrupt::uninterruptible();
-        let task = Task::create(self.clone(), task, SERVICE.create_task_context());
+        let task = create_task(self.clone(), task, SERVICE.create_task_context());
         self.threads.lock().push(task.id);
         SERVICE.scheduler().register_new_task(task.id);
         debug_assert_eq!(Arc::strong_count(&task), 2);
@@ -110,7 +131,7 @@ impl Proc for Process {
         // Remove from scheduler
         let threads = self.threads.lock();
         for t in &*threads {
-            crate::task::TASKS.lock().remove(t).unwrap();
+            crate::TASKS.lock().remove(t).unwrap();
             SERVICE.scheduler().remove_task(*t)
         }
         // Remove from procs
