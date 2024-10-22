@@ -115,7 +115,7 @@ impl Scheduler {
         let task = self.get_task_by_id(tid);
         assert_eq!(task.state.load(Ordering::SeqCst), RunState::Running);
         task.state.store(RunState::Blocked, Ordering::SeqCst);
-        self.schedule();
+        syscall::_yield();
     }
 
     #[allow(unused)]

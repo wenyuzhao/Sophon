@@ -25,6 +25,10 @@ impl KernelMemoryMapper {
         self.page_table.store(page_table, Ordering::SeqCst);
     }
 
+    pub fn get_kernel_page_table(&self) -> *const PageTable {
+        self.page_table.load(Ordering::SeqCst)
+    }
+
     /// Temporarily enable kernel address space.
     pub fn with_kernel_address_space(&self) -> impl Drop + DerefMut + Deref<Target = PageTable> {
         debug_assert!(!self.page_table.load(Ordering::SeqCst).is_null());

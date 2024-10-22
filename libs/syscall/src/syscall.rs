@@ -15,6 +15,8 @@ pub enum Syscall {
     WaitPid,
     /// Eexcute a new process
     Exec,
+    /// Yield the current thread
+    Yield,
     Sbrk,
     Exit,
     ThreadExit,
@@ -96,4 +98,9 @@ pub fn thread_exit() -> ! {
 pub fn halt(code: usize) -> ! {
     syscall(Syscall::Halt, &[code]);
     unreachable!()
+}
+
+#[inline]
+pub fn _yield() {
+    syscall(Syscall::Yield, &[]);
 }

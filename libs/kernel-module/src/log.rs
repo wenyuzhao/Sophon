@@ -30,6 +30,11 @@ static LOGGER: KernelLogger = KernelLogger;
 
 pub fn init() {
     log::set_logger(&LOGGER).unwrap();
+    if cfg!(debug_assertions) {
+        log::set_max_level(log::LevelFilter::Trace);
+    } else {
+        log::set_max_level(log::LevelFilter::Info);
+    }
 }
 
 #[doc(hidden)]

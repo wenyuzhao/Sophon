@@ -3,6 +3,7 @@ use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::modules::INTERRUPT;
 use crate::task::sched::SCHEDULER;
+use crate::task::PROCESS_MANAGER;
 use core::arch::{asm, global_asm};
 use cortex_a::{asm::barrier, registers::*};
 use memory::page::{Page, Size1G, Size2M, Size4K};
@@ -44,8 +45,30 @@ pub struct ExceptionFrame {
     pub elr_el1: *mut u8,
     pub spsr_el1: usize,
     pub x30: usize,
-    pub x31: usize,
-    pub x8_to_x29: [u64; 29 - 8 + 1],
+    /// This holds sp_el0
+    pub sp_el0: usize,
+    pub x28: usize,
+    pub x29: usize,
+    pub x26: usize,
+    pub x27: usize,
+    pub x24: usize,
+    pub x25: usize,
+    pub x22: usize,
+    pub x23: usize,
+    pub x20: usize,
+    pub x21: usize,
+    pub x18: usize,
+    pub x19: usize,
+    pub x16: usize,
+    pub x17: usize,
+    pub x14: usize,
+    pub x15: usize,
+    pub x12: usize,
+    pub x13: usize,
+    pub x10: usize,
+    pub x11: usize,
+    pub x8: usize,
+    pub x9: usize,
     pub x6: usize,
     pub x7: usize,
     pub x4: usize,
@@ -104,6 +127,11 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
             let mut elr: usize;
             asm!("mrs {:x}, elr_el1", out(reg) elr);
             // trace!("TASK {:?}", SCHEDULER.get_current_task().unwrap().id);
+            let proc = PROCESS_MANAGER.current_proc().unwrap();
+            let task = SCHEDULER.get_current_task().unwrap();
+            let proc_p4 = proc.mem.get_page_table() as *const PageTable;
+            let curr_p4 = PageTable::get() as *const PageTable;
+            let kern_p4 = KERNEL_MEMORY_MAPPER.get_kernel_page_table() as *const PageTable;
             let mut handled = false;
             {
                 let pt = PageTable::get();
@@ -140,9 +168,15 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
             }
             if !handled {
                 error!(
-                    "Data Abort FAR={:?} ELR={:?} privileged={:?}",
-                    far as *mut (), elr as *mut (), privileged
+                    "Data Abort: FAR={:?} ELR={:?} PRIV={:?} TID={:?} PID={:?}",
+                    far as *mut (), elr as *mut (), privileged, task.id, proc.id
                 );
+                error!(
+                    "PageTable: proc={:?} curr={:?} kernel={:?}",
+                    proc_p4, curr_p4, kern_p4
+                );
+                error!("SP_EL0: {:#x?}", exception_frame.sp_el0);
+                error!("REGS: {:#x?}", exception_frame);
                 unreachable!()
             }
         }

@@ -37,6 +37,7 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
         Syscall::Exit => exit(a, b, c, d, e),
         Syscall::ThreadExit => thread_exit(a, b, c, d, e),
         Syscall::Halt => halt(a, b, c, d, e),
+        Syscall::Yield => _yield(a, b, c, d, e),
     }
 }
 
@@ -103,4 +104,8 @@ fn thread_exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
 
 fn halt(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     TargetArch::halt(a as _)
+}
+
+fn _yield(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    SCHEDULER.schedule()
 }

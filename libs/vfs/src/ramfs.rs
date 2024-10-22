@@ -3,9 +3,15 @@ use alloc::{collections::BTreeMap, string::String, vec::Vec};
 use core::ops::Deref;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct File {
     data: Vec<u8>,
+}
+
+impl core::fmt::Debug for File {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "File({} bytes)", self.data.len())
+    }
 }
 
 impl File {
