@@ -2,19 +2,20 @@
 use core::arch::asm;
 use core::intrinsics::transmute;
 
-use crate::{
-    module_calls::proc::{OpaqueCondvarPointer, OpaqueMutexPointer, ProcRequest},
-    ModuleRequest,
-};
+use crate::ModuleRequest;
 
 #[repr(usize)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Syscall {
     Log,
     ModuleCall,
+    /// Fork
+    Fork,
+    /// Wait for process to finish
     Wait,
-    Sbrk,
+    /// Eexcute a new process
     Exec,
+    Sbrk,
     Exit,
     ThreadExit,
     Halt,
@@ -68,6 +69,11 @@ pub fn wait() -> isize {
 }
 
 #[inline]
+pub fn fork() -> isize {
+    syscall(Syscall::Fork, &[])
+}
+
+#[inline]
 pub fn exec(path: &str, args: &[&str]) -> isize {
     let path = &path as *const &str;
     let args = &args as *const &[&str];
@@ -90,46 +96,4 @@ pub fn thread_exit() -> ! {
 pub fn halt(code: usize) -> ! {
     syscall(Syscall::Halt, &[code]);
     unreachable!()
-}
-
-#[inline]
-pub fn mutex_create() -> OpaqueMutexPointer {
-    let r = module_call("pm", &ProcRequest::MutexCreate);
-    OpaqueMutexPointer(r as _)
-}
-
-#[inline]
-pub fn mutex_lock(mutex: OpaqueMutexPointer) -> isize {
-    module_call("pm", &ProcRequest::MutexLock(mutex))
-}
-
-#[inline]
-pub fn mutex_unlock(mutex: OpaqueMutexPointer) -> isize {
-    module_call("pm", &ProcRequest::MutexUnlock(mutex))
-}
-
-#[inline]
-pub fn mutex_destroy(mutex: OpaqueMutexPointer) -> isize {
-    module_call("pm", &ProcRequest::MutexDestroy(mutex))
-}
-
-#[inline]
-pub fn condvar_create() -> OpaqueCondvarPointer {
-    let r = module_call("pm", &ProcRequest::CondvarCreate);
-    OpaqueCondvarPointer(r as _)
-}
-
-#[inline]
-pub fn condvar_wait(cvar: OpaqueCondvarPointer, mutex: OpaqueMutexPointer) -> isize {
-    module_call("pm", &ProcRequest::CondvarWait(cvar, mutex))
-}
-
-#[inline]
-pub fn condvar_notify_all(cvar: OpaqueCondvarPointer) -> isize {
-    module_call("pm", &ProcRequest::CondvarNotifyAll(cvar))
-}
-
-#[inline]
-pub fn condvar_destory(cvar: OpaqueCondvarPointer) -> isize {
-    module_call("pm", &ProcRequest::CondvarDestroy(cvar))
 }

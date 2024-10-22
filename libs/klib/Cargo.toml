@@ -1,5 +1,6 @@
 [package]
-name = "proc"
+name = "klib"
+description = "Kernel library for common data structures and interfaces defined in kernel"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }
@@ -10,7 +11,8 @@ edition = { workspace = true }
 bytemuck = { workspace = true }
 spin = { workspace = true }
 log = { workspace = true }
-sync = { path = "../sync" }
+atomic = { workspace = true }
+memory = { path = "../memory" }
 
 [features]
 default = []

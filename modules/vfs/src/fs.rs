@@ -7,6 +7,7 @@ use vfs::Node;
 use crate::rootfs::ROOT_FS;
 
 /// Per-process file descriptor
+#[derive(Clone)]
 pub struct FileDescriptor {
     pub node: Node,
     pub offset: usize,

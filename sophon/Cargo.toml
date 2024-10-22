@@ -13,6 +13,7 @@ tock-registers = { workspace = true }
 serde = { workspace = true }
 postcard = { workspace = true }
 atomic = { workspace = true }
+crossbeam = { workspace = true }
 syscall = { path = "../libs/syscall" }
 memory = { path = "../libs/memory" }
 interrupt = { path = "../libs/interrupt" }
@@ -21,13 +22,12 @@ boot = { path = "../libs/boot" }
 kernel-module = { path = "../libs/kernel-module" }
 elf-loader = { path = "../libs/elf-loader" }
 vfs = { path = "../libs/vfs" }
-proc = { path = "../libs/proc" }
 device-tree = { path = "../libs/device-tree" }
 sync = { path = "../libs/sync" }
 sophon-macros = { path = "./macros" }
 testing = { path = "../libs/testing" }
 dev = { path = "../libs/dev" }
-sched = { path = "../libs/sched" }
+klib = { path = "../libs/klib" }
 
 [build-dependencies]
 spin = { workspace = true }

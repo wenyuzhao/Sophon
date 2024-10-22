@@ -48,6 +48,11 @@ pub fn bitflags(attr: TokenStream, item: TokenStream) -> TokenStream {
             pub const fn contains(&self, flags: Self) -> bool {
                 (self.value & flags.value) == flags.value
             }
+
+            #[inline(always)]
+            pub const fn remove(self, flags: Self) -> Self {
+                Self { value: self.value & !flags.value }
+            }
         }
 
         impl core::ops::Not for #name {

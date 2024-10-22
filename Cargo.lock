@@ -482,10 +482,9 @@ dependencies = [
  "device-tree",
  "interrupt",
  "kernel-module-macros",
+ "klib",
  "log",
  "memory",
- "proc",
- "sched",
  "spin",
  "sync",
  "syscall",
@@ -499,6 +498,17 @@ version = "0.0.3"
 dependencies = [
  "quote",
  "syn 1.0.98",
+]
+
+[[package]]
+name = "klib"
+version = "0.0.3"
+dependencies = [
+ "atomic",
+ "bytemuck",
+ "log",
+ "memory",
+ "spin",
 ]
 
 [[package]]
@@ -616,21 +626,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pm"
-version = "0.0.3"
-dependencies = [
- "anyhow",
- "atomic",
- "interrupt",
- "kernel-module",
- "log",
- "proc",
- "spin",
- "sync",
- "syscall",
-]
-
-[[package]]
 name = "postcard"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -641,16 +636,6 @@ dependencies = [
  "embedded-io 0.6.1",
  "heapless",
  "serde",
-]
-
-[[package]]
-name = "proc"
-version = "0.0.3"
-dependencies = [
- "bytemuck",
- "log",
- "spin",
- "sync",
 ]
 
 [[package]]
@@ -730,22 +715,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "round-robin"
-version = "0.0.3"
-dependencies = [
- "anyhow",
- "atomic",
- "crossbeam",
- "interrupt",
- "kernel-module",
- "log",
- "proc",
- "sched",
- "spin",
- "vfs",
-]
-
-[[package]]
 name = "rustc_version"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -761,14 +730,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
  "semver 1.0.12",
-]
-
-[[package]]
-name = "sched"
-version = "0.0.3"
-dependencies = [
- "bytemuck",
- "proc",
 ]
 
 [[package]]
@@ -825,16 +786,16 @@ dependencies = [
  "atomic",
  "boot",
  "cortex-a",
+ "crossbeam",
  "dev",
  "device-tree",
  "elf-loader",
  "interrupt",
  "kernel-module",
+ "klib",
  "log",
  "memory",
  "postcard",
- "proc",
- "sched",
  "serde",
  "sophon-macros",
  "spin",
@@ -1061,8 +1022,8 @@ checksum = "77439c1b53d2303b20d9459b1ade71a83c716e3f9c34f3228c00e6f185d6c002"
 name = "vfs"
 version = "0.0.3"
 dependencies = [
+ "klib",
  "postcard",
- "proc",
  "serde",
  "syscall",
 ]
@@ -1074,8 +1035,8 @@ dependencies = [
  "anyhow",
  "interrupt",
  "kernel-module",
+ "klib",
  "log",
- "proc",
  "spin",
  "vfs",
 ]

@@ -12,7 +12,7 @@ pub fn init(logger: &'static mut dyn Write) {
     }
     if !IS_LOG_LOGGER_SET.swap(true, Ordering::SeqCst) {
         log::set_logger(&LOG_LOGGER).unwrap();
-        log::set_max_level(log::LevelFilter::Debug);
+        log::set_max_level(log::LevelFilter::Trace);
     }
 }
 

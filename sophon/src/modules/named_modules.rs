@@ -46,7 +46,5 @@ impl<T: 'static + ?Sized> Deref for NamedModule<T> {
 
 pub static INTERRUPT: NamedModule<dyn interrupt::InterruptController> =
     NamedModule::uninit_with_post_initializer(|| TargetArch::setup_interrupt_table());
-pub static SCHEDULER: NamedModule<dyn sched::Scheduler> = NamedModule::UNINIT;
-pub static PROCESS_MANAGER: NamedModule<dyn proc::ProcessManager> = NamedModule::UNINIT;
 pub static TIMER: NamedModule<dyn interrupt::TimerController> = NamedModule::UNINIT;
 pub static VFS: NamedModule<dyn vfs::VFSManager> = NamedModule::UNINIT;

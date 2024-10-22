@@ -41,7 +41,7 @@ impl GICTimer {
                 let step = CNTFRQ_EL0.get() as u64 / TIMER_INTERRUPT_FREQUENCY as u64;
                 CNTP_TVAL_EL0.set(step as u64);
                 SERVICE.interrupt_controller().interrupt_end();
-                SERVICE.scheduler().timer_tick();
+                SERVICE.timer_tick();
             }),
         );
     }

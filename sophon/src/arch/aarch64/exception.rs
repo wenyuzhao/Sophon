@@ -1,8 +1,12 @@
 use crate::arch::{aarch64::context::*, *};
+use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
+use crate::memory::physical::PHYSICAL_MEMORY;
 use crate::modules::INTERRUPT;
-use crate::modules::PROCESS_MANAGER;
+use crate::task::sched::SCHEDULER;
 use core::arch::{asm, global_asm};
 use cortex_a::{asm::barrier, registers::*};
+use memory::page::{Page, Size1G, Size2M, Size4K};
+use memory::page_table::PageFlags;
 use tock_registers::interfaces::{Readable, Writeable};
 
 #[repr(usize)]
@@ -64,14 +68,20 @@ unsafe fn is_el0(frame: &ExceptionFrame) -> bool {
 
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
-    // log!("Exception received");
+    // trace!("Exception received");
     let privileged = !is_el0(exception_frame);
-    AArch64Context::of(&*PROCESS_MANAGER.current_task().unwrap())
+    AArch64Context::of(&*SCHEDULER.get_current_task().unwrap())
         .push_exception_frame(exception_frame);
     let exception = get_exception_class();
+    // trace!("Exception received {:?}", exception);
     match exception {
         ExceptionClass::SVCAArch64 => {
-            // log!("SVCAArch64 Start {:?}", Task::current().unwrap().id());
+            // trace!(
+            //     "SVCAArch64 Start {:?} #{} privileged={}",
+            //     SCHEDULER.get_current_task().unwrap().id,
+            //     exception_frame.x0,
+            //     privileged
+            // );
             let f = if privileged {
                 crate::task::syscall::handle_syscall::<true>
             } else {
@@ -86,22 +96,62 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
                 exception_frame.x5,
             );
             exception_frame.x0 = ::core::mem::transmute(r);
-            // log!("SVCAArch64 End {:?}", Task::current().unwrap().id());
+            // trace!("SVCAArch64 End");
         }
         ExceptionClass::DataAbortLowerEL | ExceptionClass::DataAbortHigherEL => {
             let mut far: usize;
             asm!("mrs {:x}, far_el1", out(reg) far);
             let mut elr: usize;
             asm!("mrs {:x}, elr_el1", out(reg) elr);
-            info!("Data Abort {:?} {:?}", far as *mut (), elr as *mut ());
-            unreachable!()
+            trace!("TASK {:?}", SCHEDULER.get_current_task().unwrap().id);
+            let mut handled = false;
+            {
+                let pt = PageTable::get();
+                let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+                let fault_addr = Address::<V>::from(far);
+                // Copy-on-write
+                if let Some((_, flags, level)) = pt.translate_with_flags(fault_addr) {
+                    if flags.contains(PageFlags::COPY_ON_WRITE) {
+                        trace!("COW {:?} {:?}", fault_addr, flags);
+                        match level {
+                            1 => pt.copy_on_write::<Size4K>(
+                                Page::containing(fault_addr),
+                                &PHYSICAL_MEMORY,
+                            ),
+                            2 => pt.copy_on_write::<Size2M>(
+                                Page::containing(fault_addr),
+                                &PHYSICAL_MEMORY,
+                            ),
+                            3 => pt.copy_on_write::<Size1G>(
+                                Page::containing(fault_addr),
+                                &PHYSICAL_MEMORY,
+                            ),
+                            _ => unreachable!(),
+                        }
+                        trace!("COW {:?} {:?} DONE", fault_addr, flags);
+                        handled = true;
+                    }
+                }
+                // trace!(
+                //     "PTE4#510 {:?} {:?}",
+                //     pt.entries[510].address(),
+                //     pt.entries[510].flags()
+                // );
+            }
+            if !handled {
+                error!(
+                    "Data Abort FAR={:?} ELR={:?} privileged={:?}",
+                    far as *mut (), elr as *mut (), privileged
+                );
+                unreachable!()
+            }
         }
         #[allow(unreachable_patterns)]
         _ => panic_for_unhandled_exception(exception_frame),
     }
     // Note: `Task::current()` must be dropped before calling `return_to_user`.
     let context =
-        AArch64Context::of(&*PROCESS_MANAGER.current_task().unwrap()) as *const AArch64Context;
+        AArch64Context::of(&*SCHEDULER.get_current_task().unwrap()) as *const AArch64Context;
     (*context).return_to_user();
 }
 
@@ -136,14 +186,14 @@ unsafe fn panic_for_unhandled_exception(exception_frame: *mut ExceptionFrame) ->
 pub unsafe extern "C" fn handle_interrupt(exception_frame: &mut ExceptionFrame) {
     INTERRUPT.interrupt_begin();
     let irq = INTERRUPT.get_active_irq().unwrap();
-    AArch64Context::of(&*PROCESS_MANAGER.current_task().unwrap())
+    AArch64Context::of(&*SCHEDULER.get_current_task().unwrap())
         .push_exception_frame(exception_frame);
     super::super::handle_irq(irq);
     INTERRUPT.interrupt_end();
     ::core::sync::atomic::fence(::core::sync::atomic::Ordering::SeqCst);
     // Note: `Task::current()` must be dropped before calling `return_to_user`.
     let context =
-        AArch64Context::of(&*PROCESS_MANAGER.current_task().unwrap()) as *const AArch64Context;
+        AArch64Context::of(&*SCHEDULER.get_current_task().unwrap()) as *const AArch64Context;
     (*context).return_to_user();
 }
 

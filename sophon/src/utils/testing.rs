@@ -1,13 +1,8 @@
-use alloc::boxed::Box;
-use proc::Runnable;
 use spin::RwLock;
 
 pub use testing::{Test, Tests};
 
-use crate::{
-    arch::{Arch, TargetArch},
-    modules::PROCESS_MANAGER,
-};
+use crate::arch::{Arch, TargetArch};
 
 static BOOT_TESTS: RwLock<Tests> = RwLock::new(Tests::new("boot"));
 
@@ -35,17 +30,8 @@ pub fn run_boot_tests() {
     BOOT_TESTS.read().run();
 }
 
-pub fn start_kernel_test_runner() {
+pub fn run_kernel_tests_and_halt() -> ! {
     assert!(cfg!(sophon_test));
-    let _proc = PROCESS_MANAGER.spawn(Box::new(KernelTestRunner));
-}
-
-pub struct KernelTestRunner;
-
-impl Runnable for KernelTestRunner {
-    fn run(&mut self) -> ! {
-        assert!(cfg!(sophon_test));
-        KERNEL_TESTS.read().run();
-        TargetArch::halt(0)
-    }
+    KERNEL_TESTS.read().run();
+    TargetArch::halt(0)
 }

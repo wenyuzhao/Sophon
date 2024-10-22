@@ -14,7 +14,7 @@ use tock_registers::interfaces::Readable;
 #[repr(C, align(4096))]
 #[derive(Debug)]
 pub struct PageTable<L: TableLevel = L4> {
-    entries: [PageTableEntry; 512],
+    pub entries: [PageTableEntry; 512],
     phantom: PhantomData<L>,
 }
 
@@ -52,6 +52,94 @@ impl<L: TableLevel> PageTable<L> {
         } else {
             None
         }
+    }
+
+    fn walk_mut_impl(
+        &mut self,
+        base: Address<V>,
+        visitor: &mut impl FnMut(&mut PageTableEntry, Address<V>, usize),
+    ) {
+        for (i, entry) in self.entries.iter_mut().enumerate() {
+            let addr = base + (i << L::SHIFT);
+            if !entry.present() {
+                continue;
+            }
+            if L::ID == L1::ID {
+                visitor(entry, addr, L::ID - 1);
+            } else {
+                if entry.is_block() {
+                    visitor(entry, addr, L::ID - 1);
+                } else {
+                    let phy_addr = entry.address();
+                    let next_table: &'static mut PageTable<L::NextLevel> =
+                        unsafe { transmute(phy_addr) };
+                    next_table.walk_mut_impl(addr, visitor);
+                }
+            }
+        }
+    }
+
+    pub fn walk_mut(&mut self, visitor: &mut impl FnMut(&mut PageTableEntry, Address<V>, usize)) {
+        self.walk_mut_impl(Address::ZERO, visitor);
+    }
+
+    pub fn clone(&self, pa: &impl PageAllocator<P>) -> &'static mut Self {
+        let frame = PageTable::<L4>::alloc_frame4k(pa);
+        unsafe {
+            frame.zero();
+            let new_table = frame.start().as_mut::<PageTable<L>>();
+            for (i, entry) in self.entries.iter().enumerate() {
+                new_table.entries[i] = entry.clone();
+                if L::ID == 4 && i >= 480 {
+                    // This are kernel page tables, don't duplicate them
+                    continue;
+                }
+                if L::ID != L1::ID
+                    && entry.present()
+                    && !entry.is_block()
+                    && entry.flags().contains(PageFlags::USER)
+                {
+                    let next_table = entry.address().as_mut::<PageTable<L::NextLevel>>();
+                    let next_table_cloned = next_table.clone(pa);
+                    new_table.entries[i].set::<Size4K>(
+                        Frame::new(Address::from(
+                            next_table_cloned as *mut PageTable<L::NextLevel> as usize,
+                        )),
+                        entry.flags(),
+                    );
+                }
+            }
+            new_table
+        }
+    }
+
+    pub fn release(&mut self, pa: &impl PageAllocator<P>) {
+        for (i, entry) in self.entries.iter_mut().enumerate() {
+            if L::ID == L4::ID && i >= 480 {
+                // Kernel page table entries are shared. Don't release them.
+                break;
+            }
+            if entry.is_empty() || !entry.present() {
+                continue;
+            }
+            if entry.is_block() || L::ID == L1::ID {
+                // Contains a frame
+                let page = entry.address();
+                match L::ID {
+                    L1::ID => pa.dealloc::<Size4K>(Frame::new(page)),
+                    L2::ID => pa.dealloc::<Size2M>(Frame::new(page)),
+                    L3::ID => pa.dealloc::<Size1G>(Frame::new(page)),
+                    _ => unreachable!(),
+                }
+            } else {
+                // Contains a pointer to the next level page table
+                let next_pt_addr = entry.address();
+                let next_page_table = unsafe { next_pt_addr.as_mut::<PageTable<L::NextLevel>>() };
+                next_page_table.release(pa);
+            }
+            entry.clear();
+        }
+        pa.dealloc::<Size4K>(Frame::new(Address::from(self)));
     }
 }
 
@@ -146,7 +234,10 @@ impl PageTable<L4> {
         x
     }
 
-    pub fn translate(&mut self, a: Address<V>) -> Option<Address<P>> {
+    pub fn translate_with_flags(
+        &mut self,
+        a: Address<V>,
+    ) -> Option<(Address<P>, PageFlags, usize)> {
         // P4
         let table = self;
         // P3
@@ -160,7 +251,11 @@ impl PageTable<L4> {
             return None;
         }
         if table[index].is_block() {
-            return Some(table[index].address() + (a.as_usize() & Page::<Size1G>::MASK));
+            return Some((
+                table[index].address() + (a.as_usize() & Page::<Size1G>::MASK),
+                table[index].flags(),
+                3,
+            ));
         }
         // P2
         let table = table.get_next_table(index).unwrap();
@@ -169,7 +264,11 @@ impl PageTable<L4> {
             return None;
         }
         if table[index].is_block() {
-            return Some(table[index].address() + (a.as_usize() & Page::<Size2M>::MASK));
+            return Some((
+                table[index].address() + (a.as_usize() & Page::<Size2M>::MASK),
+                table[index].flags(),
+                2,
+            ));
         }
         // P1
         let table = table.get_next_table(index).unwrap();
@@ -177,8 +276,16 @@ impl PageTable<L4> {
         if table[index].is_empty() {
             return None;
         } else {
-            return Some(table[index].address() + (a.as_usize() & Page::<Size4K>::MASK));
+            return Some((
+                table[index].address() + (a.as_usize() & Page::<Size4K>::MASK),
+                table[index].flags(),
+                1,
+            ));
         }
+    }
+
+    pub fn translate(&mut self, a: Address<V>) -> Option<Address<P>> {
+        self.translate_with_flags(a).map(|(p, _, _)| p)
     }
 
     pub fn identity_map<S: PageSize>(
@@ -274,5 +381,16 @@ impl PageTable<L4> {
         pa.dealloc::<S>(Page::new(p3.into()));
         // Clear P4 entry
         p4[p4_index].clear();
+    }
+
+    pub fn copy_on_write<S: PageSize>(&mut self, page: Page<S>, pa: &impl PageAllocator<P>) {
+        let (a, mut flags, _) = self.translate_with_flags(page.start()).unwrap();
+        flags = flags.remove(PageFlags::NO_WRITE);
+        flags = flags.remove(PageFlags::COPY_ON_WRITE);
+        let b = pa.alloc::<S>().unwrap();
+        unsafe {
+            core::ptr::copy_nonoverlapping::<u8>(a.as_ptr(), b.start().as_mut_ptr(), S::BYTES);
+        }
+        self.map(page, b, flags, pa);
     }
 }

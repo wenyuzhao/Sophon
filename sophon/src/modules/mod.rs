@@ -13,7 +13,7 @@ use self::services::KernelService;
 mod named_modules;
 mod services;
 
-pub use named_modules::{INTERRUPT, PROCESS_MANAGER, SCHEDULER, TIMER, VFS};
+pub use named_modules::{INTERRUPT, TIMER, VFS};
 
 struct KernelModule {
     _name: String,
@@ -81,6 +81,9 @@ pub fn register(name: &str, elf: Vec<u8>) {
 pub fn raw_module_call(module: &str, privileged: bool, args: [usize; 4]) -> isize {
     // log!("module call #{} {:x?}", module, args);
     let _guard = ::interrupt::uninterruptible();
+    if !MODULE_NAMES.read().contains_key(module) {
+        panic!("module not found: {}", module);
+    }
     let id = *MODULE_NAMES.read().get(module).unwrap();
     let modules_ptr = MODULES.read()[id]
         .as_ref()

@@ -1,7 +1,7 @@
 use boot::BootInfo;
+use klib::task::Task;
 use memory::address::*;
 use memory::page_table::PageTable;
-use proc::Task;
 
 #[allow(unused)]
 #[inline]
@@ -18,6 +18,7 @@ pub trait ArchContext: Sized + 'static {
     fn empty() -> Self;
     fn new(entry: *const extern "C" fn(ctx: *mut ()) -> !, ctx: *mut ()) -> Self;
     fn set_response_status(&self, s: isize);
+    fn fork(&self) -> Self;
 
     unsafe extern "C" fn return_to_user(&self) -> !;
     unsafe fn enter_usermode(

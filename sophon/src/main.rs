@@ -30,19 +30,19 @@ use core::panic::PanicInfo;
 use crate::arch::{Arch, TargetArch};
 use crate::memory::kernel::{KernelHeapAllocator, KERNEL_HEAP};
 use crate::memory::physical::PHYSICAL_MEMORY;
-use crate::modules::{PROCESS_MANAGER, SCHEDULER};
-use crate::task::runnables::{Idle, UserTask};
-use ::vfs::ramfs::RamFS;
+use crate::task::proc::PROCESS_MANAGER;
 use alloc::boxed::Box;
 use boot::BootInfo;
 use device_tree::DeviceTree;
-use spin::Mutex;
+use spin::{Mutex, Once};
+use task::sched::SCHEDULER;
+use vfs::ramfs::RamFS;
 
 #[global_allocator]
 static ALLOCATOR: KernelHeapAllocator = KernelHeapAllocator;
 
 static mut DEV_TREE: Option<DeviceTree<'static, 'static>> = None;
-static mut INIT_FS: Option<*mut RamFS> = None;
+static INIT_FS: Once<&'static RamFS> = Once::new();
 
 fn display_banner() {
     let ver = env!("CARGO_PKG_VERSION");
@@ -61,10 +61,8 @@ const ALL_MODULES: &'static [(&'static str, &'static str)] = &[
     ("gic", "/etc/modules/libgic.so"),
     ("gic-timer", "/etc/modules/libgic_timer.so"),
     ("vfs", "/etc/modules/libvfs.so"),
-    ("pm", "/etc/modules/libpm.so"),
     ("dev", "/etc/modules/libdev.so"),
     ("pl011", "/etc/modules/libpl011.so"),
-    ("round-robin", "/etc/modules/libround_robin.so"),
 ];
 
 #[no_mangle]
@@ -98,8 +96,8 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     TargetArch::init(boot_info);
 
     info!("load init-fs");
-    let initfs = Box::leak(Box::new(RamFS::deserialize(boot_info.init_fs)));
-    unsafe { INIT_FS = Some(initfs) };
+    INIT_FS.call_once(|| Box::leak(Box::new(RamFS::deserialize(boot_info.init_fs))));
+    let initfs = *INIT_FS.get().unwrap();
 
     info!("load kernel modules...");
     for (name, path) in ALL_MODULES {
@@ -109,18 +107,15 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> isize {
     }
     info!("kernel modules loaded");
 
-    info!("start idle process");
-    let _proc = PROCESS_MANAGER.spawn(Box::new(Idle));
+    info!("start sched process (pid=0)");
+    PROCESS_MANAGER.spawn_sched_process();
 
-    info!("start init process");
-    let init = initfs.get("/bin/init").unwrap().as_file().unwrap().to_vec();
-    let _proc = UserTask::spawn_user_process(init.to_vec(), &[]);
+    info!("start init process (pid=1)");
+    let _proc = PROCESS_MANAGER.spawn_init_process();
 
     if cfg!(sophon_test) {
         info!("run boot tests");
         crate::utils::testing::run_boot_tests();
-        info!("start kernel test runner");
-        crate::utils::testing::start_kernel_test_runner();
     }
 
     info!("start scheduler");

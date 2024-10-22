@@ -21,54 +21,50 @@ pub trait AbstractRawCondvar {
 }
 
 pub struct RawMutex {
-    raw: OpaqueMutexPointer,
+    _raw: OpaqueMutexPointer,
 }
 
 impl RawMutex {
     pub fn new() -> Self {
-        Self {
-            raw: syscall::mutex_create(),
-        }
+        unimplemented!()
     }
 
     pub fn lock(&self) {
-        syscall::mutex_lock(self.raw);
+        unimplemented!()
     }
 
     pub fn unlock(&self) {
-        syscall::mutex_unlock(self.raw);
+        unimplemented!()
     }
 }
 
 impl Drop for RawMutex {
     fn drop(&mut self) {
-        syscall::mutex_destroy(self.raw);
+        unimplemented!()
     }
 }
 
 pub struct RawCondvar {
-    raw: OpaqueCondvarPointer,
+    _raw: OpaqueCondvarPointer,
 }
 
 impl RawCondvar {
     pub fn new() -> Self {
-        Self {
-            raw: syscall::condvar_create(),
-        }
+        unimplemented!()
     }
 
-    pub fn wait(&self, mutex: &RawMutex) {
-        syscall::condvar_wait(self.raw, mutex.raw);
+    pub fn wait(&self, _mutex: &RawMutex) {
+        unimplemented!()
     }
 
     pub fn notify_all(&self) {
-        syscall::condvar_notify_all(self.raw);
+        unimplemented!()
     }
 }
 
 impl Drop for RawCondvar {
     fn drop(&mut self) {
-        syscall::condvar_destory(self.raw);
+        unimplemented!()
     }
 }
 

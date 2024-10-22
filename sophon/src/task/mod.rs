@@ -1,17 +1,19 @@
 pub mod proc;
 pub mod runnables;
+pub mod sched;
 pub mod syscall;
+pub mod user;
 
 pub use self::proc::*;
-use crate::modules::PROCESS_MANAGER;
-use ::proc::Runnable;
-pub use ::proc::{ProcId, TaskId};
+pub use klib::proc::PID;
+use klib::task::Runnable;
+use sched::SCHEDULER;
 
 #[allow(invalid_reference_casting)]
 pub extern "C" fn entry(_ctx: *mut ()) -> ! {
     let runnable = unsafe {
-        let task = PROCESS_MANAGER.current_task();
-        let runnable_ptr = task.as_ref().unwrap().runnable.as_ref() as *const dyn Runnable;
+        let task = SCHEDULER.get_current_task().unwrap();
+        let runnable_ptr = task.runnable.as_ref().unwrap().as_ref() as *const dyn Runnable;
         &mut *(runnable_ptr as *mut dyn Runnable)
     };
     runnable.run()

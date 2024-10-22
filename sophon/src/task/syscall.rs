@@ -1,11 +1,9 @@
-use super::runnables::UserTask;
+use super::proc::PROCESS_MANAGER;
+use super::sched::SCHEDULER;
 use crate::arch::Arch;
-use crate::modules::PROCESS_MANAGER;
-use crate::{arch::TargetArch, modules::SCHEDULER};
-use alloc::vec;
+use crate::arch::TargetArch;
 use memory::page::{PageSize, Size4K};
 use syscall::Syscall;
-use vfs::{Fd, VFSRequest};
 
 // =====================
 // ===   Syscalls   ===
@@ -33,6 +31,7 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
         )
         .map(|r| r.start.start().as_usize() as isize)
         .unwrap_or(-1),
+        Syscall::Fork => fork(a, b, c, d, e),
         Syscall::Exec => exec(a, b, c, d, e),
         Syscall::Exit => exit(a, b, c, d, e),
         Syscall::ThreadExit => thread_exit(a, b, c, d, e),
@@ -59,34 +58,21 @@ fn module_request<const PRIVILEGED: bool>(
     crate::modules::raw_module_call(s, PRIVILEGED, [b, c, d, e])
 }
 
+fn fork(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
+    let proc = PROCESS_MANAGER.current_proc().unwrap();
+    let child = PROCESS_MANAGER.fork(proc);
+    // we are still the parent
+    return child.id.0 as isize;
+}
+
 fn exec(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
     let path: &str = unsafe { &*(a as *const &str) };
     let args: &[&str] = unsafe { &*(b as *const &[&str]) };
-    let mut elf = vec![];
-    let fd = crate::modules::module_call("vfs", false, &VFSRequest::Open(path));
-    if fd < 0 {
-        return -1;
-    }
-    let mut buf = [0u8; 256];
-    loop {
-        let size =
-            crate::modules::module_call("vfs", false, &VFSRequest::Read(Fd(fd as _), &mut buf));
-        if size > 0 {
-            elf.extend_from_slice(&buf[0..size as usize]);
-        } else if size < 0 {
-            return -1;
-        } else {
-            break;
-        }
-    }
-    crate::modules::module_call("vfs", false, &VFSRequest::Close(Fd(fd as _)));
-    let proc = UserTask::spawn_user_process(elf, args);
-    proc.wait_for_completion();
-    proc.id().0 as _
+    PROCESS_MANAGER.exec(path, args)
 }
 
 fn exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
-    PROCESS_MANAGER.current_proc().unwrap().exit();
+    PROCESS_MANAGER.exit_current_proc();
     SCHEDULER.schedule()
 }
 
@@ -95,6 +81,7 @@ fn thread_exit(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     PROCESS_MANAGER.end_current_task();
     SCHEDULER.schedule()
 }
+
 fn halt(a: usize, _: usize, _: usize, _: usize, _: usize) -> isize {
     TargetArch::halt(a as _)
 }

@@ -2,7 +2,6 @@ use super::exception::ExceptionFrame;
 use crate::arch::*;
 use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::{KERNEL_STACK_PAGES, KERNEL_STACK_SIZE};
-use crate::task::proc::MMState;
 use alloc::vec;
 use alloc::vec::Vec;
 use atomic::Ordering;
@@ -117,6 +116,31 @@ impl ArchContext for AArch64Context {
         }
     }
 
+    fn fork(&self) -> Self {
+        let kernel_stack = KernelStack::new();
+        let mut eframes = vec![];
+        for f in self.exception_frames.lock().iter() {
+            let offset = self.kernel_stack_top as usize - (*f as usize);
+            let frame = (kernel_stack.range().end.as_usize() - offset) as *mut ExceptionFrame;
+            unsafe {
+                ptr::copy_nonoverlapping(*f, frame, 1);
+            }
+            eframes.push(frame);
+        }
+        let sp: *mut u8 = kernel_stack.range().end.as_mut_ptr();
+        println!("Forked EFRAMES {:?}", eframes);
+        println!("Forked SP {:?}", sp);
+
+        Self {
+            exception_frames: Mutex::new(eframes),
+            entry_pc: self.entry_pc,
+            kernel_stack: Some(kernel_stack),
+            kernel_stack_top: sp,
+            response_status: AtomicIsize::new(0),
+            response_status_set: AtomicBool::new(false),
+        }
+    }
+
     /// Create a new context with empty regs, given kernel stack,
     /// and current p4 table
     fn new(entry: *const extern "C" fn(a: *mut ()) -> !, ctx_ptr: *mut ()) -> Self {
@@ -139,8 +163,11 @@ impl ArchContext for AArch64Context {
     unsafe extern "C" fn return_to_user(&self) -> ! {
         assert!(!interrupt::is_enabled());
         // Switch page table
-        let p4 =
-            MMState::of(&*crate::modules::PROCESS_MANAGER.current_proc().unwrap()).get_page_table();
+        let p4 = crate::task::proc::PROCESS_MANAGER
+            .current_proc()
+            .unwrap()
+            .mem
+            .get_page_table();
         if p4 as *mut _ as u64 != TTBR0_EL1.get() {
             PageTable::set(p4);
         } else {
@@ -153,6 +180,7 @@ impl ArchContext for AArch64Context {
                 (self.kernel_stack_top as usize - ::core::mem::size_of::<ExceptionFrame>()) as _;
             (*frame).elr_el1 = self.entry_pc as _;
             (*frame).spsr_el1 = 0b0101;
+            trace!("New exception frame {:p}", frame);
             frame
         });
         // Set return value

@@ -1,13 +1,11 @@
-use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::alloc::Layout;
-use core::any::Any;
 use core::ops::{Deref, Range};
 use device_tree::DeviceTree;
 use interrupt::{InterruptController, TimerController};
+use klib::proc::{Process, PID};
 use memory::address::Address;
 use memory::page::{Frame, Page};
-use proc::TaskId;
-use sched::Scheduler;
 use syscall::RawModuleRequest;
 use testing::Tests;
 
@@ -27,15 +25,8 @@ pub trait KernelService: Send + Sync + 'static {
     fn alloc(&self, layout: Layout) -> Option<Address>;
     fn dealloc(&self, address: Address, layout: Layout);
 
-    // === Process === //
-    /// Get process manager.
-    fn process_manager(&self) -> &'static dyn proc::ProcessManager;
-    /// Set process manager.
-    fn set_process_manager(&self, process_manager: &'static dyn proc::ProcessManager);
     /// Kernel module panic handler.
     fn handle_panic(&self) -> !;
-    /// Create memory state
-    fn create_mm_state(&self) -> Box<dyn Any>;
 
     // === VFS === //
     /// Get VFS manager.
@@ -64,14 +55,10 @@ pub trait KernelService: Send + Sync + 'static {
     /// Get the current core.
     /// Returning `0` means its a BSP.
     fn current_core(&self) -> usize;
-    /// Return from kernel space to user space.
-    unsafe fn return_to_user(&self, task: TaskId) -> !;
-    /// Get the scheduler.
-    fn scheduler(&self) -> &'static dyn Scheduler;
-    /// Set the scheduler.
-    fn set_scheduler(&self, scheduler: &'static dyn Scheduler);
-    /// Arch-dependent task context
-    fn create_task_context(&self) -> Box<dyn Any>;
+
+    fn timer_tick(&self) -> !;
+    fn current_pid(&self) -> PID;
+    fn current_proc(&self) -> Option<Arc<Process>>;
 }
 
 #[repr(C)]

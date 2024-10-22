@@ -3,6 +3,9 @@
 
 #[macro_use]
 extern crate user;
+extern crate alloc;
+
+use alloc::boxed::Box;
 
 // static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -37,7 +40,23 @@ extern crate user;
 #[no_mangle]
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     println!("Init process start...");
-    println!("Launch tty...");
-    user::sys::exec("/bin/tty", &[]);
-    user::sys::exit()
+    // println!("Launch tty...");
+    let mut ptr = Box::new(233);
+    println!("Forking... ptr={:?} {:?}", ptr.as_ref() as *const i32, ptr);
+    let pid = user::sys::fork();
+    *ptr = 666;
+    println!(
+        "Forked: {} ptr={:?} {:?}",
+        pid,
+        ptr.as_ref() as *const i32,
+        ptr
+    );
+    if pid == 0 {
+        println!("I'm the child");
+        // user::sys::exec("/bin/tty", &[]);
+    } else {
+        println!("I'm the parent");
+    }
+    loop {}
+    // user::sys::exit()
 }

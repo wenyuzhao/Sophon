@@ -6,7 +6,7 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use proc::ProcId;
+use klib::proc::{Process, PID};
 use ramfs::RamFS;
 use syscall::{ModuleRequest, RawModuleRequest};
 
@@ -173,7 +173,8 @@ pub fn chdir(path: &str) -> Result<(), ()> {
 
 pub trait VFSManager {
     fn init(&self, ramfs: &'static mut RamFS);
-    fn register_process(&self, proc: ProcId, cwd: String) -> Box<dyn core::any::Any>;
-    fn deregister_process(&self, proc: ProcId);
+    fn register_process(&self, proc: PID, cwd: String) -> Box<dyn core::any::Any>;
+    fn deregister_process(&self, proc: PID);
     fn register_fs(&self, fs: &'static dyn FileSystem);
+    fn fork_process(&self, proc: &Process, new_proc: PID) -> Box<dyn core::any::Any>;
 }

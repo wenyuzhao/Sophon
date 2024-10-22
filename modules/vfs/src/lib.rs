@@ -16,7 +16,7 @@ use alloc::{
     borrow::ToOwned, boxed::Box, collections::BTreeMap, format, string::String, vec, vec::Vec,
 };
 use kernel_module::{kernel_module, KernelModule, SERVICE};
-use proc::{Proc, ProcId};
+use klib::proc::{Process, PID};
 use rootfs::ROOT_FS;
 use spin::{Mutex, RwLock};
 use vfs::{ramfs::RamFS, FileSystem, VFSManager, VFSRequest};
@@ -29,12 +29,12 @@ pub struct VFS {}
 impl VFS {
     #[inline]
     fn get_current_state(&self) -> Option<&Mutex<ProcData>> {
-        Some(self.get_state(&*SERVICE.process_manager().current_proc()?))
+        Some(self.get_state(&*SERVICE.current_proc()?))
     }
 
     #[inline]
-    fn get_state(&self, proc: &dyn Proc) -> &Mutex<ProcData> {
-        let state = proc.fs() as *const dyn Any;
+    fn get_state(&self, proc: &Process) -> &Mutex<ProcData> {
+        let state = proc.fs.as_ref() as *const dyn Any;
         unsafe { (*state).downcast_ref_unchecked::<Mutex<ProcData>>() }
     }
 }
@@ -44,14 +44,23 @@ impl VFSManager for VFS {
         ROOT_FS.init(ramfs);
     }
 
-    fn register_process(&self, _proc: ProcId, cwd: String) -> Box<dyn Any> {
+    fn register_process(&self, _proc: PID, cwd: String) -> Box<dyn Any> {
         Box::new(Mutex::new(ProcData::new(cwd)))
     }
 
-    fn deregister_process(&self, _proc: ProcId) {}
+    fn deregister_process(&self, _proc: PID) {}
 
     fn register_fs(&self, fs: &'static dyn FileSystem) {
         crate::FILE_SYSTEMS.write().insert(fs.name().to_owned(), fs);
+    }
+
+    fn fork_process(&self, proc: &Process, _new_proc: PID) -> Box<dyn core::any::Any> {
+        let proc_data = self.get_state(proc).lock();
+        Box::new(Mutex::new(ProcData {
+            nodes: proc_data.nodes.clone(),
+            cwd: proc_data.cwd.clone(),
+            files: proc_data.files,
+        }))
     }
 }
 

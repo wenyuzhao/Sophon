@@ -116,9 +116,11 @@ impl PageTableEntry {
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
+    /// Returns true if the entry is physically mapped.
     pub fn present(&self) -> bool {
         self.flags().contains(PageFlags::PRESENT)
     }
+    /// Returns true if this entry maps a large page (2M or 1G).
     pub fn is_block(&self) -> bool {
         !self.flags().contains(PageFlags::SMALL_PAGE)
     }

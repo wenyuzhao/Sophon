@@ -1,16 +1,55 @@
-use core::{iter::Step, ops::Range};
+use core::{
+    iter::Step,
+    ops::Range,
+    sync::atomic::{AtomicBool, AtomicPtr},
+};
 
-use crate::{memory::kernel::KERNEL_MEMORY_MAPPER, task::MMState};
+use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 
 use super::kernel::KERNEL_MEMORY_RANGE;
 use super::physical::PHYSICAL_MEMORY;
-use alloc::sync::Arc;
-use atomic::Ordering;
+use alloc::{boxed::Box, sync::Arc};
+use atomic::{Atomic, Ordering};
+use klib::proc::{MemSpace, Process};
 use memory::{
+    address::{Address, V},
     page::{Frame, Page, PageSize, Size1G, Size2M, Size4K},
     page_table::*,
 };
-use proc::Proc;
+
+pub fn fork_mem_space(mem: &MemSpace) -> Box<MemSpace> {
+    if !mem.has_user_page_table() {
+        // The process has no user space.
+        return Box::new(MemSpace {
+            page_table: AtomicPtr::new(mem.page_table.load(Ordering::SeqCst)),
+            has_user_page_table: AtomicBool::new(false),
+            highwater: Atomic::new(mem.highwater.load(Ordering::SeqCst)),
+        });
+    }
+    // Traverse the page table, set every entry to copy-on-write
+    let cloned_p4 = {
+        let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+        let page_table = mem.get_page_table();
+        fn mark_cow(entry: &mut PageTableEntry, _vaddr: Address<V>, _level: usize) {
+            if !entry.flags().contains(PageFlags::USER) {
+                return;
+            }
+            let mut flags = entry.flags();
+            flags |= PageFlags::COPY_ON_WRITE | PageFlags::NO_WRITE;
+            entry.update_flags(flags);
+        }
+        page_table.walk_mut(&mut mark_cow);
+        let page_table_cloned = page_table.clone(&PHYSICAL_MEMORY);
+        page_table_cloned.walk_mut(&mut mark_cow);
+        page_table_cloned
+    };
+    let mem_space = MemSpace {
+        page_table: AtomicPtr::new(cloned_p4),
+        has_user_page_table: AtomicBool::new(true),
+        highwater: Atomic::new(mem.highwater.load(Ordering::SeqCst)),
+    };
+    Box::new(mem_space)
+}
 
 pub fn release_user_page_table<L: TableLevel>(page_table: &mut PageTable<L>) {
     for i in 0..512 {
@@ -36,15 +75,14 @@ pub fn release_user_page_table<L: TableLevel>(page_table: &mut PageTable<L>) {
     PHYSICAL_MEMORY.release::<Size4K>(Frame::new(page_table.into()));
 }
 
-pub fn sbrk(proc: Arc<dyn Proc>, num_pages: usize) -> Option<Range<Page<Size4K>>> {
-    let result = MMState::of(&*proc).virtual_memory_highwater.fetch_update(
-        Ordering::SeqCst,
-        Ordering::SeqCst,
-        |old| {
+pub fn sbrk(proc: Arc<Process>, num_pages: usize) -> Option<Range<Page<Size4K>>> {
+    let result = proc
+        .mem
+        .highwater
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |old| {
             let old_aligned = old.align_up(Size4K::BYTES);
             Some(old_aligned + (num_pages << Size4K::LOG_BYTES))
-        },
-    );
+        });
     // log!("sbrk: {:?} {:?}", self.id, result);
     match result {
         Ok(a) => {
@@ -54,7 +92,7 @@ pub fn sbrk(proc: Arc<dyn Proc>, num_pages: usize) -> Option<Range<Page<Size4K>>
             debug_assert_eq!(old_top, start.start());
             // Map old_top .. end
             {
-                let page_table = MMState::of(&*proc).get_page_table();
+                let page_table = proc.mem.get_page_table();
                 let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
                 for page in start..end {
                     let frame = PHYSICAL_MEMORY.acquire().unwrap();

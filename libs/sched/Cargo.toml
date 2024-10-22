@@ -8,7 +8,6 @@ edition = { workspace = true }
 
 [dependencies]
 bytemuck = { workspace = true }
-proc = { path = "../proc" }
 
 [features]
 default = []
