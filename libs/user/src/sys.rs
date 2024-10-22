@@ -1,6 +1,6 @@
 pub use syscall::{ModuleRequest, Payload, RawModuleRequest};
 
-pub use syscall::{exec, exit, fork, halt, log, module_call, wait};
+pub use syscall::{exec, exit, fork, halt, log, module_call, waitpid};
 
 pub use vfs::{Fd, VFSRequest};
 

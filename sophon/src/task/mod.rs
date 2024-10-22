@@ -1,6 +1,7 @@
 pub mod proc;
 pub mod runnables;
 pub mod sched;
+pub mod sync;
 pub mod syscall;
 pub mod user;
 

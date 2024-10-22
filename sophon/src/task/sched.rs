@@ -109,7 +109,7 @@ impl Scheduler {
         ))
     }
 
-    pub fn sleep(&self) {
+    pub fn block_current_task(&self) {
         let _guard = interrupt::uninterruptible();
         let tid = self.get_current_task_id().unwrap();
         let task = self.get_task_by_id(tid);
@@ -119,7 +119,7 @@ impl Scheduler {
     }
 
     #[allow(unused)]
-    fn wake_up(&self, tid: TaskId) {
+    pub fn unblock_task(&self, tid: TaskId) {
         let _guard = interrupt::uninterruptible();
 
         let task = self.get_task_by_id(tid);
@@ -157,11 +157,11 @@ impl Scheduler {
             if task.as_ref().map(|t| t.id) != Some(next_task.id) {
                 //     static SYNC: Mutex<()> = Mutex::new(());
                 //     let _guard = SYNC.lock();
-                trace!(
-                    "Switch: {:?} -> {:?}",
-                    task.as_ref().map(|t| t.id),
-                    next_task.id
-                );
+                // trace!(
+                //     "Switch: {:?} -> {:?}",
+                //     task.as_ref().map(|t| t.id),
+                //     next_task.id
+                // );
             }
             // Run next task
             {

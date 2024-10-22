@@ -68,45 +68,41 @@ impl Drop for RawCondvar {
     }
 }
 
-pub struct RawMonitor {
-    lock: RawMutex,
-    cond: RawCondvar,
+pub struct SysMonitor {
+    _handle: Option<usize>,
 }
 
-impl RawMonitor {
+impl SysMonitor {
     pub fn new() -> Self {
-        Self {
-            lock: RawMutex::new(),
-            cond: RawCondvar::new(),
-        }
+        unreachable!();
     }
 
     pub fn lock(&self) {
-        self.lock.lock();
+        unreachable!()
     }
 
     pub fn unlock(&self) {
-        self.lock.unlock();
+        unreachable!()
     }
 
     pub fn wait(&self) {
-        self.cond.wait(&self.lock);
+        unreachable!()
     }
 
     pub fn notify_all(&self) {
-        self.cond.notify_all();
+        unreachable!()
     }
 }
 
 pub struct Monitor<T> {
-    raw: RawMonitor,
+    raw: SysMonitor,
     data: UnsafeCell<T>,
 }
 
 impl<T> Monitor<T> {
     pub fn new(value: T) -> Self {
         Self {
-            raw: RawMonitor::new(),
+            raw: SysMonitor::new(),
             data: UnsafeCell::new(value),
         }
     }

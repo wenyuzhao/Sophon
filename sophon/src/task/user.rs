@@ -147,5 +147,5 @@ pub fn exec(proc: Arc<Process>, elf: Vec<u8>, args: &[CString]) -> isize {
     core::mem::drop(proc);
     core::mem::drop(elf);
     // Enter usermode
-    super::user::enter_usermode(entry, stack_top, page_table, argc, argv)
+    super::user::enter_usermode(entry, stack_top, page_table, argc, argv);
 }

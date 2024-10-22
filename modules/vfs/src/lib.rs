@@ -193,6 +193,7 @@ impl KernelModule for VFS {
                 0
             }
             VFSRequest::Read(fd, buf) => {
+                // log!("vfs read start");
                 let mut proc_data = self.get_current_state().unwrap().lock();
                 let fdesc = match proc_data.nodes[fd.0 as usize].as_mut() {
                     Some(fd) => fd,
@@ -202,6 +203,7 @@ impl KernelModule for VFS {
                 let node = fdesc.node.clone();
                 let offset = fdesc.offset;
                 drop(proc_data);
+                // trace!("vfs read start");
                 match fs.read(&node, offset, buf) {
                     None => -1,
                     Some(v) => {
@@ -211,6 +213,7 @@ impl KernelModule for VFS {
                             None => return -1,
                         };
                         fdesc.offset += v;
+                        // SERVICE.log("read");
                         v as _
                     }
                 }

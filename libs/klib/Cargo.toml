@@ -13,6 +13,7 @@ spin = { workspace = true }
 log = { workspace = true }
 atomic = { workspace = true }
 memory = { path = "../memory" }
+crossbeam = { workspace = true }
 
 [features]
 default = []

@@ -53,9 +53,13 @@ pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     );
     if pid == 0 {
         println!("I'm the child");
-        // user::sys::exec("/bin/tty", &[]);
+        let status = user::sys::exec("/bin/tty", &[]);
+        println!("exec: {}", status);
     } else {
         println!("I'm the parent");
+        let mut exit_code = 0;
+        user::sys::waitpid(pid as _, &mut exit_code);
+        println!("init: Child exited with code {}", exit_code);
     }
     loop {}
     // user::sys::exit()

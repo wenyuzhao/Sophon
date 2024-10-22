@@ -10,7 +10,7 @@ use alloc::sync::Arc;
 use alloc::{vec, vec::Vec};
 use atomic::{Atomic, Ordering};
 use core::any::Any;
-use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize};
+use core::sync::atomic::{AtomicBool, AtomicIsize, AtomicPtr, AtomicUsize};
 use klib::proc::{MemSpace, Process, PID};
 use klib::task::{RunState, Runnable, Task, TaskId};
 use memory::page_table::PageTable;
@@ -19,6 +19,7 @@ use vfs::{Fd, VFSRequest};
 
 use super::runnables::Idle;
 use super::runnables::Init;
+use super::sync::SysMonitor;
 
 // impl Drop for MMState {
 //     fn drop(&mut self) {
@@ -68,6 +69,9 @@ impl ProcessManager {
             threads: Mutex::new(Vec::new()),
             mem: self.new_mem_space(),
             fs,
+            monitor: Box::new(SysMonitor::new()),
+            is_zombie: AtomicBool::new(false),
+            exit_code: AtomicIsize::new(0),
         });
         // Create main thread
         let ctx = SCHEDULER.create_task_context();
@@ -166,6 +170,12 @@ impl ProcessManager {
         //     self.live.notify_all();
         // }
         // Remove from scheduler
+        let monitor = proc.monitor.as_ref().downcast_ref::<SysMonitor>().unwrap();
+        monitor.lock();
+        proc.is_zombie.store(true, Ordering::SeqCst);
+        proc.exit_code.store(0, Ordering::SeqCst);
+        monitor.notify_all();
+        monitor.unlock();
         let threads = proc.threads.lock();
         for t in &*threads {
             SCHEDULER.remove_task(*t)
@@ -183,6 +193,9 @@ impl ProcessManager {
             threads: Mutex::new(Vec::new()),
             mem: crate::memory::utils::fork_mem_space(&proc.mem),
             fs,
+            monitor: Box::new(SysMonitor::new()),
+            is_zombie: AtomicBool::new(false),
+            exit_code: AtomicIsize::new(0),
         });
         trace!(
             "Created child process pid={:?} parent={:?}",
@@ -194,7 +207,6 @@ impl ProcessManager {
         let tid = TaskId(TASK_ID_COUNT.fetch_add(1, Ordering::SeqCst));
         let ctx = <TargetArch as Arch>::Context::of(&current_task).fork();
         ctx.set_response_status(0);
-        trace!("Created child context");
         let main = Task {
             id: tid,
             pid: child.id,
@@ -203,11 +215,9 @@ impl ProcessManager {
             context: Box::new(ctx),
             runnable: None,
         };
-        trace!("Created child task tid={:?}", tid);
         child.threads.lock().push(tid);
         self.procs.lock().insert(child.id, child.clone());
         SCHEDULER.register_new_task(Arc::new(main));
-        trace!("finishing");
         child
     }
 
@@ -215,6 +225,7 @@ impl ProcessManager {
         let mut elf = vec![];
         let fd = crate::modules::module_call("vfs", false, &VFSRequest::Open(path));
         if fd < 0 {
+            println!("load_elf_for_exec failed: fd={}", fd);
             return Err(());
         }
         let mut buf = [0u8; 256];
@@ -224,6 +235,7 @@ impl ProcessManager {
             if size > 0 {
                 elf.extend_from_slice(&buf[0..size as usize]);
             } else if size < 0 {
+                println!("load_elf_for_exec failed: size={}", size);
                 return Err(());
             } else {
                 break;
@@ -235,6 +247,7 @@ impl ProcessManager {
 
     pub fn exec(&self, path: &str, _args: &[&str]) -> isize {
         let Ok(elf) = self.load_elf_for_exec(path) else {
+            println!("exec failed: {}", path);
             return -1;
         };
         let proc = PROCESS_MANAGER.current_proc().unwrap();

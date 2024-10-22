@@ -79,7 +79,7 @@ pub fn register(name: &str, elf: Vec<u8>) {
 }
 
 pub fn raw_module_call(module: &str, privileged: bool, args: [usize; 4]) -> isize {
-    // log!("module call #{} {:x?}", module, args);
+    // trace!("module call #{} {:x?}", module, args);
     let _guard = ::interrupt::uninterruptible();
     if !MODULE_NAMES.read().contains_key(module) {
         panic!("module not found: {}", module);

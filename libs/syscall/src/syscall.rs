@@ -12,7 +12,7 @@ pub enum Syscall {
     /// Fork
     Fork,
     /// Wait for process to finish
-    Wait,
+    WaitPid,
     /// Eexcute a new process
     Exec,
     Sbrk,
@@ -64,8 +64,8 @@ pub fn module_call<'a>(module: &str, request: &'a impl ModuleRequest<'a>) -> isi
 }
 
 #[inline]
-pub fn wait() -> isize {
-    syscall(Syscall::Wait, &[])
+pub fn waitpid(pid: usize, exit_code: &mut isize) -> isize {
+    syscall(Syscall::WaitPid, &[pid, exit_code as *mut isize as usize])
 }
 
 #[inline]

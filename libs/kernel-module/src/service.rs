@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::alloc::Layout;
 use core::ops::{Deref, Range};
@@ -13,6 +14,8 @@ pub trait KernelService: Send + Sync + 'static {
     // === Logging === //
     fn log(&self, s: &str);
     fn set_sys_logger(&self, write: *mut dyn core::fmt::Write);
+
+    fn create_monitor(&self) -> Box<dyn super::monitor::SysMonitor>;
 
     // === Testing === //
     fn register_tests(&self, tests: Tests);

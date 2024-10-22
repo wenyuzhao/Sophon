@@ -10,7 +10,8 @@ extern crate alloc;
 
 mod call;
 mod heap;
-mod log;
+pub mod log;
+pub mod monitor;
 mod service;
 
 pub use ::log::*;

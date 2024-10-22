@@ -103,16 +103,17 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
             asm!("mrs {:x}, far_el1", out(reg) far);
             let mut elr: usize;
             asm!("mrs {:x}, elr_el1", out(reg) elr);
-            trace!("TASK {:?}", SCHEDULER.get_current_task().unwrap().id);
+            // trace!("TASK {:?}", SCHEDULER.get_current_task().unwrap().id);
             let mut handled = false;
             {
                 let pt = PageTable::get();
                 let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
                 let fault_addr = Address::<V>::from(far);
                 // Copy-on-write
-                if let Some((_, flags, level)) = pt.translate_with_flags(fault_addr) {
+                if let Some((_a, flags, level)) = pt.translate_with_flags(fault_addr) {
+                    // trace!("FAULT_FLAGS {:?} {:?} {:?}", fault_addr, flags, a);
                     if flags.contains(PageFlags::COPY_ON_WRITE) {
-                        trace!("COW {:?} {:?}", fault_addr, flags);
+                        // trace!("COW {:?} {:?}", fault_addr, flags);
                         match level {
                             1 => pt.copy_on_write::<Size4K>(
                                 Page::containing(fault_addr),
@@ -128,7 +129,6 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
                             ),
                             _ => unreachable!(),
                         }
-                        trace!("COW {:?} {:?} DONE", fault_addr, flags);
                         handled = true;
                     }
                 }

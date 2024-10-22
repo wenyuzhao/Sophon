@@ -1,6 +1,6 @@
 use core::{
     any::Any,
-    sync::atomic::{AtomicBool, AtomicPtr, Ordering},
+    sync::atomic::{AtomicBool, AtomicIsize, AtomicPtr, Ordering},
 };
 
 use alloc::{boxed::Box, vec::Vec};
@@ -25,6 +25,9 @@ pub struct Process {
     pub threads: Mutex<Vec<TaskId>>,
     pub mem: Box<MemSpace>,
     pub fs: Box<dyn Any>,
+    pub monitor: Box<dyn Any>,
+    pub is_zombie: AtomicBool,
+    pub exit_code: AtomicIsize,
 }
 
 pub struct MemSpace {

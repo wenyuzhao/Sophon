@@ -1,7 +1,11 @@
+use core::sync::atomic::Ordering;
+
 use super::proc::PROCESS_MANAGER;
 use super::sched::SCHEDULER;
 use crate::arch::Arch;
 use crate::arch::TargetArch;
+use crate::task::sync::SysMonitor;
+use klib::proc::PID;
 use memory::page::{PageSize, Size4K};
 use syscall::Syscall;
 
@@ -21,10 +25,7 @@ pub fn handle_syscall<const PRIVILEGED: bool>(
     match syscall {
         Syscall::Log => log(a, b, c, d, e),
         Syscall::ModuleCall => module_request::<PRIVILEGED>(a, b, c, d, e),
-        Syscall::Wait => {
-            SCHEDULER.sleep();
-            0
-        }
+        Syscall::WaitPid => waitpid(a, b, c, d, e),
         Syscall::Sbrk => crate::memory::utils::sbrk(
             PROCESS_MANAGER.current_proc().unwrap(),
             a >> Size4K::LOG_BYTES,
@@ -56,6 +57,24 @@ fn module_request<const PRIVILEGED: bool>(
     let string_pointer = a as *const &str;
     let s: &str = unsafe { &*string_pointer };
     crate::modules::raw_module_call(s, PRIVILEGED, [b, c, d, e])
+}
+
+fn waitpid(a: usize, b: usize, _: usize, _: usize, _: usize) -> isize {
+    let pid = PID(a);
+    let Some(proc) = PROCESS_MANAGER.get_proc_by_id(pid) else {
+        return -1;
+    };
+    let exit_code_pointer = b as *mut isize;
+    let monitor = proc.monitor.downcast_ref::<SysMonitor>().unwrap();
+    monitor.lock();
+    while !proc.is_zombie.load(Ordering::SeqCst) {
+        monitor.wait();
+    }
+    unsafe {
+        *exit_code_pointer = proc.exit_code.load(Ordering::SeqCst);
+    }
+    monitor.unlock();
+    0
 }
 
 fn fork(_: usize, _: usize, _: usize, _: usize, _: usize) -> isize {

@@ -91,9 +91,21 @@ impl TTY {
         } else {
             cmd.to_owned()
         };
-        if user::sys::exec(&cmd, args) == -1 {
-            // FIXME
-            println!("ERROR: command not found");
+        let pid = user::sys::fork();
+        if pid < 0 {
+            println!("ERROR: fork failed");
+            return;
+        }
+        if pid == 0 {
+            let err = user::sys::exec(&cmd, args);
+            if err != 0 {
+                println!("ERROR: command not found");
+            }
+            user::sys::exit();
+        } else {
+            let mut exit_code = 0;
+            let _ = user::sys::waitpid(pid as usize, &mut exit_code);
+            println!("Process exited with code {}", exit_code);
         }
     }
 
@@ -123,5 +135,6 @@ impl TTY {
 pub extern "C" fn _start(_argc: isize, _argv: *const *const u8) -> isize {
     let tty = TTY::new();
     tty.run();
+    println!("TTY exited.");
     user::sys::exit()
 }

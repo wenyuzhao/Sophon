@@ -5,7 +5,9 @@ use crate::memory::kernel::KERNEL_HEAP;
 use crate::memory::kernel::KERNEL_MEMORY_MAPPER;
 use crate::task::proc::PROCESS_MANAGER;
 use crate::task::sched::SCHEDULER;
+use crate::task::sync::SysMonitor;
 use crate::utils::testing::Tests;
+use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::alloc::GlobalAlloc;
 use core::iter::Step;
@@ -25,7 +27,30 @@ pub struct KernelService(pub usize);
 
 impl kernel_module::KernelService for KernelService {
     fn log(&self, s: &str) {
+        // trace!("KernelService::log: {}", s);
         print!("{}", s);
+    }
+
+    fn create_monitor(&self) -> alloc::boxed::Box<dyn kernel_module::monitor::SysMonitor> {
+        let handle = SysMonitor::new();
+        struct Wrapper {
+            handle: SysMonitor,
+        }
+        impl kernel_module::monitor::SysMonitor for Wrapper {
+            fn lock(&self) {
+                self.handle.lock();
+            }
+            fn unlock(&self) {
+                self.handle.unlock();
+            }
+            fn notify_all(&self) {
+                self.handle.notify_all();
+            }
+            fn wait(&self) {
+                self.handle.wait();
+            }
+        }
+        Box::new(Wrapper { handle })
     }
 
     fn set_sys_logger(&self, write: *mut dyn core::fmt::Write) {
