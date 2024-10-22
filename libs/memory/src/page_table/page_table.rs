@@ -173,6 +173,11 @@ impl PageTable<L4> {
     }
 
     #[inline]
+    pub fn is_set(pt: &Self) -> bool {
+        pt as *const Self == Self::get() as *const Self
+    }
+
+    #[inline]
     #[cfg(target_arch = "x86_64")]
     pub fn set(_p4: *mut Self) {
         unimplemented!()

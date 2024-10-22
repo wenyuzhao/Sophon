@@ -27,7 +27,7 @@ const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::BYTES;
 
 fn load_elf(page_table: &mut PageTable, elf_data: &[u8]) -> extern "C" fn(isize, *const *const u8) {
     let base = Address::<V>::from(0x200000);
-    let current_pt = PageTable::get();
+    assert!(PageTable::is_set(page_table));
     let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
         let start_page = Page::new(base);
         let num_pages = Page::steps_between(&pages.start, &pages.end).unwrap();
@@ -42,12 +42,11 @@ fn load_elf(page_table: &mut PageTable, elf_data: &[u8]) -> extern "C" fn(isize,
                 &PHYSICAL_MEMORY,
             );
         }
-        PageTable::set(page_table);
+        assert!(PageTable::is_set(page_table));
         start_page..Page::<Size4K>::forward(start_page, num_pages)
     })
     .unwrap();
-    PageTable::set(current_pt);
-    // log!("Entry: {:?}", entry.entry);
+    assert!(PageTable::is_set(page_table));
     unsafe { core::mem::transmute(entry.entry) }
 }
 
@@ -82,6 +81,11 @@ fn initialize_user_space(proc: &Process, elf: &[u8]) -> extern "C" fn(isize, *co
     // We enable the proc page table from now on
     PageTable::set(page_table);
     // Load ELF
+    let page_table = proc.mem.get_page_table();
+    assert_eq!(
+        page_table as *const PageTable,
+        PageTable::get() as *const PageTable
+    );
     let entry = load_elf(page_table, elf);
     entry
 }
