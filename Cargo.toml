@@ -13,7 +13,8 @@ members = [
     "modules/pl011",
     "modules/vfs",
     # Libraries
-    "libs/bitflags",
+    "libs/eflags",
+    "libs/eflags/macros",
     "libs/boot",
     "libs/dev",
     "libs/device-tree",
@@ -80,3 +81,4 @@ syn = { version = "1.0", features = ["full"] }
 bitmask-enum = "2.2.4"
 bytemuck = "1.19.0"
 log = "0.4.22"
+bitbag = "0.2.1"

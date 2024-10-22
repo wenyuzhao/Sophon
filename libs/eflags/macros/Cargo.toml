@@ -1,5 +1,5 @@
 [package]
-name = "bitflags"
+name = "eflags-macros"
 version = { workspace = true }
 authors = ["Wenyu Zhao <wenyu.zhao@anu.edu.au>"]
 edition = { workspace = true }

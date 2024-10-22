@@ -105,7 +105,7 @@ fn translate(p4: &mut PageTable<L4>, page: Page<Size4K>) -> Frame<Size4K> {
 fn identity_map_kernel_page_1g(
     p4: &mut PageTable<L4>,
     page: Option<Page<Size1G>>,
-    flags: PageFlags,
+    flags: PageFlagSet,
 ) {
     let addr = page.map(|x| x.start()).unwrap_or(Address::ZERO);
     let table = p4;
@@ -125,7 +125,7 @@ fn map_kernel_page_4k(
     p4: &mut PageTable<L4>,
     page: Page<Size4K>,
     frame: Frame<Size4K>,
-    flags: PageFlags,
+    flags: PageFlagSet,
 ) {
     fn get_next_table<L: TableLevel>(
         p: &mut PageTable<L>,

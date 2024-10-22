@@ -134,14 +134,6 @@ checksum = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
 
 [[package]]
 name = "bitflags"
-version = "0.0.3"
-dependencies = [
- "quote",
- "syn 1.0.98",
-]
-
-[[package]]
-name = "bitflags"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
@@ -318,6 +310,21 @@ version = "0.0.3"
 dependencies = [
  "fdt-rs",
  "memory",
+]
+
+[[package]]
+name = "eflags"
+version = "0.0.3"
+dependencies = [
+ "eflags-macros",
+]
+
+[[package]]
+name = "eflags-macros"
+version = "0.0.3"
+dependencies = [
+ "quote",
+ "syn 1.0.98",
 ]
 
 [[package]]
@@ -565,9 +572,9 @@ dependencies = [
 name = "memory"
 version = "0.0.3"
 dependencies = [
- "bitflags 0.0.3",
  "bytemuck",
  "cortex-a",
+ "eflags",
  "interrupt",
  "log",
  "spin",
@@ -603,9 +610,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.15"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "578ede34cf02f8924ab9447f50c28075b4d3e5b269972345e7e0372b38c6cdcd"
+checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
 ]
@@ -946,7 +953,7 @@ version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91f17ea8502a6bd414acb2bf5194f90ca4c48e33a2d18cb57eab3294d2050d99"
 dependencies = [
- "bitflags 2.6.0",
+ "bitflags",
  "cfg-if",
  "log",
  "ptr_meta",
@@ -973,7 +980,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b463030b802e1265a3800fab24df95d3229c202c2e408832a206f05b4d1496ca"
 dependencies = [
- "bitflags 2.6.0",
+ "bitflags",
  "ptr_meta",
  "uguid",
 ]

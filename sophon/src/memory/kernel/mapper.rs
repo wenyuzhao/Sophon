@@ -5,7 +5,7 @@ use core::ops::{Deref, DerefMut};
 use core::sync::atomic::AtomicPtr;
 use memory::address::{Address, P, V};
 use memory::page::*;
-use memory::page_table::{PageFlags, PageTable};
+use memory::page_table::{PageFlagSet, PageTable};
 
 pub struct KernelMemoryMapper {
     page_table: AtomicPtr<PageTable>,
@@ -33,7 +33,7 @@ impl KernelMemoryMapper {
     }
 
     /// Map a virtual page to a physical page
-    pub fn map<S: PageSize>(&self, page: Page<S>, frame: Frame<S>, flags: PageFlags) {
+    pub fn map<S: PageSize>(&self, page: Page<S>, frame: Frame<S>, flags: PageFlagSet) {
         debug_assert!(
             page.start() >= KERNEL_HEAP_RANGE.start && page.start() < KERNEL_HEAP_RANGE.end
         );

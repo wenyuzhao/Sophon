@@ -237,7 +237,7 @@ impl PageTable<L4> {
     pub fn translate_with_flags(
         &mut self,
         a: Address<V>,
-    ) -> Option<(Address<P>, PageFlags, usize)> {
+    ) -> Option<(Address<P>, PageFlagSet, usize)> {
         // P4
         let table = self;
         // P3
@@ -291,7 +291,7 @@ impl PageTable<L4> {
     pub fn identity_map<S: PageSize>(
         &mut self,
         frame: Frame<S>,
-        flags: PageFlags,
+        flags: PageFlagSet,
         pa: &impl PageAllocator<P>,
     ) -> Page<S> {
         self.map(Page::new(frame.start().as_usize().into()), frame, flags, pa)
@@ -301,7 +301,7 @@ impl PageTable<L4> {
         &mut self,
         page: Page<S>,
         frame: Frame<S>,
-        flags: PageFlags,
+        flags: PageFlagSet,
         pa: &impl PageAllocator<P>,
     ) -> Page<S> {
         // P4
@@ -385,8 +385,8 @@ impl PageTable<L4> {
 
     pub fn copy_on_write<S: PageSize>(&mut self, page: Page<S>, pa: &impl PageAllocator<P>) {
         let (a, mut flags, _) = self.translate_with_flags(page.start()).unwrap();
-        flags = flags.remove(PageFlags::NO_WRITE);
-        flags = flags.remove(PageFlags::COPY_ON_WRITE);
+        flags = flags - PageFlags::NO_WRITE;
+        flags = flags - PageFlags::COPY_ON_WRITE;
         let b = pa.alloc::<S>().unwrap();
         unsafe {
             core::ptr::copy_nonoverlapping::<u8>(a.as_ptr(), b.start().as_mut_ptr(), S::BYTES);

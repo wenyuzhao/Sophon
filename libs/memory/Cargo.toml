@@ -10,10 +10,10 @@ edition = { workspace = true }
 bytemuck = { workspace = true }
 spin = { workspace = true }
 tock-registers = { workspace = true }
-bitflags = { path = "../bitflags" }
 interrupt = { path = "../interrupt" }
 log = { workspace = true }
 syscall = { path = "../syscall" }
+eflags = { path = "../eflags" }
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 cortex-a = { workspace = true }

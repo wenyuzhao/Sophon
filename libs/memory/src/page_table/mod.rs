@@ -1,14 +1,14 @@
 mod page_table;
 
-pub use page_table::*;
-
 use crate::address::*;
 use crate::page::*;
-use bitflags::bitflags;
 use core::fmt::Debug;
+use eflags::eflags;
+
+pub use page_table::*;
 
 #[allow(unused, non_camel_case_types)]
-#[bitflags(u64)]
+#[eflags(u64)]
 pub enum PageFlags {
     PRESENT = 0b01,          // map a 4k page
     SMALL_PAGE = 0b10,       // map a 4k page
@@ -24,8 +24,10 @@ pub enum PageFlags {
     NO_CACHE = 0b10 << 2,
 }
 
+pub type PageFlagSet = eflags::FlagSet<PageFlags>;
+
 impl PageFlags {
-    pub fn page_table_flags() -> PageFlags {
+    pub fn page_table_flags() -> PageFlagSet {
         PageFlags::NORMAL_MEMORY
             | PageFlags::PRESENT
             | PageFlags::SMALL_PAGE
@@ -33,7 +35,7 @@ impl PageFlags {
             | PageFlags::ACCESSED
             | PageFlags::USER
     }
-    pub fn kernel_data_flags<S: PageSize>() -> PageFlags {
+    pub fn kernel_data_flags<S: PageSize>() -> PageFlagSet {
         let mut flags = PageFlags::NORMAL_MEMORY
             | PageFlags::PRESENT
             | PageFlags::ACCESSED
@@ -43,34 +45,34 @@ impl PageFlags {
         }
         flags
     }
-    pub fn kernel_data_flags_1g() -> PageFlags {
+    pub fn kernel_data_flags_1g() -> PageFlagSet {
         Self::kernel_data_flags::<Size1G>()
     }
-    pub fn kernel_data_flags_2m() -> PageFlags {
+    pub fn kernel_data_flags_2m() -> PageFlagSet {
         Self::kernel_data_flags::<Size2M>()
     }
-    pub fn kernel_data_flags_4k() -> PageFlags {
+    pub fn kernel_data_flags_4k() -> PageFlagSet {
         Self::kernel_data_flags::<Size4K>()
     }
-    pub fn kernel_code_flags_1g() -> PageFlags {
+    pub fn kernel_code_flags_1g() -> PageFlagSet {
         Self::kernel_code_flags_2m()
     }
-    pub fn kernel_code_flags_2m() -> PageFlags {
+    pub fn kernel_code_flags_2m() -> PageFlagSet {
         PageFlags::NORMAL_MEMORY | PageFlags::PRESENT | PageFlags::ACCESSED | PageFlags::OUTER_SHARE
     }
-    pub fn kernel_code_flags_4k() -> PageFlags {
+    pub fn kernel_code_flags_4k() -> PageFlagSet {
         Self::kernel_code_flags_2m() | PageFlags::SMALL_PAGE
     }
-    pub fn user_code_flags_2m() -> PageFlags {
+    pub fn user_code_flags_2m() -> PageFlagSet {
         Self::kernel_code_flags_2m() | PageFlags::USER
     }
-    pub fn user_code_flags_4k() -> PageFlags {
+    pub fn user_code_flags_4k() -> PageFlagSet {
         Self::kernel_code_flags_4k() | PageFlags::USER
     }
-    pub fn user_data_flags_4k() -> PageFlags {
+    pub fn user_data_flags_4k() -> PageFlagSet {
         Self::kernel_data_flags_4k() | PageFlags::USER
     }
-    pub fn user_stack_flags() -> PageFlags {
+    pub fn user_stack_flags() -> PageFlagSet {
         PageFlags::NORMAL_MEMORY
             | PageFlags::PRESENT
             | PageFlags::SMALL_PAGE
@@ -78,7 +80,7 @@ impl PageFlags {
             | PageFlags::ACCESSED
             | PageFlags::USER
     }
-    pub fn device() -> PageFlags {
+    pub fn device() -> PageFlagSet {
         PageFlags::DEVICE_MEMORY
             | PageFlags::PRESENT
             | PageFlags::SMALL_PAGE
@@ -127,25 +129,25 @@ impl PageTableEntry {
     pub fn address(&self) -> Address<P> {
         ((unsafe { core::ptr::read_volatile(&self.0) } & Self::ADDRESS_MASK) as usize).into()
     }
-    pub fn flags(&self) -> PageFlags {
+    pub fn flags(&self) -> PageFlagSet {
         let v = unsafe { core::ptr::read_volatile(&self.0) } & Self::FLAGS_MASK;
-        PageFlags::from(v)
+        PageFlagSet::from_raw(v)
     }
-    pub fn update_flags(&mut self, new_flags: PageFlags) {
-        let v = self.address().as_usize() as u64 | new_flags.value;
+    pub fn update_flags(&mut self, new_flags: PageFlagSet) {
+        let v = self.address().as_usize() as u64 | new_flags.value();
         unsafe {
             core::ptr::write_volatile(&mut self.0, v);
         }
     }
-    pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlags) {
+    pub fn set<S: PageSize>(&mut self, frame: Frame<S>, flags: PageFlagSet) {
         if S::BYTES != Size4K::BYTES {
-            debug_assert!(flags.value & 0b10 == 0);
+            debug_assert!(flags.value() & 0b10 == 0);
         } else {
-            debug_assert!(flags.value & 0b10 == 0b10);
+            debug_assert!(flags.value() & 0b10 == 0b10);
         }
         let mut a = frame.start().as_usize();
         a &= !(0xffff_0000_0000_0000);
-        let v = a as u64 | flags.value;
+        let v = a as u64 | flags.value();
         unsafe {
             core::ptr::write_volatile(&mut self.0, v);
         }
