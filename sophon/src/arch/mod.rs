@@ -22,6 +22,7 @@ pub trait ArchContext: Sized + 'static {
 
     unsafe extern "C" fn return_to_user(&self) -> !;
     unsafe fn enter_usermode(
+        &self,
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,
         page_table: &mut PageTable,

@@ -79,6 +79,48 @@ pub struct ExceptionFrame {
     pub x1: usize,
 }
 
+impl Default for ExceptionFrame {
+    fn default() -> Self {
+        Self {
+            q: [0; 32],
+            elr_el1: core::ptr::null_mut(),
+            spsr_el1: 0,
+            x30: 0,
+            sp_el0: 0,
+            x28: 0,
+            x29: 0,
+            x26: 0,
+            x27: 0,
+            x24: 0,
+            x25: 0,
+            x22: 0,
+            x23: 0,
+            x20: 0,
+            x21: 0,
+            x18: 0,
+            x19: 0,
+            x16: 0,
+            x17: 0,
+            x14: 0,
+            x15: 0,
+            x12: 0,
+            x13: 0,
+            x10: 0,
+            x11: 0,
+            x8: 0,
+            x9: 0,
+            x6: 0,
+            x7: 0,
+            x4: 0,
+            x5: 0,
+            x2: 0,
+            x3: 0,
+            x0: 0,
+            x1: 0,
+        }
+    }
+}
+
 unsafe fn get_exception_class() -> ExceptionClass {
     let esr_el1: u32;
     asm!("mrs {:x}, esr_el1", out(reg) esr_el1);
@@ -91,7 +133,6 @@ unsafe fn is_el0(frame: &ExceptionFrame) -> bool {
 
 #[no_mangle]
 pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) {
-    // trace!("Exception received");
     let privileged = !is_el0(exception_frame);
     AArch64Context::of(&*SCHEDULER.get_current_task().unwrap())
         .push_exception_frame(exception_frame);
@@ -171,13 +212,17 @@ pub unsafe extern "C" fn handle_exception(exception_frame: &mut ExceptionFrame) 
                     "Data Abort: FAR={:?} ELR={:?} PRIV={:?} TID={:?} PID={:?}",
                     far as *mut (), elr as *mut (), privileged, task.id, proc.id
                 );
+                let translation = {
+                    let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
+                    PageTable::get().translate_with_flags(far.into())
+                };
                 error!(
-                    "PageTable: proc={:?} curr={:?} kernel={:?}",
-                    proc_p4, curr_p4, kern_p4
+                    "PageTable: proc={:?} curr={:?} kernel={:?} translation={:?}",
+                    proc_p4, curr_p4, kern_p4, translation
                 );
                 error!("SP_EL0: {:#x?}", exception_frame.sp_el0);
                 error!("REGS: {:#x?}", exception_frame);
-                unreachable!()
+                panic!()
             }
         }
         #[allow(unreachable_patterns)]

@@ -19,6 +19,7 @@ use memory::{
 
 pub fn fork_mem_space(mem: &MemSpace) -> Box<MemSpace> {
     if !mem.has_user_page_table() {
+        warn!("fork_mem_space: no user page table");
         // The process has no user space.
         return Box::new(MemSpace {
             page_table: AtomicPtr::new(mem.page_table.load(Ordering::SeqCst)),

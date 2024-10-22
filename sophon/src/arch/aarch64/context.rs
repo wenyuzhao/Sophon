@@ -128,8 +128,6 @@ impl ArchContext for AArch64Context {
             eframes.push(frame);
         }
         let sp: *mut u8 = kernel_stack.range().end.as_mut_ptr();
-        println!("Forked EFRAMES {:?}", eframes);
-        println!("Forked SP {:?}", sp);
 
         Self {
             exception_frames: Mutex::new(eframes),
@@ -198,6 +196,7 @@ impl ArchContext for AArch64Context {
     }
 
     unsafe fn enter_usermode(
+        &self,
         entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
         sp: Address,
         page_table: &mut PageTable,
@@ -219,6 +218,7 @@ impl ArchContext for AArch64Context {
                 msr	ttbr0_el1, {3}
                 mov x0, {4}
                 mov x1, {5}
+                mov sp, {6}
                 tlbi vmalle1is
                 dsb sy
                 isb sy
@@ -230,6 +230,7 @@ impl ArchContext for AArch64Context {
             in(reg) page_table as *const _,
             in(reg) argc,
             in(reg) argv,
+            in(reg) self.kernel_stack_top,
         }
         unreachable!()
     }

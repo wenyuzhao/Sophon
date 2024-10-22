@@ -27,6 +27,7 @@ const USER_STACK_SIZE: usize = USER_STACK_PAGES * Size4K::BYTES;
 
 fn load_elf(page_table: &mut PageTable, elf_data: &[u8]) -> extern "C" fn(isize, *const *const u8) {
     let base = Address::<V>::from(0x200000);
+    let current_pt = PageTable::get();
     let entry = elf_loader::ELFLoader::load(elf_data, &mut |pages| {
         let start_page = Page::new(base);
         let num_pages = Page::steps_between(&pages.start, &pages.end).unwrap();
@@ -45,18 +46,21 @@ fn load_elf(page_table: &mut PageTable, elf_data: &[u8]) -> extern "C" fn(isize,
         start_page..Page::<Size4K>::forward(start_page, num_pages)
     })
     .unwrap();
+    PageTable::set(current_pt);
     // log!("Entry: {:?}", entry.entry);
     unsafe { core::mem::transmute(entry.entry) }
 }
 
-pub fn initialize_user_space(proc: &Process, elf: &[u8]) -> extern "C" fn(isize, *const *const u8) {
+fn initialize_user_space(proc: &Process, elf: &[u8]) -> extern "C" fn(isize, *const *const u8) {
     // Initialize addr space, page table and load ELF
     debug_assert_eq!(proc.id, PROCESS_MANAGER.current_proc().unwrap().id);
     // User page table
     let _guard = KERNEL_MEMORY_MAPPER.with_kernel_address_space();
     if proc.mem.has_user_page_table() {
-        let page_table = proc.mem.get_page_table();
-        page_table.release(&PHYSICAL_MEMORY);
+        let _page_table = proc.mem.get_page_table();
+        // Buggy: this will release COW user pages but should not
+        // TODO: RC count for all shared user pages
+        // page_table.release(&PHYSICAL_MEMORY);
     }
     let page_table = {
         let page_table = PageTable::alloc(&PHYSICAL_MEMORY);
@@ -72,9 +76,11 @@ pub fn initialize_user_space(proc: &Process, elf: &[u8]) -> extern "C" fn(isize,
             crate::memory::USER_SPACE_MEMORY_RANGE.start,
             Ordering::SeqCst,
         );
-        PageTable::set(page_table);
         page_table
     };
+    core::mem::drop(_guard);
+    // We enable the proc page table from now on
+    PageTable::set(page_table);
     // Load ELF
     let entry = load_elf(page_table, elf);
     entry
@@ -121,14 +127,22 @@ pub fn prepare_args(
     (argc as isize, stack_top.as_ptr::<*const u8>(), stack_top)
 }
 
-pub fn enter_usermode(
+fn enter_usermode(
     entry: extern "C" fn(_argc: isize, _argv: *const *const u8),
     sp: Address,
     page_table: &mut PageTable,
     argc: isize,
     argv: *const *const u8,
 ) -> ! {
-    unsafe { <TargetArch as Arch>::Context::enter_usermode(entry, sp, page_table, argc, argv) }
+    let _guard = interrupt::disable();
+    let task = SCHEDULER.get_current_task().unwrap();
+    let context_ptr = unsafe {
+        task.context
+            .downcast_ref_unchecked::<<TargetArch as Arch>::Context>()
+            as *const <TargetArch as Arch>::Context
+    };
+    core::mem::drop(task);
+    unsafe { (*context_ptr).enter_usermode(entry, sp, page_table, argc, argv) }
 }
 
 /// execve: Replace the current process with a new process.

@@ -185,7 +185,6 @@ impl ProcessManager {
     }
 
     pub fn fork(&self, proc: Arc<Process>) -> Arc<Process> {
-        trace!("Forking process");
         let child_pid = PID(COUNTER.fetch_add(1, Ordering::SeqCst));
         let fs = VFS.fork_process(&proc, child_pid);
         let child = Arc::new(Process {
@@ -198,7 +197,7 @@ impl ProcessManager {
             exit_code: AtomicIsize::new(0),
         });
         trace!(
-            "Created child process pid={:?} parent={:?}",
+            "Fork: Created child process pid={:?} parent={:?}",
             child.id,
             proc.id
         );
